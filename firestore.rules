@@ -1,0 +1,50 @@
+rules_version = '2';
+// 築跡 Buildprint — who can read and write what.
+// Paste this whole file into Firebase → Firestore Database → 規則 (Rules) → 發布 (Publish) every time it changes.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin()  { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function isMember() { return signedIn() && exists(/databases/$(database)/documents/members/$(request.auth.uid)); }
+    function role()     { return get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role; }
+    function canRead()  { return isAdmin() || isMember(); }
+    function canWrite() { return isAdmin() || (isMember() && role() == 'edit'); }
+    function self(uid)  { return signedIn() && request.auth.uid == uid; }
+
+    // admins are added by hand in the Firebase console (Firestore → admins → document ID = the person's UID)
+    match /admins/{uid} { allow get: if self(uid); }
+
+    // invite codes: anyone signed in may look up one code they were given, only admins can list or change them
+    match /joinCodes/{code} { allow get: if signedIn(); allow list, write: if isAdmin(); }
+    match /settings/{doc}   { allow read, write: if isAdmin(); }
+
+    // joining: you may add only yourself, only with a real invite code, and only with that code's role
+    match /members/{uid} {
+      allow read: if self(uid) || isAdmin();
+      allow create: if self(uid)
+        && request.resource.data.keys().hasOnly(['role', 'code', 'name', 'email', 'at'])
+        && exists(/databases/$(database)/documents/joinCodes/$(request.resource.data.code))
+        && request.resource.data.role == get(/databases/$(database)/documents/joinCodes/$(request.resource.data.code)).data.role;
+      allow update, delete: if isAdmin();
+    }
+    match /profiles/{uid} { allow read: if canRead() || self(uid); allow write: if self(uid) || isAdmin(); }
+
+    // site data
+    match /site/{doc}       { allow read: if canRead(); allow write: if canWrite(); }
+    match /reports/{date}   { allow read: if canRead(); allow write: if canWrite(); }
+    match /sites/{sid} {
+      allow read: if canRead(); allow write: if canWrite();
+      match /reports/{date} { allow read: if canRead(); allow write: if canWrite(); }
+    }
+    // 打卡: everyone in the team (including 只能看) punches only for themselves
+    match /punch/{uid}  { allow read: if canRead(); allow write: if (canRead() && self(uid)) || isAdmin(); }
+    // 使用紀錄: you write your own, only admins see everyone's
+    match /visits/{uid} { allow read: if isAdmin() || self(uid); allow write: if (canRead() && self(uid)) || isAdmin(); }
+
+    // photos and drawings (stored in pieces); files are never edited, only added
+    match /blobs/{id} {
+      allow read: if canRead(); allow create: if canWrite(); allow update, delete: if isAdmin();
+      match /parts/{p} { allow read: if canRead(); allow create: if canWrite(); allow update, delete: if isAdmin(); }
+    }
+  }
+}

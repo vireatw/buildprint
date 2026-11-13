@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 680" width="2000" height="1360">
+<rect width="1000" height="680" fill="#ffffff"/>
+<rect x="30" y="30" width="940" height="580" fill="none" stroke="#9aa3ab" stroke-width="2" stroke-dasharray="14 6 3 6"/>
+<rect x="966" y="430" width="8" height="140" fill="#ffffff"/>
+<text x="40" y="22" font-size="12" fill="#6b747c" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">基地境界線</text>
+<line x1="120" y1="80" x2="120" y2="530" stroke="#c0392b" stroke-width="1" stroke-dasharray="10 4 2 4"/>
+<line x1="300" y1="80" x2="300" y2="530" stroke="#c0392b" stroke-width="1" stroke-dasharray="10 4 2 4"/>
+<line x1="480" y1="80" x2="480" y2="530" stroke="#c0392b" stroke-width="1" stroke-dasharray="10 4 2 4"/>
+<line x1="660" y1="80" x2="660" y2="530" stroke="#c0392b" stroke-width="1" stroke-dasharray="10 4 2 4"/>
+<line x1="840" y1="80" x2="840" y2="530" stroke="#c0392b" stroke-width="1" stroke-dasharray="10 4 2 4"/>
+<line x1="90" y1="110" x2="870" y2="110" stroke="#c0392b" stroke-width="1" stroke-dasharray="10 4 2 4"/>
+<line x1="90" y1="240" x2="870" y2="240" stroke="#c0392b" stroke-width="1" stroke-dasharray="10 4 2 4"/>
+<line x1="90" y1="370" x2="870" y2="370" stroke="#c0392b" stroke-width="1" stroke-dasharray="10 4 2 4"/>
+<line x1="90" y1="500" x2="870" y2="500" stroke="#c0392b" stroke-width="1" stroke-dasharray="10 4 2 4"/>
+<circle cx="120" cy="62" r="15" fill="#fff" stroke="#333" stroke-width="1.5"/><text x="120" y="67" font-size="15" text-anchor="middle" font-weight="700" fill="#222" font-family="sans-serif">A</text>
+<circle cx="300" cy="62" r="15" fill="#fff" stroke="#333" stroke-width="1.5"/><text x="300" y="67" font-size="15" text-anchor="middle" font-weight="700" fill="#222" font-family="sans-serif">B</text>
+<circle cx="480" cy="62" r="15" fill="#fff" stroke="#333" stroke-width="1.5"/><text x="480" y="67" font-size="15" text-anchor="middle" font-weight="700" fill="#222" font-family="sans-serif">C</text>
+<circle cx="660" cy="62" r="15" fill="#fff" stroke="#333" stroke-width="1.5"/><text x="660" y="67" font-size="15" text-anchor="middle" font-weight="700" fill="#222" font-family="sans-serif">D</text>
+<circle cx="840" cy="62" r="15" fill="#fff" stroke="#333" stroke-width="1.5"/><text x="840" y="67" font-size="15" text-anchor="middle" font-weight="700" fill="#222" font-family="sans-serif">E</text>
+<text x="210.0" y="92" font-size="11" text-anchor="middle" fill="#555" font-family="sans-serif">7,200</text>
+<text x="390.0" y="92" font-size="11" text-anchor="middle" fill="#555" font-family="sans-serif">7,200</text>
+<text x="570.0" y="92" font-size="11" text-anchor="middle" fill="#555" font-family="sans-serif">7,200</text>
+<text x="750.0" y="92" font-size="11" text-anchor="middle" fill="#555" font-family="sans-serif">7,200</text>
+<circle cx="72" cy="110" r="15" fill="#fff" stroke="#333" stroke-width="1.5"/><text x="72" y="115" font-size="15" text-anchor="middle" font-weight="700" fill="#222" font-family="sans-serif">1</text>
+<circle cx="72" cy="240" r="15" fill="#fff" stroke="#333" stroke-width="1.5"/><text x="72" y="245" font-size="15" text-anchor="middle" font-weight="700" fill="#222" font-family="sans-serif">2</text>
+<circle cx="72" cy="370" r="15" fill="#fff" stroke="#333" stroke-width="1.5"/><text x="72" y="375" font-size="15" text-anchor="middle" font-weight="700" fill="#222" font-family="sans-serif">3</text>
+<circle cx="72" cy="500" r="15" fill="#fff" stroke="#333" stroke-width="1.5"/><text x="72" y="505" font-size="15" text-anchor="middle" font-weight="700" fill="#222" font-family="sans-serif">4</text>
+<line x1="120" y1="110" x2="840" y2="110" stroke="#2b2f33" stroke-width="18" stroke-linecap="square"/>
+<line x1="120" y1="240" x2="840" y2="240" stroke="#2b2f33" stroke-width="18" stroke-linecap="square"/>
+<line x1="120" y1="370" x2="840" y2="370" stroke="#2b2f33" stroke-width="18" stroke-linecap="square"/>
+<line x1="120" y1="500" x2="840" y2="500" stroke="#2b2f33" stroke-width="18" stroke-linecap="square"/>
+<line x1="120" y1="110" x2="120" y2="500" stroke="#2b2f33" stroke-width="18" stroke-linecap="square"/>
+<line x1="300" y1="110" x2="300" y2="500" stroke="#2b2f33" stroke-width="18" stroke-linecap="square"/>
+<line x1="480" y1="110" x2="480" y2="500" stroke="#2b2f33" stroke-width="18" stroke-linecap="square"/>
+<line x1="660" y1="110" x2="660" y2="500" stroke="#2b2f33" stroke-width="18" stroke-linecap="square"/>
+<line x1="840" y1="110" x2="840" y2="500" stroke="#2b2f33" stroke-width="18" stroke-linecap="square"/>
+<line x1="120" y1="110" x2="840" y2="110" stroke="#f1ede2" stroke-width="12" stroke-linecap="square"/>
+<line x1="120" y1="240" x2="840" y2="240" stroke="#f1ede2" stroke-width="12" stroke-linecap="square"/>
+<line x1="120" y1="370" x2="840" y2="370" stroke="#f1ede2" stroke-width="12" stroke-linecap="square"/>
+<line x1="120" y1="500" x2="840" y2="500" stroke="#f1ede2" stroke-width="12" stroke-linecap="square"/>
+<line x1="120" y1="110" x2="120" y2="500" stroke="#f1ede2" stroke-width="12" stroke-linecap="square"/>
+<line x1="300" y1="110" x2="300" y2="500" stroke="#f1ede2" stroke-width="12" stroke-linecap="square"/>
+<line x1="480" y1="110" x2="480" y2="500" stroke="#f1ede2" stroke-width="12" stroke-linecap="square"/>
+<line x1="660" y1="110" x2="660" y2="500" stroke="#f1ede2" stroke-width="12" stroke-linecap="square"/>
+<line x1="840" y1="110" x2="840" y2="500" stroke="#f1ede2" stroke-width="12" stroke-linecap="square"/>
+<rect x="103" y="93" width="34" height="34" fill="#3a3f44"/>
+<rect x="103" y="223" width="34" height="34" fill="#3a3f44"/>
+<rect x="103" y="353" width="34" height="34" fill="#3a3f44"/>
+<rect x="103" y="483" width="34" height="34" fill="#3a3f44"/>
+<rect x="283" y="93" width="34" height="34" fill="#3a3f44"/>
+<rect x="283" y="223" width="34" height="34" fill="#3a3f44"/>
+<rect x="283" y="353" width="34" height="34" fill="#3a3f44"/>
+<rect x="283" y="483" width="34" height="34" fill="#3a3f44"/>
+<rect x="463" y="93" width="34" height="34" fill="#3a3f44"/>
+<rect x="463" y="223" width="34" height="34" fill="#3a3f44"/>
+<rect x="463" y="353" width="34" height="34" fill="#3a3f44"/>
+<rect x="463" y="483" width="34" height="34" fill="#3a3f44"/>
+<rect x="643" y="93" width="34" height="34" fill="#3a3f44"/>
+<rect x="643" y="223" width="34" height="34" fill="#3a3f44"/>
+<rect x="643" y="353" width="34" height="34" fill="#3a3f44"/>
+<rect x="643" y="483" width="34" height="34" fill="#3a3f44"/>
+<rect x="823" y="93" width="34" height="34" fill="#3a3f44"/>
+<rect x="823" y="223" width="34" height="34" fill="#3a3f44"/>
+<rect x="823" y="353" width="34" height="34" fill="#3a3f44"/>
+<rect x="823" y="483" width="34" height="34" fill="#3a3f44"/>
+<text x="210" y="138" font-size="11" text-anchor="middle" fill="#333" font-family="sans-serif">GB1 60×120</text>
+<text x="570" y="224" font-size="11" text-anchor="middle" fill="#333" font-family="sans-serif">GB2 50×120</text>
+<text x="390" y="354" font-size="11" text-anchor="middle" fill="#333" font-family="sans-serif">GB2 50×120</text>
+<text x="750" y="528" font-size="11" text-anchor="middle" fill="#333" font-family="sans-serif">GB1 60×120</text>
+<rect x="525" y="262" width="90" height="86" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="6 4"/><line x1="525" y1="262" x2="615" y2="348" stroke="#333" stroke-width="1"/><line x1="615" y1="262" x2="525" y2="348" stroke="#333" stroke-width="1"/>
+<text x="570" y="368" font-size="12" text-anchor="middle" fill="#333" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif" dy="-2"> </text><rect x="532" y="296" width="76" height="20" fill="#fff"/><text x="570" y="311" font-size="12" text-anchor="middle" fill="#222" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">電梯機坑</text>
+<rect x="170" y="410" width="44" height="44" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="5 3"/><text x="192" y="472" font-size="11" text-anchor="middle" fill="#333" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">集水坑</text>
+<rect x="885" y="110" width="70" height="220" fill="#f3efe4" stroke="#8a8070" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="920" y="165" font-size="17" text-anchor="middle" fill="#6d6352" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">材</text>
+<text x="920" y="189" font-size="17" text-anchor="middle" fill="#6d6352" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">料</text>
+<text x="920" y="213" font-size="17" text-anchor="middle" fill="#6d6352" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">堆</text>
+<text x="920" y="237" font-size="17" text-anchor="middle" fill="#6d6352" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">置</text>
+<text x="920" y="261" font-size="17" text-anchor="middle" fill="#6d6352" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">區</text>
+<rect x="885" y="400" width="70" height="190" fill="#eef2f4" stroke="#7d8b95" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="920" y="438" font-size="17" text-anchor="middle" fill="#4d5a63" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">大</text>
+<text x="920" y="462" font-size="17" text-anchor="middle" fill="#4d5a63" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">門</text>
+<text x="920" y="486" font-size="17" text-anchor="middle" fill="#4d5a63" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">出</text>
+<text x="920" y="510" font-size="17" text-anchor="middle" fill="#4d5a63" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">入</text>
+<text x="920" y="534" font-size="17" text-anchor="middle" fill="#4d5a63" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">口</text>
+<path d="M985 500 L962 500 M970 492 L962 500 L970 508" stroke="#4d5a63" stroke-width="2" fill="none"/>
+<rect x="560" y="622" width="410" height="50" fill="#fff" stroke="#333" stroke-width="1.5"/><line x1="800" y1="622" x2="800" y2="672" stroke="#333"/>
+<text x="574" y="652" font-size="17" font-weight="700" fill="#222" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">基礎平面圖（地樑配置）</text>
+<text x="812" y="643" font-size="11" fill="#444" font-family="sans-serif">S-101  SCALE 1/100</text><text x="812" y="662" font-size="11" fill="#444" font-family="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif">範例圖面</text>
+<path d="M60 666 L68 632 L76 666 L68 658 Z" fill="#333"/><text x="68" y="626" font-size="12" text-anchor="middle" font-weight="700" fill="#333" font-family="sans-serif">N</text>
+</svg>

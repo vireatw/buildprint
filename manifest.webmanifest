@@ -1,0 +1,22 @@
+{
+ "name": "築跡 Buildprint",
+ "short_name": "築跡",
+ "start_url": "/",
+ "display": "standalone",
+ "background_color": "#15232E",
+ "theme_color": "#15232E",
+ "lang": "zh-Hant-TW",
+ "icons": [
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512-maskable.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}
