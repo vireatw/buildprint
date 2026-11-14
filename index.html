@@ -2963,16 +2963,23 @@ function simBuild(r){
   // free parking spots inside the yard (or along the road when there is no yard)
   const OF=SITE.office?{x:MX(+SITE.office.x),y:MY(+SITE.office.y),w:SITE.office.w/bw*GW,h:SITE.office.h/bh*GH}:null;
   const nearOffice=(x,y)=>OF&&x>OF.x-1.4&&x<OF.x+OF.w+1.4&&y>OF.y-0.9&&y<OF.y+OF.h+0.9;
+  // everything on the site is solid: a parking place must be clear of beams, columns, stacks, the office and the soil, and so must the way in from the gate
+  const dProp=(x,y)=>{ let m=1e9; props.forEach(o=>{ let d; if(o.mound) d=Math.hypot(x-o.x,y-o.y)-(o.r||1); else if(o.beam){ const vx=o.bx-o.ax, vy=o.by-o.ay, L2=vx*vx+vy*vy||1, k=Math.max(0,Math.min(1,((x-o.ax)*vx+(y-o.ay)*vy)/L2)); d=Math.hypot(x-o.ax-vx*k,y-o.ay-vy*k)-(o.wd||0)/2; } else d=Math.hypot(Math.max(o.x-x,0,x-o.x-o.w),Math.max(o.y-y,0,y-o.y-o.d)); if(d<m) m=d; }); return m; };
+  const pathClear=(a,b)=>{ const L=Math.hypot(b.x-a.x,b.y-a.y), n=Math.max(1,Math.ceil(L/0.35)); for(let i=0;i<=n;i++){ if(dProp(a.x+(b.x-a.x)*i/n,a.y+(b.y-a.y)*i/n)<0.6) return false; } return true; };
+  if(!(roomAt(park.x,park.y)&&dProp(park.x,park.y)>1.2&&pathClear(gateIn,park))){ const xs=BND.map(q=>q.x), ys=BND.map(q=>q.y), C=[];
+    for(let yy=Math.min(...ys)+0.5; yy<Math.max(...ys); yy+=0.5) for(let xx=Math.min(...xs)+0.5; xx<Math.max(...xs); xx+=0.5) if(roomAt(xx,yy)&&dProp(xx,yy)>1.2) C.push({x:xx,y:yy});
+    C.sort((a,b)=>Math.hypot(a.x-gateIn.x,a.y-gateIn.y)-Math.hypot(b.x-gateIn.x,b.y-gateIn.y)); const best=C.find(q=>pathClear(gateIn,q))||C[0]; if(best) park=best; }
+  const offLane=q=>{ const vx=park.x-gateIn.x, vy=park.y-gateIn.y, L2=vx*vx+vy*vy||1, k=Math.max(0,Math.min(1,((q.x-gateIn.x)*vx+(q.y-gateIn.y)*vy)/L2)); return Math.hypot(q.x-gateIn.x-vx*k,q.y-gateIn.y-vy*k)>2.5; };   // nothing parks on the trucks' way in from the gate
   const spots=[]; const used=[];
-  if(yard){ for(let yy=yard.y+0.9; yy<yard.y+yard.h-0.6; yy+=1.5) for(let xx=yard.x+1.1; xx<yard.x+yard.w-0.9; xx+=2.3) if(inZone(yard,xx,yy)&&inZone(yard,xx+1,yy)&&inZone(yard,xx-1,yy)&&!nearOffice(xx,yy)) spots.push({x:xx,y:yy}); }
+  if(yard){ for(let yy=yard.y+0.9; yy<yard.y+yard.h-0.6; yy+=1.5) for(let xx=yard.x+1.1; xx<yard.x+yard.w-0.9; xx+=2.3) if(inZone(yard,xx,yy)&&inZone(yard,xx+1,yy)&&inZone(yard,xx-1,yy)&&!nearOffice(xx,yy)&&dProp(xx,yy)>1.15) spots.push({x:xx,y:yy}); }
   spots.sort((a,b)=>Math.hypot(a.x-park.x,a.y-park.y)-Math.hypot(b.x-park.x,b.y-park.y));
   // 空地 full (or none): park inside the fence, off the beams if possible, nearest the gate first — never out on the street
   let inner=null;
   const innerSpots=()=>{ if(inner) return inner; const xs=BND.map(q=>q.x), ys=BND.map(q=>q.y), C=[];
-    for(let yy=Math.min(...ys)+0.5; yy<Math.max(...ys); yy+=0.5) for(let xx=Math.min(...xs)+0.5; xx<Math.max(...xs); xx+=0.5) if(roomAt(xx,yy)&&!nearOffice(xx,yy)) C.push({x:xx,y:yy,busy:work.some(z=>(z.beamPts||z.beamXs)&&inZone(z,xx,yy))?1:0});
+    for(let yy=Math.min(...ys)+0.5; yy<Math.max(...ys); yy+=0.5) for(let xx=Math.min(...xs)+0.5; xx<Math.max(...xs); xx+=0.5) if(roomAt(xx,yy)&&!nearOffice(xx,yy)&&dProp(xx,yy)>1.15) C.push({x:xx,y:yy,busy:work.some(z=>(z.beamPts||z.beamXs)&&inZone(z,xx,yy))?1:0});
     C.sort((a,b)=>(a.busy-b.busy)||(Math.hypot(a.x-park.x,a.y-park.y)-Math.hypot(b.x-park.x,b.y-park.y))); return inner=C; };
-  const takeSpot=()=>{ const sp=spots.find(p=>!used.includes(p)&&Math.hypot(p.x-park.x,p.y-park.y)>2.7); if(sp){ used.push(sp); return sp; }
-    const far=(p,d)=>Math.hypot(p.x-park.x,p.y-park.y)>2.7&&used.every(u=>Math.hypot(p.x-u.x,p.y-u.y)>d);
+  const takeSpot=()=>{ const sp=spots.find(p=>!used.includes(p)&&Math.hypot(p.x-park.x,p.y-park.y)>2.7&&offLane(p)); if(sp){ used.push(sp); return sp; }
+    const far=(p,d)=>Math.hypot(p.x-park.x,p.y-park.y)>2.7&&offLane(p)&&used.every(u=>Math.hypot(p.x-u.x,p.y-u.y)>d);
     const q=innerSpots().find(p=>far(p,2.4))||innerSpots().find(p=>far(p,1.6));
     if(q){ const p={x:q.x,y:q.y}; used.push(p); return p; }
     const k=used.length+1; const p={x:gateOut.x+GT.t.x*2.6*k,y:gateOut.y+GT.t.y*2.6*k}; used.push(p); return p; };
@@ -2983,7 +2990,7 @@ function simBuild(r){
     const span=GW+GH;
     for(let i=0;i<nT;i++){
       let pk=park;
-      if(i>0) pk=takeSpot();
+      // the trucks take turns at the one loading place: the next comes in only after the one before has driven off, so two are never in each other's way
       const A={x:gateOut.x-GT.t.x*span,y:gateOut.y-GT.t.y*span}, B={x:gateOut.x+GT.t.x*span,y:gateOut.y+GT.t.y*span};
       let inPath=[A,gateOut,gateIn,pk], outPath=[gateIn,gateOut,B];
       if(i>0){ const via={x:gateIn.x+(pk.x-park.x)*0.9,y:gateIn.y+(pk.y-park.y)*0.9}; if(inSite(via.x,via.y)&&Math.hypot(via.x-park.x,via.y-park.y)>2.2){ inPath=[A,gateOut,gateIn,via,pk]; outPath=[via,gateIn,gateOut,B]; } }   // the second truck swings wide of the first one's parking place
@@ -3906,7 +3913,7 @@ function simUpdate(dt){
     if(v.type!=='truck'||v.static) return;
     const busyGate=st.vehicles.some(o=>o!==v&&o.type==='truck'&&!o.static&&(o.phase==='arrive'||o.phase==='leave'));   // one truck at a time through the gate, so two never meet
     if(v.phase==='load'){ v.wait-=dt; if(v.wait<4) v.loaded=true; if(v.wait<=0&&busyGate){ v.wait=0.5; return; } if(v.wait<=0){ v.phase='leave'; v.wp=0; if(st.pile) st.pile.taken+=Math.min(st.pile.n,5); } return; }   // the truck drives off with part of the 拆模 pile
-    if(v.phase==='away'){ v.wait-=dt; if(v.wait<=0&&busyGate) v.wait=0.5; if(v.wait<=0){ v.x=v.inPath[0].x; v.y=v.inPath[0].y; v.loaded=false; v.phase='arrive'; v.wp=1; } else { v.hidden=true; return; } }
+    if(v.phase==='away'){ v.wait-=dt; if(v.wait<=0&&st.vehicles.some(o=>o!==v&&o.type==='truck'&&!o.static&&o.phase!=='away')) v.wait=1.5; if(v.wait<=0){ v.x=v.inPath[0].x; v.y=v.inPath[0].y; v.loaded=false; v.phase='arrive'; v.wp=1; } else { v.hidden=true; return; } }
     const path=v.phase==='arrive'?v.inPath:v.outPath; const target=path[Math.min(v.wp,path.length-1)];
     const dx=target.x-v.x, dy=target.y-v.y, d=Math.hypot(dx,dy);
     if(d<0.05){ v.wp++; if(v.wp>=path.length){ if(v.phase==='arrive'){ v.phase='load'; v.wait=10; } else { v.phase='away'; v.wait=4; v.hidden=true; } } return; }
