@@ -2973,7 +2973,7 @@ function simBuild(r){
     // in the gate mouth, just out on the street, beside the trucks' lane and on the side where the fence can't hide him
     // out on the street just past the gate post, on the camera side so neither the post nor the sign hides him
     const sd=(Math.sign(GT.t.x+GT.t.y)||1), k=GT.half+0.5;
-    sigPt={x:GT.G.x-GT.n.x*0.6+GT.t.x*sd*k,y:GT.G.y-GT.n.y*0.6+GT.t.y*sd*k}; if(!inSite(sigPt.x,sigPt.y)) sigPt={x:GT.G.x-GT.n.x*1.0+GT.t.x*sd*(k-0.3),y:GT.G.y-GT.n.y*1.0+GT.t.y*sd*(k-0.3)}; }   // just inside the gate, beside the trucks' lane
+    sigPt={x:GT.G.x+GT.n.x*0.5+GT.t.x*sd*k,y:GT.G.y+GT.n.y*0.5+GT.t.y*sd*k}; if(!on(sigPt)) sigPt={x:GT.G.x+GT.t.x*sd*k,y:GT.G.y+GT.t.y*sd*k}; }
   let signaller=false;
   // workers
   const workers=[];
@@ -3232,30 +3232,31 @@ function formTop(c,ax,ay,bx,by,wd,z0,h,filled,closed){
 }
 function drawPerson(c,w,t){
   const p=SP(w.x,w.y,w.z||0), s=SIM.S*0.72*(w.sz||1), T=t+w.ph, skin=w.skin||SC.skin, sleeve=w.kind==='eng'?'#FFFFFF':(w.shirt||SC.vest);
-  const walking=w.state==='walk';
-  const holding=w.role==='pour'&&!walking&&SIM.st&&SIM.st.pumpV&&SIM.st.pumpV.cur;
+  const walking=w.state==='walk', resting=w.state==='rest';
+  const holding=w.role==='pour'&&!walking&&!resting&&SIM.st&&SIM.st.pumpV&&SIM.st.pumpV.cur;
   const inYard=!!(SIM.st&&SIM.st.yard&&inZone(SIM.st.yard,w.x,w.y));
-  const busy=!walking&&!w.carry&&!w.pipe&&!w.clean&&w.kind!=='eng'&&w.role!=='signal'&&w.role!=='pour'&&!w.wash;
-  const yardH=!walking&&!w.carry&&!w.pipe&&!w.clean&&(w.role==='carry'||(busy&&inYard&&!w.actOwn));   // in the 空地 moving material, unless the 日報 says what he is doing
+  const busy=!walking&&!resting&&!w.carry&&!w.pipe&&!w.clean&&w.kind!=='eng'&&w.role!=='signal'&&w.role!=='pour'&&!w.wash;
+  const yardH=!walking&&!resting&&!w.carry&&!w.pipe&&!w.clean&&(w.role==='carry'||(busy&&inYard&&!w.actOwn));   // in the 空地 moving material, unless the 日報 says what he is doing
   const act=busy&&!yardH?(w.act||'hammer'):null;   // the tool in his hands (see ACT_TEXT / ACT_TRADE)
   const handling=yardH||act==='handle';
-  const flagging=(w.role==='signal'&&!walking)||act==='flag', noting=w.kind==='eng'||act==='inspect';
+  const flagging=(w.role==='signal'&&!walking&&!resting)||act==='flag', noting=(w.kind==='eng'&&!resting)||act==='inspect';
   const tooling=!!act&&act!=='handle'&&act!=='flag'&&act!=='inspect';
   const low=act==='tie'||act==='tile'||act==='float';   // working bent down at the ground
-  const sweeping=w.clean&&!walking&&w.cmode!=='pick', picking=w.clean&&!walking&&w.cmode==='pick', pk=picking?(Math.sin(T*2.6)+1)/2:0;   // pk: 0 standing … 1 bent down to the ground
+  const sweeping=w.clean&&!walking&&!resting&&w.cmode!=='pick', picking=w.clean&&!walking&&!resting&&w.cmode==='pick', pk=picking?(Math.sin(T*2.6)+1)/2:0;   // pk: 0 standing … 1 bent down to the ground
   const hop=walking?Math.abs(Math.sin(T*9))*s*0.07:Math.sin(T*2.2)*s*0.012;   // walking hop / idle breathing
   const squash=low?s*0.07+Math.sin(T*3)*s*0.008:act==='breaker'?Math.abs(Math.sin(T*40))*s*0.015:act==='hammer'?Math.abs(Math.sin(T*6))*s*0.03:picking?pk*s*0.07:0;
   if(w.role==='pour'&&SIM.st&&SIM.st.pumpV&&SIM.st.pumpV.cur){ const q=SP(SIM.st.pumpV.cur.x,SIM.st.pumpV.cur.y,0); w.flip=q[0]<p[0]; }
   if(w.wash&&w.aim&&w.state==='work'){ const q=SP(w.aim.x,w.aim.y,0); if(Math.abs(q[0]-p[0])>0.5) w.flip=q[0]<p[0]; }
   const f=w.flip?-1:1;
   // soft shadow
-  c.fillStyle='rgba(40,50,30,.20)'; c.beginPath(); c.ellipse(p[0],p[1],s*0.2*(1-hop/s),s*0.075,0,0,Math.PI*2); c.fill();
-  const base=p[1]-hop;
+  c.fillStyle='rgba(40,50,30,.20)'; c.beginPath(); c.ellipse(p[0]+(resting?f*s*0.08:0),p[1],s*(resting?0.27:0.2)*(1-hop/s),s*0.075,0,0,Math.PI*2); c.fill();
+  const base=p[1]-hop+(resting?s*0.13:0);   // sitting on the ground at 午休
   // stubby legs
   const sw=walking?Math.sin(T*9)*s*0.07:0;
   c.strokeStyle=w.pants||'#33465C'; c.lineCap='round'; c.lineWidth=Math.max(2,s*0.1);
-  c.beginPath(); c.moveTo(p[0]-s*0.055,base-s*0.2); c.lineTo(p[0]-s*0.06+sw,base-s*0.03); c.moveTo(p[0]+s*0.055,base-s*0.2); c.lineTo(p[0]+s*0.06-sw,base-s*0.03); c.stroke();
-  [[-1,sw],[1,-sw]].forEach(([k,o])=>{ const bx=p[0]+k*s*0.065+o+f*s*0.02; c.fillStyle='#3A2C20'; c.beginPath(); c.ellipse(bx,base-s*0.018,s*0.062,s*0.032,0,0,Math.PI*2); c.fill(); c.fillStyle='#5B4634'; c.beginPath(); c.ellipse(bx,base-s*0.032,s*0.05,s*0.024,0,0,Math.PI*2); c.fill(); c.fillStyle='rgba(255,255,255,.25)'; c.beginPath(); c.ellipse(bx+f*s*0.02,base-s*0.04,s*0.016,s*0.008,0,0,Math.PI*2); c.fill(); });
+  if(resting){ c.beginPath(); [-1,1].forEach(k=>{ c.moveTo(p[0]+k*s*0.055,base-s*0.2); c.lineTo(p[0]+k*s*0.04+f*s*0.17,base-s*0.15); }); c.stroke(); }
+  else { c.beginPath(); c.moveTo(p[0]-s*0.055,base-s*0.2); c.lineTo(p[0]-s*0.06+sw,base-s*0.03); c.moveTo(p[0]+s*0.055,base-s*0.2); c.lineTo(p[0]+s*0.06-sw,base-s*0.03); c.stroke(); }
+  if(!resting) [[-1,sw],[1,-sw]].forEach(([k,o])=>{ const bx=p[0]+k*s*0.065+o+f*s*0.02; c.fillStyle='#3A2C20'; c.beginPath(); c.ellipse(bx,base-s*0.018,s*0.062,s*0.032,0,0,Math.PI*2); c.fill(); c.fillStyle='#5B4634'; c.beginPath(); c.ellipse(bx,base-s*0.032,s*0.05,s*0.024,0,0,Math.PI*2); c.fill(); c.fillStyle='rgba(255,255,255,.25)'; c.beginPath(); c.ellipse(bx+f*s*0.02,base-s*0.04,s*0.016,s*0.008,0,0,Math.PI*2); c.fill(); });
   // round body
   const bw=s*0.3, bh=s*0.3, by=base-s*0.2-bh+squash;
   c.fillStyle=w.kind==='eng'?'#FFFFFF':SC.vest;
@@ -3271,7 +3272,9 @@ function drawPerson(c,w,t){
   // arms
   const shX=p[0]+f*bw*0.42, shY=by+s*0.07;
   let ang;
+  const bite=resting&&((T*0.6)%3)<0.7;   // now and then a bite of 便當
   if(walking) ang=1.4+Math.sin(T*9)*0.4;
+  else if(resting) ang=bite?-0.45:0.55;
   else if(w.carry||w.pipe) ang=-1.3;
   else if(flagging) ang=-1.05+Math.sin(T*3.2)*0.55;
   else if(noting) ang=0.9;
@@ -3290,6 +3293,7 @@ function drawPerson(c,w,t){
   const sh2=p[0]-f*bw*0.42;
   if(hp){ const dx=hp[0]-sh2, dy=hp[1]-shY, dl=Math.hypot(dx,dy)||1; arm(sh2,shY,sh2+dx/dl*al,shY+dy/dl*al); }
   else if(walking&&!w.carry&&!w.pipe){ arm(sh2,shY,sh2-f*s*0.03-Math.sin(T*9)*s*0.09,shY+al*0.88); }   // the other arm swings the opposite way
+  else if(resting){ const hx=p[0]+f*s*0.1, hy=shY+al*0.75; arm(sh2,shY,hx,hy); c.fillStyle='#F4F1E8'; c.strokeStyle='rgba(60,50,40,.5)'; c.lineWidth=1; c.fillRect(hx-s*0.09,hy-s*0.02,s*0.18,s*0.08); c.strokeRect(hx-s*0.09,hy-s*0.02,s*0.18,s*0.08); c.fillStyle='#C0392B'; c.fillRect(hx-s*0.09,hy-s*0.03,s*0.18,s*0.025); c.fillStyle='#F2C200'; c.fillRect(hx-s*0.03,hy+s*0.005,s*0.05,s*0.03); }   // 便當 on the lap
   else if(flagging){ const a2=-1.25-Math.sin(T*3.2)*0.35; arm(sh2,shY,sh2-f*Math.cos(a2)*al,shY+Math.sin(a2)*al); }
   else if(w.carry||w.pipe){ arm(sh2,shY,sh2-f*s*0.02,shY-al*0.9); }
   else if(handling){ const a2=1.05+Math.sin(T*2.4)*0.22; arm(sh2,shY,sh2+f*Math.cos(a2)*al*0.6,shY+Math.sin(a2)*al); }
@@ -3320,7 +3324,7 @@ function drawPerson(c,w,t){
     if(hit<0.25){ const k=1-hit/0.25; c.fillStyle=`rgba(255,255,255,${0.75*k})`; for(let i=0;i<3;i++){ c.beginPath(); c.arc(hx+(i-1)*s*0.07,hy+s*0.04-k*s*0.04*i,s*0.03*(1+k),0,Math.PI*2); c.fill(); }
       c.strokeStyle=`rgba(255,214,90,${k})`; c.lineWidth=1.2; c.beginPath(); for(let i=0;i<4;i++){ const a3=-Math.PI/2+(i-1.5)*0.5; c.moveTo(hx+Math.cos(a3)*s*0.06,hy+Math.sin(a3)*s*0.06); c.lineTo(hx+Math.cos(a3)*s*0.12,hy+Math.sin(a3)*s*0.12); } c.stroke(); }
   }
-  if(w.wash&&!walking){ // hose spray, arcing onto the beam he's facing (never out over the fence)
+  if(w.wash&&!walking&&!resting){ // hose spray, arcing onto the beam he's facing (never out over the fence)
     const tq=w.aim?SP(w.aim.x,w.aim.y,0.75):[ax+f*s*0.85,ay+s*0.3], vx=tq[0]-ax, vy=tq[1]-ay;
     for(let i=0;i<7;i++){ const k=((t*1.8)+i/7)%1; const px=ax+vx*(0.12+k*0.88), py=ay+vy*(0.12+k*0.88)-Math.sin(k*Math.PI)*s*0.22;
       c.fillStyle=`rgba(90,175,240,${0.85*(1-k)})`; c.beginPath(); c.arc(px,py,Math.max(1.2,s*(0.035+0.02*k)),0,Math.PI*2); c.fill(); }
@@ -3560,6 +3564,7 @@ function trackTrim(c,o,u,n,hw,half,zt){ [n,vNeg(n)].forEach(m=>{ if(facing(m.x,m
 function opHead(c,x,y,z,hat){ const q=SP(x,y,z), r=Math.max(2,SIM.S*0.085); c.fillStyle='#E9B88C'; c.beginPath(); c.arc(q[0],q[1],r,0,Math.PI*2); c.fill(); c.fillStyle=hat||'#F2C200'; c.beginPath(); c.ellipse(q[0],q[1]-r*0.25,r*1.1,r*0.95,0,Math.PI,0); c.closePath(); c.fill(); c.fillRect(q[0]-r*1.25,q[1]-r*0.32,r*2.5,r*0.22); }
 function vBeacon(c,x,y,z,T){ const q=SP(x,y,z), r=Math.max(1.8,SIM.S*0.06), on=Math.sin(T*7)>0; c.fillStyle='#3B4650'; c.fillRect(q[0]-r*0.7,q[1],r*1.4,r*0.8); c.fillStyle=on?'#FFB020':'#C07A10'; c.beginPath(); c.arc(q[0],q[1],r,Math.PI,0); c.closePath(); c.fill(); if(on&&SIM.glow) SIM.glow.push({x:q[0],y:q[1],r:SIM.S*0.7,col:'255,176,32',a:0.6}); }
 function drawVehicle(c,v,t){
+  if(SIM.st&&SIM.st.lunch&&v.type!=='truck') t=SIM.st.lunchT||0;   // 午休: the machines stand still
   drawVehicle0(c,v,t);
   if(v.hidden||v.type==='digger'||v.type==='small'||v.type==='skid') return;
   const ax=Math.cos(v.dir), ay=Math.sin(v.dir), alongX=Math.abs(ax)>=Math.abs(ay), L=v.type==='mcrane'?2.3:2.0, Wd=0.85;
@@ -3579,8 +3584,8 @@ function drawVehicle(c,v,t){
 function drawVehicle0(c,v,t){
   if(v.hidden) return;
   if(v.type==='digger'){
-    if(v.dig&&!ISL.edit){ const uu=v.u||{x:1,y:0}, k=Math.sin(t*0.35+(v.ph||0))*0.7; v=Object.assign({},v,{x:v.x+uu.x*k,y:v.y+uu.y*k}); }   // creeps forward and back while it works
-    const Z=v.z||0, u=v.u||{x:1,y:0}, n={x:-u.y,y:u.x}, T=t*1.1+(v.ph||0), sw=v.dig?Math.sin(T):Math.sin(T*0.3)*0.15;
+    if(v.dig&&!ISL.edit&&!(SIM.st&&SIM.st.lunch)){ const uu=v.u||{x:1,y:0}, k=Math.sin(t*0.35+(v.ph||0))*0.7; v=Object.assign({},v,{x:v.x+uu.x*k,y:v.y+uu.y*k}); }   // creeps forward and back while it works
+    const Z=v.z||0, u=v.u||{x:1,y:0}, n={x:-u.y,y:u.x}, T=t*1.1+(v.ph||0), sw=(SIM.st&&SIM.st.lunch)?-0.6:v.dig?Math.sin(T):Math.sin(T*0.3)*0.15;
     const ax=Math.abs(u.x)>0.5, L=1.5, Wd=1.15;
     // tracks
     sBox(c,{x:v.x-(ax?L/2:Wd/2),y:v.y-(ax?Wd/2:L/2),w:ax?L:Wd,d:ax?Wd:L,h:0.3,col:'#3A4046',z0:Z});
@@ -3729,9 +3734,23 @@ function drawVehicle0(c,v,t){
 function pumpTarget(v,t){ const P=v.targets, L=P[P.length-1].s||1, sp=0.75; let d=(t*sp+v.ph)%(2*L); if(d>L) d=2*L-d;
   let i=1; while(i<P.length-1&&P[i].s<d) i++; const a=P[i-1], b=P[i], seg=(b.s-a.s)||1, k=Math.max(0,Math.min(1,(d-a.s)/seg));
   return {x:a.x+(b.x-a.x)*k, y:a.y+(b.y-a.y)*k, moving:false}; }
+// 午休: on today's live view, from 12:00 to 13:00 every crew stops, walks to a spot by the 工務所 (or just inside the gate) and sits down to eat; the machines stand still
+function lunchNow(st){ if(SIM.forceLunch!=null) return !!SIM.forceLunch; if(!st||!st.isToday||SIM.todayHalf||st.gateClosed) return false; return new Date().getHours()===12; }
+function lunchSpots(st){ const B=st.BND.map(p=>[p.x,p.y]), inS=(x,y)=>inPolyS([x,y],B), n=st.workers.length; let cx=0, cy=0; st.BND.forEach(p=>{ cx+=p.x/st.BND.length; cy+=p.y/st.BND.length; });
+  const of=st.props.find(o=>o.sign); let base;
+  if(of){ const ox=of.x+of.w/2, oy=of.y+of.d/2, dx=cx-ox, dy=cy-oy, ax=Math.abs(dx)>Math.abs(dy); base=ax?{x:ox+Math.sign(dx)*(of.w/2+0.9),y:oy}:{x:ox,y:oy+Math.sign(dy)*(of.d/2+0.9)}; }
+  else { const G=st.GT; base={x:G.G.x-G.n.x*2.2+G.t.x*(G.half+1.6),y:G.G.y-G.n.y*2.2+G.t.y*(G.half+1.6)}; }
+  const dRect=(x,y,o)=>Math.hypot(Math.max(o.x-x,0,x-o.x-o.w),Math.max(o.y-y,0,y-o.y-o.d)), dSeg=(x,y,o)=>{ const vx=o.bx-o.ax, vy=o.by-o.ay, L2=vx*vx+vy*vy||1, k=Math.max(0,Math.min(1,((x-o.ax)*vx+(y-o.ay)*vy)/L2)); return Math.hypot(x-o.ax-vx*k,y-o.ay-vy*k)-(o.wd||0)/2; };
+  const MZ=machZones(st), free=(x,y)=>[[0,0],[0.3,0],[-0.3,0],[0,0.3],[0,-0.3]].every(([a,b])=>inS(x+a,y+b))&&st.props.every(o=>o.mound?Math.hypot(x-o.x,y-o.y)>(o.r||1)+0.3:(o.beam?dSeg(x,y,o):dRect(x,y,o))>0.3)&&MZ.every(z=>Math.hypot(x-z.x,y-z.y)>z.r+0.15);
+  const C=[]; for(let r=0;r<10&&C.length<n;r+=0.7) for(let a=0,k=Math.max(1,Math.round(r*2*Math.PI/0.8));a<k&&C.length<n;a++){ const x=base.x+Math.cos(a/k*Math.PI*2)*r, y=base.y+Math.sin(a/k*Math.PI*2)*r; if(free(x,y)&&C.every(q=>Math.hypot(q.x-x,q.y-y)>0.72)) C.push({x,y}); }
+  while(C.length<n) C.push({x:cx+(st.rng()-0.5)*2,y:cy+(st.rng()-0.5)*2});
+  st.restC=C.length?{x:C.reduce((s,q)=>s+q.x,0)/C.length,y:C.reduce((s,q)=>s+q.y,0)/C.length}:base; return C; }
 function simUpdate(dt){
   const st=SIM.st; if(!st) return;
-  if(st.pumpV){ st.pumpV.cur=pumpTarget(st.pumpV,SIM.clock); const cu=st.pumpV.cur;
+  { const L=lunchNow(st); if(L!==!!st.lunch){ st.lunch=L;
+      if(L){ st.lunchT=SIM.clock; st.workers.forEach(w=>{ w.rW=0; }); const C=lunchSpots(st); st.workers.slice().sort((a,b)=>Math.hypot(a.x-st.restC.x,a.y-st.restC.y)-Math.hypot(b.x-st.restC.x,b.y-st.restC.y)).forEach((w,i)=>{ const q=C[i]; w.resting=true; w.rx=q.x; w.ry=q.y; w.tx=q.x; w.ty=q.y; w.state='walk'; w.carry=false; w.pipe=false; }); }
+      else st.workers.forEach(w=>{ w.resting=false; w.dt0=null; w.rB=null; w.state='work'; w.t=0.2+st.rng()*1.2; }); } }
+  if(st.pumpV&&!st.lunch){ st.pumpV.cur=pumpTarget(st.pumpV,SIM.clock); const cu=st.pumpV.cur;
     const P=st.pumpV.targets, cyc=Math.floor((SIM.clock*0.75+st.pumpV.ph)/(2*(P[P.length-1].s||1)));
     if(st.pourCyc!==undefined&&cyc!==st.pourCyc){ st.props.forEach(o=>{ if(o.fill==='dyn') o.filled=false; }); st.allFilled=false; }
     st.pourCyc=cyc;
@@ -3739,6 +3758,14 @@ function simUpdate(dt){
       let dd; if(o.beam){ const vx=o.bx-o.ax, vy=o.by-o.ay, L2=vx*vx+vy*vy||1, tt=Math.max(0,Math.min(1,((cu.x-o.ax)*vx+(cu.y-o.ay)*vy)/L2)); dd=Math.hypot(cu.x-o.ax-vx*tt,cu.y-o.ay-vy*tt); } else dd=Math.hypot(cu.x-o.cx,cu.y-o.cy);
       if(dd<0.85){ o.filled=true; left--; } }); if(!left) st.allFilled=true; } }
   st.workers.forEach(w=>{
+    if(w.resting){ // walk to his seat; a machine in the way: step round it via a point off to one side
+      if(w.state==='rest') return;
+      const g=w.dt0||{x:w.rx,y:w.ry}, dx=g.x-w.x, dy=g.y-w.y, d=Math.hypot(dx,dy); w.tx=g.x; w.ty=g.y;
+      if((w.rW=(w.rW||0)+dt)>25&&!w.dt0){ w.x=w.rx; w.y=w.ry; }   // still not there after a long while: he finds his way
+      if(d<0.06){ if(w.dt0){ w.dt0=null; w.rB=null; return; } w.state='rest'; return; }
+      if(w.rB==null||d<w.rB-0.05){ w.rB=d; w.rT=0; } else if((w.rT=(w.rT||0)+dt)>1.2){ const fx=w.rx-w.x, fy=w.ry-w.y, fl=Math.hypot(fx,fy)||1, sg=(w.rN=(w.rN||0)+1)%2?1:-1, k=1.6+0.4*(w.rN%3);
+        w.dt0={x:w.x-fy/fl*sg*k+fx/fl*0.6,y:w.y+fx/fl*sg*k+fy/fl*0.6}; w.rB=null; w.rT=0; return; }
+      w.state='walk'; const v=w.speed*dt; w.x+=dx/d*Math.min(v,d); w.y+=dy/d*Math.min(v,d); const rr=RN(dx,dy), sx=rr[0]-rr[1]; if(Math.abs(sx)>0.01) w.flip=sx<0; return; }
     if(w.role==='pour'&&st.pumpV&&st.pumpV.cur){ const c0=st.pumpV.cur, tx=c0.x+w.off.x, ty=c0.y+w.off.y, dx=tx-w.x, dy=ty-w.y, d=Math.hypot(dx,dy);
       if(d>0.12){ const v=Math.min(d,(d>0.6?1.6:0.9)*dt); w.x+=dx/d*v; w.y+=dy/d*v; w.state=d>0.35?'walk':'hold'; } else w.state='hold'; return; }
     if(w.state==='walk'){
@@ -3751,8 +3778,8 @@ function simUpdate(dt){
     } else { w.t-=dt; if(w.t<=0){ pickTarget(w,st.zones,st.anyZones,st.rng,st.stacks); w.state='walk'; w.bestD=null; w.stuckT=0; } }
   });
   st.vehicles.forEach(v=>{
-    if(v.type==='skid'){ skidStep(v,dt,st); return; }
-    if(v.type==='mixer'&&v.cycle){ mixerStep(v,dt); return; }
+    if(v.type==='skid'){ if(!st.lunch) skidStep(v,dt,st); return; }
+    if(v.type==='mixer'&&v.cycle){ if(!st.lunch) mixerStep(v,dt); return; }
     if(v.type!=='truck'||v.static) return;
     if(v.phase==='load'){ v.wait-=dt; if(v.wait<4) v.loaded=true; if(v.wait<=0){ v.phase='leave'; v.wp=0; } return; }
     if(v.phase==='away'){ v.wait-=dt; if(v.wait<=0){ v.x=v.inPath[0].x; v.y=v.inPath[0].y; v.loaded=false; v.phase='arrive'; v.wp=1; } else { v.hidden=true; return; } }
@@ -3814,14 +3841,14 @@ function skidStep(v,dt,st){
   R.wait=0;
   const sp=1.15*dt; if(d<=sp){ v.x=tg.x; v.y=tg.y; R.i++; } else { v.x+=dx/d*sp; v.y+=dy/d*sp; }
 }
-// nobody on the crews ever walks out past the fence: anyone (or any walking target) outside is put back just inside
+// nobody on the crews walks out past the fence (only the 交通指揮 粗工 at his post outside the gate): anyone outside is put back just inside
 function keepInside(st){ const B=st.BND; if(!B||B.length<3) return; const P=B.map(p=>[p.x,p.y]), M=0.3;
   let cx=0, cy=0; B.forEach(p=>{ cx+=p.x/B.length; cy+=p.y/B.length; });
   const ok=(x,y)=>inPolyS([x,y],P)&&inPolyS([x+M,y],P)&&inPolyS([x-M,y],P)&&inPolyS([x,y+M],P)&&inPolyS([x,y-M],P);
   const fix=(o,kx,ky)=>{ if(ok(o[kx],o[ky])) return; let bx=o[kx], by=o[ky], bd=1e9;
     for(let i=0;i<B.length;i++){ const a=B[i], b=B[(i+1)%B.length], ex=b.x-a.x, ey=b.y-a.y, L2=ex*ex+ey*ey||1, u=Math.max(0,Math.min(1,((o[kx]-a.x)*ex+(o[ky]-a.y)*ey)/L2)), px=a.x+ex*u, py=a.y+ey*u, d=Math.hypot(o[kx]-px,o[ky]-py); if(d<bd){ bd=d; bx=px; by=py; } }
     const dx=cx-bx, dy=cy-by, dl=Math.hypot(dx,dy)||1; for(let k=0.35;k<6;k+=0.25){ const x=bx+dx/dl*k, y=by+dy/dl*k; if(ok(x,y)){ o[kx]=x; o[ky]=y; return; } } o[kx]=cx; o[ky]=cy; };
-  st.workers.forEach(w=>{ fix(w,'x','y'); if(w.tx!=null) fix(w,'tx','ty'); }); }
+  st.workers.forEach(w=>{ if(w.role==='signal'&&!w.resting) return; fix(w,'x','y'); if(w.tx!=null) fix(w,'tx','ty'); }); }
 function keepClear(st){ const Z=machZones(st); if(!Z.length) return;
   const first=!st._clear; st._clear=true;   // on the first frame people are simply placed outside, so nobody is seen being pushed
   const push=(o,kx,ky,ease)=>{ Z.forEach(z=>{ const dx=o[kx]-z.x, dy=o[ky]-z.y, d=Math.hypot(dx,dy); if(d>=z.r) return;
@@ -3940,11 +3967,6 @@ function simDraw(){
     c.fillStyle='rgba(70,60,35,.15)'; c.fill('nonzero'); }
   }
   c.drawImage(SIM.bg,0,0,SIM.W,SIM.H);
-  // cloud shadows sliding over the ground on a bright day
-  { const wx0=wxOf(st.weather); if(N<0.4&&!wx0.rain&&!wx0.dull){ const m=20; c.save(); sPoly(c,[SP(-m,-m),SP(GW+m,-m),SP(GW+m,GH+m),SP(-m,GH+m)]); c.clip();
-      for(let i=0;i<2;i++){ const span=GW+GH+16, k=((t*0.35*(wx0.wind?2.5:1)+i*span/2)%span)-8, q=SP(k-GH*0.3+i*3,GH*(0.25+i*0.5)+k*0.15,0), R=SIM.S*(3.2+i);
-        const g=c.createRadialGradient(q[0],q[1],R*0.2,q[0],q[1],R); g.addColorStop(0,`rgba(40,60,80,${0.10*(1-N*2.5)})`); g.addColorStop(1,'rgba(40,60,80,0)'); c.fillStyle=g; c.beginPath(); c.ellipse(q[0],q[1],R,R*0.55,0,0,Math.PI*2); c.fill(); }
-      c.restore(); } }
   }
   // back fences
   const G=st.GT;
@@ -4012,7 +4034,7 @@ function simDraw(){
     items.push({d:DEP(cu.x,cu.y)-0.6,f:()=>{ c.fillStyle='rgba(140,142,138,.85)'; c.beginPath(); c.ellipse(g[0],g[1],S*0.3,S*0.13,0,0,Math.PI*2); c.fill(); c.fillStyle='rgba(255,255,255,.35)'; c.beginPath(); c.ellipse(g[0]-S*0.08,g[1]-S*0.03,S*0.1,S*0.04,0,0,Math.PI*2); c.fill(); }}); }
   // gate posts sort with trucks and people, so a truck in the gate passes between them
   [-1,1].forEach(k=>{ const px=G.G.x+G.t.x*G.half*k, py=G.G.y+G.t.y*G.half*k; items.push({d:DEP(px,py)+0.15,f:()=>sBox(c,{x:px-0.12,y:py-0.12,w:0.24,d:0.24,h:1.25,col:'#5B6770'})}); });
-  if(G3){ SIM.gl.render(st,{t,N,W:SIM.W,H:SIM.H,dpr:SIM.dpr,S:SIM.S,ox:SIM.ox,oy:SIM.oy,rot:ROT.a,cx:ROT.cx,cy:ROT.cy,GW,GH,FILL_H,wx:wxOf(st.weather),edit:!!ISL.edit,machSel:ISL.machSel,soilSel:ISL.soilSel,inZone,company:SITE&&SITE.company,site:SITE&&SITE.name});
+  if(G3){ SIM.gl.render(st,{t,N,W:SIM.W,H:SIM.H,dpr:SIM.dpr,S:SIM.S,ox:SIM.ox,oy:SIM.oy,rot:ROT.a,cx:ROT.cx,cy:ROT.cy,GW,GH,FILL_H,wx:wxOf(st.weather),edit:!!ISL.edit,lunch:!!st.lunch,tv:st.lunch?(st.lunchT||0):t,machSel:ISL.machSel,soilSel:ISL.soilSel,inZone,company:SITE&&SITE.company,site:SITE&&SITE.name});
     st.workers.forEach(w=>{ const q=SP(w.x,w.y,(w.z||0)+0.55); w.sx=q[0]; w.sy=q[1]; w.sr=SIM.S*0.4; }); if(st.dog){ const q=SP(st.dog.x,st.dog.y,0.25); st.dog.sx=q[0]; st.dog.sy=q[1]; } }
   else items.sort((a,b)=>a.d-b.d).forEach(i=>i.f());
   if(!G3&&st.pumpV&&!st.pumpV.hidden) drawBoom(c,st.pumpV,t);
@@ -4052,13 +4074,6 @@ function simDraw(){
         const gl=c.createRadialGradient(mx,my,R*0.8,mx,my,R*3); gl.addColorStop(0,`rgba(230,236,255,${0.35*a})`); gl.addColorStop(1,'rgba(230,236,255,0)'); c.fillStyle=gl; c.beginPath(); c.arc(mx,my,R*3,0,Math.PI*2); c.fill();
         c.save(); c.beginPath(); c.arc(mx,my,R,0,Math.PI*2); c.clip(); c.globalAlpha=a; c.fillStyle='#F6F1D8'; c.fillRect(mx-R,my-R,R*2,R*2);
         c.fillStyle=mixHex('#BFE6F2','#22324F',N); c.beginPath(); c.arc(mx+R*0.55,my-R*0.35,R*0.95,0,Math.PI*2); c.fill(); c.restore(); c.globalAlpha=1; } }
-    const nC=wx.rain?5:wx.dull?4:wx.part?4:2, col=N>0.5?(wx.rain?'rgba(70,78,92,.92)':'rgba(120,132,160,.55)'):wx.rain?'rgba(150,160,172,.92)':wx.dull?'rgba(225,230,235,.9)':'rgba(255,255,255,.8)', spd=wx.wind?3:1;
-    if(Z<1.2||wx.rain) for(let i=0;i<nC;i++){ const span=W+300, cx=((t*(9+i*4)*spd+i*span/nC)%span)-150, cy=(wx.rain?H*0.04:H*0.05)+20+(i%3)*H*0.045, k=(0.7+(i%3)*0.12)*(wx.rain?1.25:1);
-      if(wx.rain){ c.fillStyle='rgba(90,100,112,.35)'; c.beginPath(); c.ellipse(cx,cy+16*k,56*k,12*k,0,0,Math.PI*2); c.fill(); }
-      c.fillStyle=col; c.beginPath(); c.arc(cx-28*k,cy+6*k,18*k,0,Math.PI*2); c.arc(cx,cy-4*k,26*k,0,Math.PI*2); c.arc(cx+30*k,cy+5*k,19*k,0,Math.PI*2); c.ellipse(cx,cy+12*k,52*k,12*k,0,0,Math.PI*2); c.fill(); }
-    if(!wx.rain&&N<0.5&&Z<1.7){ c.strokeStyle=`rgba(40,52,64,${0.6*(1-N*2)})`; c.lineWidth=1.6; c.lineCap='round';   // a few birds crossing the sky
-      for(let i=0;i<3;i++){ const span=W+500, x=((t*(46+i*3)+i*37)%(span*2.4))-250+i*26, y=H*0.2+i*17+Math.sin(t*0.7+i)*12-(i===1?14:0), fl=Math.sin(t*9+i*1.3)*5, r=7;
-        if(x>W+40) continue; c.beginPath(); c.moveTo(x-r,y-fl); c.quadraticCurveTo(x-r*0.4,y-2-fl*0.3,x,y); c.quadraticCurveTo(x+r*0.4,y-2-fl*0.3,x+r,y-fl); c.stroke(); } }
     if(wx.rain){ // falling rain + little splashes on the ground
       const N=wx.heavy?170:90, sl=wx.wind?0.55:0.22, len=wx.heavy?18:13, vy=wx.heavy?760:560;
       c.strokeStyle=wx.heavy?'rgba(225,238,248,.6)':'rgba(225,238,248,.5)'; c.lineWidth=1.2; c.lineCap='round'; c.beginPath();
@@ -4072,6 +4087,8 @@ function simDraw(){
         c.globalAlpha=1-k; c.beginPath(); c.ellipse(p[0],p[1],SIM.S*0.22*k+1,SIM.S*0.1*k+0.5,0,0,Math.PI*2); c.stroke(); }
       c.globalAlpha=1; }
   }
+  if(st.lunch&&st.restC){ const p=SP(st.restC.x,st.restC.y,1.9), txt='午休 12:00–13:00'; c.font=`700 ${Math.max(10,Math.min(13,SIM.S*0.38))}px "Noto Sans TC",sans-serif`; const tw=c.measureText(txt).width, w=tw+20, h=22;
+    c.fillStyle='rgba(22,34,44,.88)'; c.beginPath(); c.roundRect?c.roundRect(p[0]-w/2,p[1]-h/2,w,h,11):c.rect(p[0]-w/2,p[1]-h/2,w,h); c.fill(); c.fillStyle='#F5B700'; c.textBaseline='middle'; c.textAlign='center'; c.fillText(txt,p[0],p[1]+0.5); c.textAlign='left'; }
   // zone labels
   c.textBaseline='middle';
   st.zones.forEach(z=>{
@@ -4270,6 +4287,7 @@ function simMount(r){
       if(bv){ html=`<b>${esc(bv.mk||'')}${bv.vendor?'（'+esc(bv.vendor)+'）':''}</b>${bv.count?' × '+fmtN(bv.count)+' 台':''}${bv.shift?' · '+esc(bv.shift):''}<br>${esc(bv.job||'')}`; } }
     if(!best&&!html&&st.dog&&st.dog.sx!=null&&Math.hypot(st.dog.sx-x,st.dog.sy-y)<Math.max(18,SIM.S*0.5)) html=`<b>工地小黃</b>：${st.dog.state==='sleep'?'睡覺中':st.dog.state==='walk'?'巡邏中':'休息中'}`;
     if(html){}
+    else if(best&&best.resting){ html=`<b>${esc(best.trade)}${best.vendor?'（'+esc(best.vendor)+'）':''}</b> · 午休中，13:00 開工`; }
     else if(best){ html=best.kind==='eng'?`<b>${esc(best.vendor||'')}${best.vendor?' · ':''}${esc(best.trade)}</b>${best.zone&&best.zone.name?'<br>現場巡查（'+esc(best.zone.name)+'）':''}`:`<b>${esc(best.trade)}${best.vendor?'（'+esc(best.vendor)+'）':''}</b>${best.task?' · '+esc(best.task):''}${best.zone&&best.zone.name?'（'+esc(best.zone.name)+'）':''}`; }
     else { const z=st.zones.slice().reverse().find(z=>z.poly&&inPolyS([x,y],z.poly)); if(z){ SIM.selZone=SIM.selZone===z.id?null:z.id; html=`<b>${esc(z.name)}</b>：${z.tasks.length?z.tasks.map(t=>esc(t.text)+'（'+STATUS[t.status]+'）').join('、'):'今天沒有排工作'}`; } else SIM.selZone=null; }
     if(html){ tip.innerHTML=html; tip.hidden=false; tip.style.left='0px'; const tw=tip.offsetWidth, th=tip.offsetHeight;   // keep the whole bubble on screen, never squeezed against an edge
