@@ -26,7 +26,7 @@ A construction daily-report app (工地日報) for Taiwanese job sites. Crews an
 | `firestore.rules` | Security rules. **GitHub does not deploy these**: after changing them, Danny pastes the file into Firebase → Firestore Database → 規則 → 發布. |
 | `CNAME` | `buildprint.tw` for GitHub Pages. |
 | `concrete.jpg`, `plan-demo.svg` | Header texture; demo plan (only used in preview mode). |
-| `apple-touch-icon.png`, `icon-512*.png`, `manifest.webmanifest` | Home-screen icon (logo: footprint-shaped building with nine windows and an arched door). |
+| `apple-touch-icon.png`, `icon-512*.png`, `manifest.webmanifest` | Home-screen icon and the sign-in screen logo (since Nov 2026: the word BUILD in white, its letters filling a footprint shape, on navy #14212E). `icon-512.png` has rounded corners; the maskable one keeps the artwork inside the safe circle. |
 
 ## How the data layer works
 `index.html` only talks to `window.claude.use('db' | 'user' | 'assets' | 'downloads')`. `window.BP_WEB` (stub in `<head>`, filled by backend.js) is non-null only on the website; `init()` awaits `BP_WEB.ready`, which resolves after sign-in and membership.
