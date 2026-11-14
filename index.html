@@ -495,7 +495,7 @@ body.island-mode main{padding:0;max-width:none}
 .isl-views button{height:34px;padding:0 14px;border-radius:999px;color:#fff;font-size:13.5px;font-weight:600;white-space:nowrap}
 .isl-views button[aria-selected="true"]{background:#fff;color:#16222C}
 #islTop .isl-off,#islTop .isl-half{top:calc(106px + env(safe-area-inset-top))}
-.isl-date2{position:absolute;top:calc(60px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:2}
+.isl-date2{position:absolute;top:calc(60px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:2;max-width:calc(100% - 136px)}   /* never under the back button or the buttons down the right side */
 .isl-legend{bottom:calc(var(--plH,96px) + 20px + env(safe-area-inset-bottom));max-width:min(70%,320px);pointer-events:auto;display:flex;flex-direction:column;max-height:calc(100% - var(--plH,96px) - 150px)}
 .isl-legend ul{overflow:auto;min-height:0;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .isl-legend .lg-tog{display:flex;align-items:center;gap:6px;align-self:stretch;color:#fff;font-size:11.5px;font-weight:700;letter-spacing:.04em;padding:2px 0 5px;margin:0;min-height:28px;opacity:.85}
@@ -638,7 +638,8 @@ body.isl-land #islTop .isl-half,body.isl-land #islTop .isl-off{top:calc(12px + e
 .addmach select{flex:1;min-width:0}
 .wxi{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .pldate2 .plwx{display:flex;align-items:center;gap:5px;padding:0 13px 0 11px;font-size:12.5px;font-weight:700;border-left:1px solid rgba(255,255,255,.22)}
-@media (max-width:460px){ .pldate2 .pltd ~ .plwx{padding:0 11px 0 9px;gap:4px} .pldate2 .pltd ~ .plwx .wxt{display:none} .pldate2 .pltd ~ .pldate{padding:0 10px} }   /* phone, with 回到今天 showing: icon and temperature only */
+@media (max-width:460px){ .pldate2 .pltd ~ .plwx{padding:0 10px 0 8px;gap:4px} .pldate2 .pltd ~ .plwx .wxt{display:none} .pldate2 .pltd ~ .pldate{padding:0 9px} .pldate2 .pltd{padding:0 9px;font-size:12px} }
+.pldate2{max-width:100%} .pldate2 .wd{font-size:.88em;margin-left:3px;opacity:.88} .pldate2 .pldate{min-width:0;flex:0 1 auto} .pldate2 .pldate b{overflow:hidden;text-overflow:ellipsis} .pldate2 .pltd,.pldate2 .plwx{flex:none}   /* phone, with 回到今天 showing: icon and temperature only */
 .wxtbl{width:100%;border-collapse:collapse;font-size:13.5px}
 .wxtbl th{text-align:left;white-space:nowrap;font-weight:600;color:var(--muted,#6B7680);font-size:12px;padding:4px 6px 6px 0;border-bottom:1px solid var(--line)}
 .wxtbl td{padding:7px 6px 7px 0;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
@@ -1538,7 +1539,7 @@ function islSetDay(d,force){ if(!d||d>TODAY) return; if(d===selDate&&!force) { i
   const cv=$('#sim'); if(cv) cv.setAttribute('aria-label','工地動畫：依'+fmtK(selDate)+'日報產生的工地動畫');
   try{ simMount(r); }catch(e){ console.error(e); } islLegend(); islNightGate(); islSync(); }
 function islCaption(r){ const today=selDate===TODAY;
-  return `${today&&!SIM.todayHalf?'':`<button type="button" class="pltd" id="islToday">${today?'回到現在':'回到今天'}</button>`}<label class="pldate${r?'':' nor'}" title="${r?'':'這天沒有日報'}"><b>${today?'今天 ':''}${esc(fmtShort(selDate))}（${WD[parseKey(selDate).getDay()]}）</b><input type="date" id="islDate" value="${selDate}" max="${TODAY}" aria-label="選擇日期，目前 ${esc(fmtK(selDate))}"></label>${(()=>{ const w=wxDay(selDate), a=wxAuto(selDate); if(!w) return ''; const h=today?(SIM.todayHalf||nowHalf()):(SIM.half||'all'), t=h==='am'?w.am:(h==='pm'||h==='ng')?w.pm:(isRain(w.am)||isRain(w.pm)?(isHeavy(w.am)||isHeavy(w.pm)?'大雨':'雨'):w.am);
+  return `${today&&!SIM.todayHalf?'':`<button type="button" class="pltd" id="islToday">${today?'回到現在':'回到今天'}</button>`}<label class="pldate${r?'':' nor'}" title="${r?'':'這天沒有日報'}"><b>${today?'今天 ':''}${esc(fmtShort(selDate))}<span class="wd">(${WD[parseKey(selDate).getDay()]})</span></b><input type="date" id="islDate" value="${selDate}" max="${TODAY}" aria-label="選擇日期，目前 ${esc(fmtK(selDate))}"></label>${(()=>{ const w=wxDay(selDate), a=wxAuto(selDate); if(!w) return ''; const h=today?(SIM.todayHalf||nowHalf()):(SIM.half||'all'), t=h==='am'?w.am:(h==='pm'||h==='ng')?w.pm:(isRain(w.am)||isRain(w.pm)?(isHeavy(w.am)||isHeavy(w.pm)?'大雨':'雨'):w.am);
     return `<span class="plwx" title="${esc(wxText(w))}${a&&a.hi!=null?'，'+a.lo+'–'+a.hi+'°C':''}${a&&a.mm?'，雨量 '+a.mm+' mm':''}">${wxIcon(t)}<span class="wxt">${esc(t.replace('停工',''))}</span>${a&&a.hi!=null?'<span>'+a.hi+'°</span>':''}</span>`; })()}`; }
 function islSync(){ const D=islDays(); const sc=$('#islScrub'); if(sc&&document.activeElement!==sc){ sc.max=D.n; sc.value=D.idx; }
     const c=$('#islCap'); if(c){ c.innerHTML=islCaption(REPORTS[selDate]||null); const di=$('#islDate'); if(di) di.onchange=e=>{ islStop(); islSetDay(e.target.value); }; const tb=$('#islToday'); if(tb) tb.onclick=()=>{ islStop(); SIM.todayHalf=null; islSetDay(TODAY,true); }; }
