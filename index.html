@@ -2736,7 +2736,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=4').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=5').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -2939,6 +2939,13 @@ function simBuild(r){
   // unzoned curing / pouring → apply to beam zones
   if(unz.some(t=>/養護|灑水/.test(t.text)&&t.status==='doing')) work.forEach(z=>{ if((z.beamXs||z.beamPts)&&!sprays.find(s=>s.x===z.cx)) sprays.push({x:z.cx,y:z.cy,r:Math.min(z.w,z.h)*0.45}); });
 
+  // 拆模: the boards that come off are stacked in one pile beside the beams (it grows as they are stripped); carriers take them from there to the truck
+  let pile=null;
+  { const S=props.filter(o=>o.strip); if(S.length){ const z=S[0].zn||null, cx=S.reduce((a,o)=>a+(o.beam?(o.ax+o.bx)/2:o.x+o.w/2),0)/S.length, cy=S.reduce((a,o)=>a+(o.beam?(o.ay+o.by)/2:o.y+o.d/2),0)/S.length;
+      const dR=(x,y,o)=>Math.hypot(Math.max(o.x-x,0,x-o.x-o.w),Math.max(o.y-y,0,y-o.y-o.d)), dS=(x,y,o)=>{ const vx=o.bx-o.ax, vy=o.by-o.ay, L2=vx*vx+vy*vy||1, k=Math.max(0,Math.min(1,((x-o.ax)*vx+(y-o.ay)*vy)/L2)); return Math.hypot(x-o.ax-vx*k,y-o.ay-vy*k)-(o.wd||0)/2; };
+      const free=(x,y)=>[[0,0],[0.7,0.5],[-0.7,0.5],[0.7,-0.5],[-0.7,-0.5]].every(([a,b])=>inSite(x+a,y+b))&&props.every(o=>o.mound?Math.hypot(x-o.x,y-o.y)>(o.r||1)+0.8:(o.beam?dS(x,y,o):dR(x,y,o))>0.85);
+      let q=null; for(let r=0.6;r<9&&!q;r+=0.5) for(let k=0;k<12&&!q;k++){ const a=k/12*Math.PI*2+r, x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r; if(free(x,y)&&(!z||r>4||inZone(z,x,y))) q={x,y}; }
+      if(q){ pile={x:q.x-0.5,y:q.y-0.35,w:1.0,d:0.7,h:0.02,col:SC.ply,z0:0,ply:true,pile:true,n:0,taken:0}; props.push(pile); stacks.length=0; stacks.push({x:q.x,y:q.y-0.5}); } } }
   // transport trucks
   const SH=(r&&r.shifts)||{}, todayView=!!(r&&r.date===TODAY), hr=new Date().getHours();
   const present=(k,v,isM)=>{ if(offNow) return 0; if(!isM&&todayView&&live&&tradeKind(k)==='eng'&&todayPunches().length) return punchedIn().length;   // whoever is clocked in right now is on site, whatever the hour (also at night)
@@ -2966,7 +2973,7 @@ function simBuild(r){
     const q=innerSpots().find(p=>far(p,2.4))||innerSpots().find(p=>far(p,1.6));
     if(q){ const p={x:q.x,y:q.y}; used.push(p); return p; }
     const k=used.length+1; const p={x:gateOut.x+GT.t.x*2.6*k,y:gateOut.y+GT.t.y*2.6*k}; used.push(p); return p; };
-  const transport=(offNow||allDone)?null:(tasks.find(t=>/運出|清運|載運|運走|運離/.test(t.text)) || (nHaul>0 ? tasks.find(t=>t.status==='doing'&&/拆模/.test(t.text)) : null));
+  const transport=(offNow||allDone)?null:(tasks.find(t=>/運出|載出|清運|載運|運走|載走|運離|出車/.test(t.text)) || (nHaul>0 ? tasks.find(t=>t.status==='doing'&&/拆模/.test(t.text)) : null));
   const tdir=Math.atan2(GT.t.y,GT.t.x);
   if(transport){
     const nT=Math.max(1,Math.min(2,nHaul||1));
@@ -3108,7 +3115,7 @@ function simBuild(r){
       else if(kind==='conc' && pumpV && !pumpV.parked){ w.role='pour'; w.pv=pumpV; w.task='管尾、震實'; w.zone=pumpV.zone||w.zone; const a=(pumpV.crew=(pumpV.crew||0)+1)*2.4; w.off={x:Math.cos(a)*(0.38+0.08*(pumpV.crew%2)),y:Math.sin(a)*(0.38+0.08*(pumpV.crew%2))}; }
       else if(willSig){ w.role='signal'; w.sig=sigPt; w.task=sigTask?sigTask.text:'指揮交通'; w.atSig=true; signaller=true; sigUsed=true; }
       else if(w.act==='pipe' && pipePt()){ w.role='pipe'; w.pipeAt=st_pipePt; w.pipe=i%2===0; }
-      else if(kind==='labor' && task && /運出|清運|搬|運走/.test(task.text) && z_loadPt) w.role='carry';
+      else if(kind==='labor' && task && /運出|載出|清運|搬|運走|載走/.test(task.text) && z_loadPt) w.role='carry';
       else if(kind==='form' && transport && /模板|拆模/.test(transport.text) && z_loadPt && stacks.length && i%3===2){ w.role='carry'; w.task=transport.text; }
       else w.role='work';
       if(w.act==='pipe'&&w.role!=='pipe') w.act='wrench';
@@ -3151,7 +3158,7 @@ function simBuild(r){
   const pourLater=!todayView&&SIM.half==='am'&&Object.keys(machinesOf(r)).some(k=>{ if(!/押送|泵浦|幫浦|預拌/.test(k)) return false; const x=splitOf(r,k,true); return !x.f&&!x.am&&x.pm>0; });   // morning of an afternoon pour: forms still empty
   props.forEach(o=>{ if(o.fill==='dyn'&&(!pumpV||pumpV.parked||pumpV.zone!==o.zn)){ if(pourLater){ o.fill='empty'; o.filled=false; } else { o.fill='full'; o.filled=true; } } });
   const toG=(x,y)=>({x:MX(x),y:MY(y)}), toN=(gx,gy)=>({x:+(bx0+gx/GW*bw).toFixed(4),y:+(by0+gy/GH*bh).toFixed(4)});
-  const stOut={dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
+  const stOut={pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
 }
 let z_loadPt=null, st_pipePt=null;
 function inZone(z,x,y){ if(z.pts) return inPolyS([x,y],z.pts.map(p=>[p.x,p.y])); return x>=z.x-0.05&&x<=z.x+z.w+0.05&&y>=z.y-0.05&&y<=z.y+z.h+0.05; }
@@ -3893,7 +3900,7 @@ function simUpdate(dt){
     if(v.type==='skid'){ if(!st.lunch) skidStep(v,dt,st); return; }
     if(v.type==='mixer'&&v.cycle){ if(!st.lunch) mixerStep(v,dt); return; }
     if(v.type!=='truck'||v.static) return;
-    if(v.phase==='load'){ v.wait-=dt; if(v.wait<4) v.loaded=true; if(v.wait<=0){ v.phase='leave'; v.wp=0; } return; }
+    if(v.phase==='load'){ v.wait-=dt; if(v.wait<4) v.loaded=true; if(v.wait<=0){ v.phase='leave'; v.wp=0; if(st.pile) st.pile.taken+=Math.min(st.pile.n,5); } return; }   // the truck drives off with part of the 拆模 pile
     if(v.phase==='away'){ v.wait-=dt; if(v.wait<=0){ v.x=v.inPath[0].x; v.y=v.inPath[0].y; v.loaded=false; v.phase='arrive'; v.wp=1; } else { v.hidden=true; return; } }
     const path=v.phase==='arrive'?v.inPath:v.outPath; const target=path[Math.min(v.wp,path.length-1)];
     const dx=target.x-v.x, dy=target.y-v.y, d=Math.hypot(dx,dy);
@@ -3972,7 +3979,8 @@ function climbTop(st,x,y){ if(st._climbP!==st.props){ st._climbP=st.props; st._c
 const stripC=o=>o.beam?{x:(o.ax+o.bx)/2,y:(o.ay+o.by)/2}:{x:o.x+o.w/2,y:o.y+o.d/2};
 function stripStep(st,dt){ if(st._stripP!==st.props){ st._stripP=st.props; st._strip=st.props.filter(o=>o.strip); } const F=st._strip; if(!F.length) return;
   const left=F.filter(o=>!o.stripped);
-  if(!left.length){ if((st.stripRest=(st.stripRest||0)+dt)>30){ st.stripRest=0; F.forEach(o=>{ o.stripped=false; o.stripT=null; }); } return; }
+  if(st.pile){ const P=st.pile; P.n=Math.max(0,Math.min(10,F.length-left.length-P.taken)); P.h=Math.max(0.02,P.n*0.07); }
+  if(!left.length){ if((st.stripRest=(st.stripRest||0)+dt)>30){ st.stripRest=0; F.forEach(o=>{ o.stripped=false; o.stripT=null; }); if(st.pile) st.pile.taken=0; } return; }
   if((st.stripT=(st.stripT||0)+dt)<2.4) return;
   const W=st.workers.filter(w=>/拆模/.test(w.task||'')&&!w.resting); let best=null;
   if(!W.length) best={o:left[0]};   // nobody listed for it: the boards still come off
