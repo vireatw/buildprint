@@ -1644,21 +1644,21 @@ let TC_OPEN=null, TC_NEW=null;
 const hatSvg=c=>`<svg class="lh" viewBox="0 0 20 14" aria-hidden="true"><path d="M3 11C3 5.5 6 2.5 10 2.5S17 5.5 17 11Z" fill="${c}" stroke="rgba(0,0,0,.4)" stroke-width="1"/><rect x="1" y="10.5" width="18" height="2.6" rx="1.3" fill="${c}" stroke="rgba(0,0,0,.4)" stroke-width="1"/></svg>`;
 const hatName=c=>(HAT_COLORS.find(([x])=>x===c)||[c,''])[1];
 function paletteHTML(forTrade,cur){ const m=hatMap();
-  return `<div class="hatpal" role="radiogroup" aria-label="安全帽顏色">${HAT_COLORS.map(([c,n])=>{ const owner=Object.keys(m).find(t=>m[t]===c&&t!==forTrade); const on=c===cur;
+  return `<div class="hatpal" role="radiogroup" aria-label="安全帽顏色">${HAT_COLORS.map(([c,n])=>{ const owner=c===WHITE_HAT?'工程師／監工':Object.keys(m).find(t=>m[t]===c&&t!==forTrade); const on=c===cur;
     return `<button type="button" role="radio" aria-checked="${on}" data-hc="${c}" ${owner?'disabled':''} title="${esc(n)}${owner?'（'+esc(owner)+'在用）':''}" aria-label="${esc(n)}${owner?'，'+esc(owner)+'在用':''}">${hatSvg(c)}</button>`; }).join('')}</div>`; }
 function tradeCardHTML(ro){
   const tr=SITE.trades.filter(t=>!isMachTrade(t)), m=hatMap();
-  const freeC=(HAT_COLORS.find(([c])=>!Object.values(m).includes(c))||[''])[0]; if(TC_NEW===null||Object.values(m).includes(TC_NEW)) TC_NEW=freeC;
-  return `<h2>工種與安全帽顏色</h2><p class="note">每個工種在工地動畫裡戴一種顏色的安全帽，顏色不會重複。${ro?'':'點安全帽可以換顏色，灰掉的顏色已經有工種在用。'}</p>
-  <ul class="tradelist">${tr.map(t=>`<li><button type="button" class="hatbtn" data-tc="${esc(t)}" aria-expanded="${TC_OPEN===t}" ${ro?'disabled':''} aria-label="${esc(t)}的安全帽顏色：${esc(hatName(m[t]))}">${hatSvg(m[t])}</button><span class="tn">${esc(t)}</span><span class="muted tcn">${esc(hatName(m[t]))}</span>${ro?'':`<button type="button" class="mini" data-tdel="${esc(t)}" aria-label="刪除工種 ${esc(t)}">✕</button>`}
-    ${TC_OPEN===t&&!ro?paletteHTML(t,m[t]):''}</li>`).join('')}</ul>
+  const freeC=(HAT_COLORS.find(([c])=>c!==WHITE_HAT&&!Object.values(m).includes(c))||[''])[0]; if(TC_NEW===null||Object.values(m).includes(TC_NEW)) TC_NEW=freeC;
+  return `<h2>工種與安全帽顏色</h2><p class="note">每個工種在工地動畫裡戴一種顏色的安全帽，顏色不會重複；工程師、監工、監造固定戴白色。${ro?'':'點安全帽可以換顏色，灰掉的顏色已經有工種在用。'}</p>
+  <ul class="tradelist">${tr.map(t=>`<li><button type="button" class="hatbtn" data-tc="${esc(t)}" aria-expanded="${TC_OPEN===t}" ${ro||isWhiteHat(t)?'disabled':''} aria-label="${esc(t)}的安全帽顏色：${esc(hatName(m[t]))}${isWhiteHat(t)?'（固定）':''}">${hatSvg(m[t])}</button><span class="tn">${esc(t)}</span><span class="muted tcn">${esc(hatName(m[t]))}${isWhiteHat(t)?'（固定）':''}</span>${ro?'':`<button type="button" class="mini" data-tdel="${esc(t)}" aria-label="刪除工種 ${esc(t)}">✕</button>`}
+    ${TC_OPEN===t&&!ro&&!isWhiteHat(t)?paletteHTML(t,m[t]):''}</li>`).join('')}</ul>
   ${ro?'':`<div class="tradeadd"><span class="lbl">新增工種</span><div class="addmach"><input type="text" id="tcName" placeholder="例如：鋼構工、泥作、油漆、防水" aria-label="新工種名稱"><button type="button" class="btn" id="tcAdd">＋ 新增</button></div>
     <span class="note">安全帽顏色：</span>${paletteHTML(null,TC_NEW).replace('class="hatpal"','class="hatpal" id="tcPal"')}</div>`}`;
 }
 function wireTradeCard(){
   const card=$('#tradeCard'); if(!card) return; const rerender=()=>{ card.innerHTML=tradeCardHTML(false); wireTradeCard(); };
   card.querySelectorAll('[data-tc]').forEach(b=>b.onclick=()=>{ TC_OPEN=TC_OPEN===b.dataset.tc?null:b.dataset.tc; rerender(); });
-  card.querySelectorAll('li .hatpal [data-hc]').forEach(b=>b.onclick=()=>{ const t=b.closest('li').querySelector('[data-tc]').dataset.tc; SITE.hats=Object.assign({},SITE.hats||{},{[t]:b.dataset.hc}); TC_OPEN=null; saveSite(); rerender(); toast(`${t} 改戴${hatName(b.dataset.hc)}色安全帽`); });
+  card.querySelectorAll('li .hatpal [data-hc]').forEach(b=>b.onclick=()=>{ const t=b.closest('li').querySelector('[data-tc]').dataset.tc; if(isWhiteHat(t)||b.dataset.hc===WHITE_HAT) return; SITE.hats=Object.assign({},SITE.hats||{},{[t]:b.dataset.hc}); TC_OPEN=null; saveSite(); rerender(); toast(`${t} 改戴${hatName(b.dataset.hc)}色安全帽`); });
   card.querySelectorAll('[data-tdel]').forEach(b=>b.onclick=()=>{ const t=b.dataset.tdel;
     if(!b.classList.contains('armed')){ b.classList.add('armed'); b.textContent='刪除？'; setTimeout(()=>{ if(b.isConnected){ b.classList.remove('armed'); b.textContent='✕'; } },3000); return; }
     SITE.trades=SITE.trades.filter(x=>x!==t); if(SITE.hats) delete SITE.hats[t]; saveSite(); rerender(); toast('已刪除工種「'+t+'」，以前日報裡的紀錄不受影響'); });
@@ -2629,17 +2629,20 @@ const actFrom=(tbl,str)=>{ const e=str?tbl.find(([,re])=>re.test(str)):null; ret
 // every trade gets its own hard-hat colour: the one picked in settings, else a default, never two trades the same
 const HAT_COLORS=[['#FFFFFF','白'],['#E0782A','橘'],['#2F6DB5','藍'],['#8E5BC9','紫'],['#F2C200','黃'],['#2E9B57','綠'],['#D64545','紅'],['#8E8E8E','灰'],['#A0703C','咖啡'],['#E57AA8','粉紅'],['#3BB5C4','青'],['#3949AB','靛藍'],['#9CCC3C','萊姆綠'],['#00796B','墨綠'],['#37474F','黑'],['#64B5F6','天藍']];
 const HAT_TRADE=[[/工程師|監工|主任/,'#FFFFFF'],[/模板/,'#E0782A'],[/鋼筋/,'#2F6DB5'],[/押送|泵浦|幫浦/,'#8E5BC9'],[/混凝土|混泥土/,'#8E8E8E'],[/水電|機電|電工/,'#2E9B57'],[/粗工|雜工/,'#F2C200'],[/鋼構|吊裝/,'#D64545'],[/泥作|泥水/,'#A0703C'],[/油漆/,'#E57AA8'],[/焊/,'#3BB5C4']];
+// 工程師、監工、監造（and 主任、技師）always wear white; white is theirs alone, no other trade can have it
+const WHITE_HAT='#FFFFFF', isWhiteHat=t=>/工程師|監工|監造|主任|技師/.test(t||'');
 let HAT_MAP=null, HAT_KEY='';
 function hatMap(){
   const tr=((SITE&&SITE.trades)||[]).filter(t=>!isMachTrade(t)), picked=(SITE&&SITE.hats)||{}, key=JSON.stringify([tr,picked]);
   if(HAT_MAP&&key===HAT_KEY) return HAT_MAP;
-  const m={}, used=new Set();
-  tr.forEach(t=>{ const c=picked[t]; if(c&&!used.has(c)){ m[t]=c; used.add(c); } });
+  const m={}, used=new Set([WHITE_HAT]);
+  tr.forEach(t=>{ if(isWhiteHat(t)) m[t]=WHITE_HAT; });
+  tr.forEach(t=>{ if(m[t]) return; const c=picked[t]; if(c&&!used.has(c)){ m[t]=c; used.add(c); } });
   tr.forEach(t=>{ if(m[t]) return; const d=(HAT_TRADE.find(([re])=>re.test(t))||[])[1]; if(d&&!used.has(d)){ m[t]=d; used.add(d); } });
   tr.forEach(t=>{ if(m[t]) return; const f=HAT_COLORS.find(([c])=>!used.has(c)); m[t]=f?f[0]:'#8E8E8E'; used.add(m[t]); });
   HAT_MAP=m; HAT_KEY=key; return m; }
-function hatOf(trade){ const m=hatMap(); if(m[trade]) return m[trade];
-  const d=(HAT_TRADE.find(([re])=>re.test(trade))||[])[1]; if(d) return d; let h=0; for(const ch of trade) h=(h*31+ch.charCodeAt(0))%997; return HAT_COLORS[h%HAT_COLORS.length][0]; }
+function hatOf(trade){ if(isWhiteHat(trade)) return WHITE_HAT; const m=hatMap(); if(m[trade]) return m[trade];
+  const d=(HAT_TRADE.find(([re])=>re.test(trade))||[])[1]; if(d&&d!==WHITE_HAT) return d; const NW=HAT_COLORS.filter(([c])=>c!==WHITE_HAT); let h=0; for(const ch of trade) h=(h*31+ch.charCodeAt(0))%997; return NW[h%NW.length][0]; }
 function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
 
 // 3D 工地動畫 (sim3d.js): the default; ?3d=0 switches this device to the 2D drawing, ?3d=1 back; falls back to 2D if WebGL fails
