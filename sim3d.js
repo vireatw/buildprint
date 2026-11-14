@@ -240,7 +240,7 @@ export function create(){
   sun.castShadow=true; sun.shadow.mapSize.set(2048,2048); sun.shadow.bias=-0.0006; sun.shadow.normalBias=0.03; const sc=sun.shadow.camera; sc.left=-22; sc.right=22; sc.top=22; sc.bottom=-22; sc.near=1; sc.far=140;
   const world=grp(); world.scale.y=YS; scene.add(world);
   const back=grp(); back.scale.y=YS; scene.add(back);
-  let stat=null, dyn=null, built={st:null,props:null,fills:null,GW:0,GH:0}, people=new Map(), machines=new Map(), dogM=null, fences=[], lamps=[], soilM=[], formM=[], flagM=null, selRing=null, water=null, ripples=[], boats=[], clouds=[], dust=[], sprayM=[], gatePts=[], winMats=[], nightL=[], lastT=0;
+  let stat=null, dyn=null, built={st:null,props:null,fills:null,GW:0,GH:0}, people=new Map(), machines=new Map(), dogM=null, fences=[], lamps=[], soilM=[], formM=[], flagM=null, selRing=null, water=null, ripples=[], boats=[], clouds=[], dust=[], sprayM=[], gatePts=[], winMats=[], nightL=[], flood=[], lastT=0;
   // --- the ground round the site: always at the back of the view ---
   function buildBackdrop(GW,GH){ back.clear(); ripples=[]; boats=[]; clouds=[];
     // open ground running off every edge of the view (no sea, no island, no hills)
@@ -250,6 +250,15 @@ export function create(){
   function flat(pts,col,y,o){ const m=mesh(new T.ShapeGeometry(shapeOf(pts)),M(col,Object.assign({flatShading:false},o||{})),false); m.rotation.x=-Math.PI/2; m.position.y=y; m.receiveShadow=true; return m; }
   // --- everything that stands still: island, ground, zones, fence, gate, office, materials, cones ---
   function buildStatic(st,v){ if(stat){ world.remove(stat); freeTree(stat); } stat=grp(); world.add(stat); fences=[]; lamps=[]; soilM=[]; formM=[]; flagM=null; winMats=[]; gatePts=[]; nightL=[];
+    // 夜間照明: a floodlight tower in each corner of the site, lit at night whenever anyone is working
+    flood=[]; { const BND=st.BND; let cx=0, cy=0; BND.forEach(p=>{ cx+=p.x/BND.length; cy+=p.y/BND.length; }); const xs=BND.map(p=>p.x), ys=BND.map(p=>p.y), bx=[Math.min(...xs),Math.max(...xs)], by=[Math.min(...ys),Math.max(...ys)];
+      const used=new Set(), R=Math.max(v.GW,v.GH)*1.15;
+      [[0,0],[1,0],[1,1],[0,1]].forEach(([i,j])=>{ const tx=bx[i], ty=by[j]; let best=null; BND.forEach((p,k)=>{ if(used.has(k)) return; const d=Math.hypot(p.x-tx,p.y-ty); if(!best||d<best.d) best={d,k,p}; }); if(!best) return; used.add(best.k);
+        const dx=cx-best.p.x, dy=cy-best.p.y, dl=Math.hypot(dx,dy)||1, x=best.p.x+dx/dl*0.75, y=best.p.y+dy/dl*0.75, a=Math.atan2(dy,dx), H=3.4;
+        const tw=grp(B(0.09,H,0.09,'#8E99A3',0,H/2,0),B(0.5,0.08,0.5,'#5B6670',0,0.04,0),B(0.06,0.06,0.9,'#8E99A3',0,H-0.05,0)); const lm=M('#FFF6DA',{emissive:'#FFF1C8',emissiveIntensity:0}).clone(); lm.userData.cached=false;
+        [-0.3,0.3].forEach(o=>{ const hd=B(0.18,0.26,0.32,'#3B4650',0.06,H+0.1,o); hd.rotation.z=-0.5; tw.add(hd); const f=B(0.02,0.22,0.28,lm,0.155,H+0.05,o); f.rotation.z=-0.5; f.castShadow=false; tw.add(f); });
+        tw.position.set(x,0,y); tw.rotation.y=-a; stat.add(tw);
+        const L=new T.PointLight('#FFF1D2',0,R,0); L.position.set(x+dx/dl*0.6,H+0.2,y+dy/dl*0.6); stat.add(L); flood.push({L,lm}); }); }
     const lamp=(x,y,z,k,dist)=>{ const l=new T.PointLight('#FFD08A',0,dist,1.6); l.position.set(x,y,z); l.userData.k=k; stat.add(l); nightL.push(l); };
     const GW=v.GW, GH=v.GH, m=1.4;
     ((st.decor&&st.decor.dots)||[]).forEach(q=>{ for(let i=0;i<3;i++){ const b=mesh(G.cone4,M('#8CC070',{emissive:'#3E6B2E',emissiveIntensity:0.35}),false); b.scale.set(0.05,0.16+i*0.03,0.05); b.position.set(q.x+(i-1)*0.07,0.09,q.y+(i%2)*0.05); b.rotation.z=(i-1)*0.25; stat.add(b); } });
@@ -317,6 +326,8 @@ export function create(){
     sun.intensity=(2.5*(1-N)+0.9*N)*dull; sun.color.set(N>0.5?'#B9C8F2':wx.dull?'#F2F4F6':'#FFF1D6'); hemi.intensity=(1.45*(1-N)+1.25*N)*(wx.rain?0.85:1); hemi.color.set(N>0.5?'#8FA6E6':'#EAF6FF'); hemi.groundColor.set(N>0.5?'#4A5880':'#C9B48A');
     const pc=new T.Vector3(v.cx,0,v.cy); sun.target.position.copy(pc); sun.position.set(v.cx+16,34,v.cy-22+0.001); sun.target.updateMatrixWorld();
     scene.background=new T.Color(N>0.5?'#24331F':wx.rain?'#8FAE7C':'#A6CF8B'); water.material.color.set(N>0.5?'#3C5236':wx.rain?'#93B57F':'#A6CF8B');
+    const work=N>0.25&&!st.gateClosed&&(st.workers.length>0||st.vehicles.some(q=>!q.hidden&&q.type!=='truck'));   // someone is working after dark: the whole site is floodlit
+    flood.forEach(f=>{ f.L.intensity=work?0.55*N:0; f.lm.emissiveIntensity=work?3:0; }); if(work){ hemi.intensity+=0.9*N; hemi.color.set('#C9D3EA'); sun.intensity+=0.6*N; sun.color.set('#FFF3DC'); }
     winMats.forEach(m=>{ m.emissiveIntensity=N>0.25&&!st.gateClosed?1.6:0; }); gatePts.forEach(p=>{ p.m.material.emissiveIntensity=0.4+N*3; }); nightL.forEach(l=>{ l.intensity=N>0.25?l.userData.k*N:0; });
     // fence: full height at the back, a low rail at the front
     fences.forEach(f=>{ const r0=f.nx*ca-f.ny*sa, r1=f.nx*sa+f.ny*ca, isBack=(r0+r1)<0; f.g.visible=isBack; f.low.visible=!isBack; });
