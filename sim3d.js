@@ -11,6 +11,8 @@ function M(col,o){ const k=col+(o?JSON.stringify(o):''); let m=mats.get(k); if(!
 const G={ box:new T.BoxGeometry(1,1,1), cyl:new T.CylinderGeometry(0.5,0.5,1,14), cyl6:new T.CylinderGeometry(0.5,0.5,1,7), sph:new T.SphereGeometry(0.5,12,9), ico:new T.IcosahedronGeometry(0.5,0), ico1:new T.IcosahedronGeometry(0.5,1),
   cone:new T.ConeGeometry(0.5,1,7), cone4:new T.ConeGeometry(0.5,1,4), dome:new T.SphereGeometry(0.5,12,6,0,Math.PI*2,0,Math.PI/2) };
 const SHARED=new Set(Object.values(G));
+const hatMats=new Map();
+function hatMat(col){ let m=hatMats.get(col); if(!m){ m=new T.MeshPhongMaterial({color:col,shininess:70,specular:new T.Color('#4A4A4A')}); m.userData.cached=true; hatMats.set(col,m); } return m; }
 function freeTree(o){ o.traverse(m=>{ if(m.geometry&&!SHARED.has(m.geometry)) m.geometry.dispose(); const ms=m.material?(Array.isArray(m.material)?m.material:[m.material]):[]; ms.forEach(x=>{ if(!x.userData||!x.userData.cached){ if(x.map) x.map.dispose(); x.dispose(); } }); }); }
 function mesh(g,m,sh){ const o=new T.Mesh(g,m); if(sh!==false){ o.castShadow=true; o.receiveShadow=true; } return o; }
 // a box given by its size and centre
@@ -24,6 +26,11 @@ function link(m,ax,ay,az,bx,by,bz,th){ _v.set(bx-ax,by-ay,bz-az); const L=_v.len
 function wheel(r,w,x,y,z){ const g=grp(); const t=mesh(G.cyl,M('#1E2226')); t.scale.set(r*2,w,r*2); t.rotation.x=Math.PI/2; g.add(t); const h=mesh(G.cyl,M('#D5DADF')); h.scale.set(r*1.0,w*1.08,r*1.0); h.rotation.x=Math.PI/2; g.add(h); const n=mesh(G.cyl6,M('#7A848D')); n.scale.set(r*0.4,w*1.16,r*0.4); n.rotation.x=Math.PI/2; g.add(n); g.position.set(x,y,z); g.userData.wheel=true; return g; }
 function textTex(txt,o){ o=o||{}; const cv=document.createElement('canvas'), fs=o.fs||96, c=cv.getContext('2d'); c.font=`800 ${fs}px "Noto Sans TC",sans-serif`; const w=Math.ceil(c.measureText(txt).width+fs*0.3); cv.width=w; cv.height=Math.ceil(fs*1.3);
   const c2=cv.getContext('2d'); if(o.bg){ c2.fillStyle=o.bg; c2.fillRect(0,0,cv.width,cv.height); } c2.font=`800 ${fs}px "Noto Sans TC",sans-serif`; c2.fillStyle=o.col||'#1B232A'; c2.textBaseline='middle'; c2.textAlign='center'; c2.fillText(txt,cv.width/2,cv.height/2+fs*0.04);
+  const t=new T.CanvasTexture(cv); t.colorSpace=T.SRGBColorSpace; t.anisotropy=4; t.userData={asp:cv.width/cv.height}; return t; }
+// the office flag: the company name in green on white, with a green border
+function flagTex(txt){ const fs=88, cv=document.createElement('canvas'), c=cv.getContext('2d'); c.font=`800 ${fs}px "Noto Sans TC",sans-serif`; const tw=txt?c.measureText(txt).width:fs*1.6; cv.width=Math.ceil(tw+fs*0.9); cv.height=Math.ceil(fs*1.55);
+  const c2=cv.getContext('2d'); c2.fillStyle='#FFFFFF'; c2.fillRect(0,0,cv.width,cv.height); c2.strokeStyle='#2E8B57'; c2.lineWidth=fs*0.12; c2.strokeRect(fs*0.06,fs*0.06,cv.width-fs*0.12,cv.height-fs*0.12);
+  if(txt){ c2.font=`800 ${fs}px "Noto Sans TC",sans-serif`; c2.fillStyle='#2E8B57'; c2.textAlign='center'; c2.textBaseline='middle'; c2.fillText(txt,cv.width/2,cv.height/2+fs*0.04); }
   const t=new T.CanvasTexture(cv); t.colorSpace=T.SRGBColorSpace; t.anisotropy=4; t.userData={asp:cv.width/cv.height}; return t; }
 function lerpAng(a,b,k){ let d=b-a; d=Math.atan2(Math.sin(d),Math.cos(d)); return a+d*k; }
 
@@ -78,9 +85,14 @@ function buildPerson(w){
   const handR=grp(); handR.position.set(0,-0.27,0); armR.add(handR);
   const head=grp(); head.position.set(0,0.82,0); body.add(head);
   head.add(S(0.185,skin)); const hair=S(0.175,'#2E2A28',-0.045,0.02,0); head.add(hair);
-  [-1,1].forEach(k=>{ const e=S(0.026,'#2A2A2A',0.172,-0.015,k*0.07); e.castShadow=false; head.add(e); const ch=S(0.032,'#F29B95',0.155,-0.075,k*0.105); ch.castShadow=false; head.add(ch); });
-  const hat=mesh(G.dome,M(w.hat||'#F2C200',{flatShading:false})); hat.scale.set(0.41,0.34,0.41); hat.position.y=0.055; head.add(hat);
-  const brim=C(0.215,0.025,M(w.hat||'#F2C200',{flatShading:false}),0.02,0.065,0); head.add(brim);
+  [-1,1].forEach(k=>{ const e=S(0.026,'#2A2A2A',0.172,-0.015,k*0.07); e.castShadow=false; head.add(e); });
+  const hm=hatMat(w.hat||'#F2C200'), hat=grp(); hat.position.y=0.05; head.add(hat);
+  const shell=mesh(G.dome,hm); shell.scale.set(0.43,0.36,0.39); hat.add(shell);
+  const ridge=mesh(G.dome,hm); ridge.scale.set(0.45,0.39,0.1); hat.add(ridge);
+  [-1,1].forEach(k=>{ const rb=mesh(G.dome,hm); rb.scale.set(0.4,0.34,0.05); rb.position.z=k*0.085; rb.rotation.x=k*0.32; hat.add(rb); });
+  const peak=mesh(G.cyl,hm); peak.scale.set(0.34,0.022,0.36); peak.position.set(0.1,0.012,0); peak.rotation.z=-0.12; hat.add(peak);
+  const brim=mesh(G.cyl,hm); brim.scale.set(0.47,0.02,0.43); brim.position.y=0.008; hat.add(brim);
+  const band=mesh(G.cyl,M('#2B3238')); band.scale.set(0.39,0.035,0.36); band.position.y=-0.012; hat.add(band);
   if(w.towel&&!eng){ const tw=C(0.13,0.05,'#F4F6F8',0,0.66,0); body.add(tw); }
   const visor=B(0.03,0.13,0.26,'#22282E',0.18,-0.01,0); visor.visible=false; head.add(visor);
   // things carried over the head / on the shoulder
@@ -273,7 +285,7 @@ export function create(){
         const fl=B(w-0.01,h*0.86,d-th*2,'#9A9993',0,h*0.43,0); g.add(fl); formM.push({o,fl,rb}); return; }
       if(o.sign){ g.add(B(w,h,d,'#4E7FAE',0,h/2,0),B(w+0.1,0.06,d+0.1,'#E9EEF2',0,h+0.03,0)); const n=Math.max(2,Math.floor(w/0.7)); [-1,1].forEach(k=>{ for(let i=0;i<n;i++){ const gx=-w/2+0.18+i*(w-0.36)/n; if(i===0) g.add(B(0.26,0.57,0.02,'#3A5E82',gx+0.13,0.33,k*(d/2+0.006))); else { const wm=M('#BFE3F5',{emissive:'#FFD27A',emissiveIntensity:0}).clone(); winMats.push(wm); g.add(B(0.34,0.3,0.02,wm,gx+0.22,0.47,k*(d/2+0.006)),B(0.38,0.03,0.03,'#FFFFFF',gx+0.22,0.31,k*(d/2+0.012))); } } });
         const tx=textTex(o.sign), al=w>=d, Lr=al?w:d, Dr=al?d:w, th2=Math.min(Dr*0.62,Lr*0.82/tx.userData.asp), pl=mesh(new T.PlaneGeometry(th2*tx.userData.asp,th2),new T.MeshBasicMaterial({map:tx,transparent:true}),false); pl.rotation.x=-Math.PI/2; pl.rotation.z=al?0:Math.PI/2; pl.position.y=h+0.065; g.add(pl); pl.userData.z0=pl.rotation.z; stat.userData.roof=pl; if(!st.gateClosed) lamp(cx,z0+1.9,cy+d/2+0.9,16,8);
-        g.add(B(0.3,0.16,0.4,'#C9CED2',w/2-0.3,h+0.14,-d/2+0.3)); const pole=B(0.03,1.0,0.03,'#8E99A3',-w/2+0.12,h+0.5,-d/2+0.12); g.add(pole); const fg=grp(); const fl=mesh(new T.PlaneGeometry(0.5,0.3,6,1),new T.MeshLambertMaterial({color:'#FFFFFF',side:T.DoubleSide}),false); fl.position.x=0.25; fg.add(fl); fg.add(B(0.2,0.06,0.012,'#2E8B57',0.25,0,0),B(0.06,0.2,0.012,'#2E8B57',0.25,0,0)); fg.position.set(-w/2+0.12,h+0.84,-d/2+0.12); g.add(fg); flagM=fg; return; }
+        g.add(B(0.3,0.16,0.4,'#C9CED2',w/2-0.3,h+0.14,-d/2+0.3)); const pole=B(0.035,1.05,0.035,'#8E99A3',-w/2+0.12,h+0.52,-d/2+0.12); g.add(pole); const fg=grp(), nm=(v.company||v.site||'').trim(), ft=flagTex(nm), FH=0.34, FW=Math.min(1.8,Math.max(0.5,FH*ft.userData.asp)); const fl=mesh(new T.PlaneGeometry(FW,FH,10,1),new T.MeshBasicMaterial({map:ft,side:T.DoubleSide}),false); fl.position.x=FW/2; fl.userData.W=FW; fg.add(fl); fg.position.set(-w/2+0.12,h+0.84,-d/2+0.12); g.add(fg); flagM=fg; return; }
       const bm=B(w,h,d,o.col||'#B6B5AF',0,h/2,0); g.add(bm); if(o.ply&&h>0.2){ const k=Math.round(h/0.1); for(let i=1;i<k;i++){ const s=B(w+0.006,0.008,d+0.006,'#8A5A28',0,h*i/k,0); s.castShadow=false; g.add(s); } }
       if(o.pipes){ bm.visible=false; const n=4; for(let i=0;i<n;i++){ const p=C(Math.min(h,d/n)*0.48,w,'#E6EBEF',0,h/2,-d/2+d*(i+0.5)/n,G.cyl,{flatShading:false}); p.rotation.z=Math.PI/2; g.add(p); } } });
     // backfilled cells
@@ -310,12 +322,12 @@ export function create(){
     fences.forEach(f=>{ const r0=f.nx*ca-f.ny*sa, r1=f.nx*sa+f.ny*ca, isBack=(r0+r1)<0; f.g.visible=isBack; f.low.visible=!isBack; });
     lamps.forEach(l=>{ const on=Math.sin(t*3.2+l.ph)>0.2; l.m.material.emissiveIntensity=on?1+N*3:0.05; });
     soilM.forEach(({o,m})=>{ m.position.x=o.x; m.position.z=o.y; }); formM.forEach(({o,fl,rb})=>{ fl.visible=!!o.filled; rb.visible=!o.filled; });
-    if(flagM){ const g=flagM.children[0].geometry, p=g.attributes.position; for(let i=0;i<p.count;i++){ const x=p.getX(i); p.setZ(i,Math.sin(t*4-x*8)*0.05*x*2); } p.needsUpdate=true; flagM.rotation.y=a+0.6; }
+    if(flagM){ const fl=flagM.children[0], W=fl.userData.W||0.5, g=fl.geometry, p=g.attributes.position; for(let i=0;i<p.count;i++){ const k=(p.getX(i)+W/2)/W; p.setZ(i,Math.sin(t*3.5-k*5)*0.045*k); } p.needsUpdate=true; flagM.rotation.y=a+Math.PI/4-0.15; }   // faces the viewer so the name reads
     if(stat&&stat.userData.signB) stat.userData.signB.rotation.y=a+Math.PI/4;
     if(stat&&stat.userData.roof){ const pl=stat.userData.roof; pl.rotation.z=pl.userData.z0; pl.updateWorldMatrix(true,false); _v.set(1,0,0).transformDirection(pl.matrixWorld); if(_v.x-_v.z<0) pl.rotation.z=pl.userData.z0+Math.PI; }   // the name on the office roof always reads left to right
     // people, machines, dog
     const yard=st.yard, inY=w=>!!(yard&&v.inZone&&v.inZone(yard,w.x,w.y));
-    st.workers.forEach(w=>{ const g=people.get(w); if(!g) return; g.position.set(w.x,(w.z||0),w.y); animPerson(g,w,t,dt,st,inY(w),v); });
+    st.workers.forEach(w=>{ const g=people.get(w); if(!g) return; g.visible=!w.inside; if(w.inside) return; g.position.set(w.x,(w.z||0),w.y); animPerson(g,w,t,dt,st,inY(w),v); });
     st.vehicles.forEach(vh=>{ const g=machines.get(vh); if(g){ animVehicle(g,vh,t,st,v); const bl=g.userData.blob; if(bl){ const cu=vh.cur; bl.visible=!!(cu&&!vh.parked&&!vh.hidden); if(cu) bl.position.set(cu.x,0.48,cu.y); } } });
     if(dogM&&st.dog) animDog(dogM,st.dog,t,dt);
     const fx=st.fx||[]; dust.forEach((d,i)=>{ const q=fx[i]; if(!q){ d.visible=false; return; } const kk=(t-q.t0)/q.life; d.visible=kk>=0&&kk<1; d.position.set(q.x,0.12+kk*0.4,q.y); d.scale.setScalar(0.25+kk*0.55); d.material.opacity=0.42*(1-kk); });
