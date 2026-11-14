@@ -1124,7 +1124,10 @@ async function saveReport(r){
   r.history=((before&&before.history)||(before&&before.at?[{by:before.by||null,at:before.at,ch:[]}]:[])).concat([{by:ME||null,at:new Date().toISOString(),ch:ch.length?ch.slice(0,12):['重新儲存（沒有變更）']}]).slice(-40);
   r.by=ME||null; r.at=new Date().toISOString();
   if(MODE==='local'){ REPORTS[r.date]=JSON.parse(JSON.stringify(r)); return; }
-  await DB.doc(repCol(CUR)+'/'+r.date).set(JSON.parse(JSON.stringify(r)));
+  const w=DB.doc(repCol(CUR)+'/'+r.date).set(JSON.parse(JSON.stringify(r)));
+  // the write lands in the phone's offline store at once and is sent as soon as the connection allows; don't keep the button spinning on a slow line
+  const slow=await Promise.race([w.then(()=>false),new Promise(res=>setTimeout(()=>res(true),6000))]);
+  if(slow){ REPORTS[r.date]=JSON.parse(JSON.stringify(r)); w.then(()=>toast('日報已上傳到雲端')).catch(e=>toast(writeFailed(e))); return 'queued'; }
 }
 async function deleteReport(date){
   if(MODE==='local'){ delete REPORTS[date]; return; }
@@ -2103,9 +2106,9 @@ function wireReport(){
     Object.keys(draft.vendors||{}).forEach(k=>{ if(!draft.vendors[k] || !((+draft.workers[k]>0)||(+(draft.machines||{})[k]>0))) delete draft.vendors[k]; });
     if(!draft.tasks.length && !total(draft) && !machTotal(draft)){ toast('請至少填一項工作或出工人數'); return; }
     const b=$('#fSave'); b.disabled=true; b.innerHTML='<span class="spin"></span> 儲存中…';
-    try{ await saveReport(draft);
+    try{ const q=await saveReport(draft);
       if(CAN_WRITE && draft.vendors && Object.keys(draft.vendors).length){ const sv=Object.assign({},SITE.vendors||{}); let ch=false; Object.entries(draft.vendors).forEach(([k,v])=>{ if(sv[k]!==v){ sv[k]=v; ch=true; } }); if(ch){ SITE.vendors=sv; saveSite(); } }
-      draftDirty=false; toast('已儲存 '+fmtK(draft.date)+' 的日報'); selDate=draft.date; draft=null; go('today'); }
+      draftDirty=false; toast(q==='queued'?'已存在這台手機，網路比較慢，連上後會自動上傳':'已儲存 '+fmtK(draft.date)+' 的日報'); selDate=draft.date; draft=null; go('today'); }
     catch(e){ toast(writeFailed(e)); b.disabled=false; b.textContent='儲存日報'; }
   };
   const del=$('#fDel'); if(del) del.onclick=()=>{
@@ -2937,7 +2940,8 @@ function simBuild(r){
 
   // transport trucks
   const SH=(r&&r.shifts)||{}, todayView=!!(r&&r.date===TODAY), hr=new Date().getHours();
-  const present=(k,v,isM)=>{ if(offNow) return 0; if(tradeKind(k)!=='eng'&&tradeDone(k)) return 0;
+  const present=(k,v,isM)=>{ if(offNow) return 0; if(!isM&&todayView&&live&&tradeKind(k)==='eng'&&todayPunches().length) return punchedIn().length;   // whoever is clocked in right now is on site, whatever the hour (also at night)
+    if(tradeKind(k)!=='eng'&&tradeDone(k)) return 0;
     const x=splitOf(r,k,isM), f=Math.ceil(x.f);
     if(todayView&&live) return hr>=18?x.ng:f+(hr<12?x.am:x.pm);
     const h=todayView?SIM.todayHalf:(SIM.half||'all'); return h==='am'?f+x.am:h==='pm'?f+x.pm:h==='ng'?x.ng:f+x.am+x.pm+x.ng; };   // past days: 上午／下午 picked on the 工地 screen

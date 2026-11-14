@@ -30,8 +30,8 @@ async function boot() {
     app = fa.initializeApp(FIREBASE_CONFIG);
     auth = A.getAuth(app);
     try {
-      db = F.initializeFirestore(app, { ignoreUndefinedProperties: true, localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) });
-    } catch (e) { db = F.initializeFirestore(app, { ignoreUndefinedProperties: true }); }
+      db = F.initializeFirestore(app, { ignoreUndefinedProperties: true, experimentalAutoDetectLongPolling: true, localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) });   // long-polling fallback: some mobile networks block Firestore's streaming connection, which leaves writes waiting forever
+    } catch (e) { db = F.initializeFirestore(app, { ignoreUndefinedProperties: true, experimentalAutoDetectLongPolling: true }); }
   } catch (e) {
     console.error(e); overlay('error', '連不上伺服器，請確認網路後重新整理。'); return;
   }
