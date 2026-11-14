@@ -2726,7 +2726,10 @@ function simBuild(r){
     const far=z.pts.reduce((a,q)=>off(q)>off(a)?q:a); z.lab={x:z.cx+(far.x-z.cx)*0.6,y:z.cy+(far.y-z.cy)*0.6}; });
   const gateIn={x:GT.G.x-GT.n.x*0.9,y:GT.G.y-GT.n.y*0.9}, gateOut={x:GT.G.x+GT.n.x*0.9,y:GT.G.y+GT.n.y*0.9};
   const yard=zones.find(z=>z.isYard); st_pipePt=null;
+  // a machine needs this much clear ground inside the fence
+  const roomAt=(x,y)=>[[0,0],[1.6,0],[-1.6,0],[0,1.6],[0,-1.6],[1.15,1.15],[-1.15,1.15],[1.15,-1.15],[-1.15,-1.15]].every(([a,b])=>inSite(x+a,y+b))&&Math.hypot(x-GT.G.x,y-GT.G.y)>3.0;   // whole machine inside, clear of the gate mouth
   let park=gateOut;
+  if(!yard){ park=gateIn; for(let k=2.2;k<10;k+=0.2){ const p={x:GT.G.x-GT.n.x*k,y:GT.G.y-GT.n.y*k}; if(roomAt(p.x,p.y)){ park=p; break; } } }   // no 空地: just inside the gate
   if(yard){ park={x:yard.cx,y:yard.cy}; for(let k=1.6;k<8;k+=0.2){ const p={x:GT.G.x-GT.n.x*k,y:GT.G.y-GT.n.y*k}; if(inZone(yard,p.x,p.y)&&inZone(yard,p.x-GT.n.x*1.2,p.y-GT.n.y*1.2)){ park={x:p.x-GT.n.x*0.6,y:p.y-GT.n.y*0.6}; break; } } }
   const gatePt=gateIn, exitPt=gateOut;
   const store=zones.find(z=>z.isStore);
@@ -2850,7 +2853,16 @@ function simBuild(r){
   const spots=[]; const used=[];
   if(yard){ for(let yy=yard.y+0.9; yy<yard.y+yard.h-0.6; yy+=1.5) for(let xx=yard.x+1.1; xx<yard.x+yard.w-0.9; xx+=2.3) if(inZone(yard,xx,yy)&&inZone(yard,xx+1,yy)&&inZone(yard,xx-1,yy)&&!nearOffice(xx,yy)) spots.push({x:xx,y:yy}); }
   spots.sort((a,b)=>Math.hypot(a.x-park.x,a.y-park.y)-Math.hypot(b.x-park.x,b.y-park.y));
-  const takeSpot=()=>{ const sp=spots.find(p=>!used.includes(p)&&Math.hypot(p.x-park.x,p.y-park.y)>1.8); if(sp){ used.push(sp); return sp; } const k=used.length+1; const p={x:gateOut.x+GT.t.x*2.6*k,y:gateOut.y+GT.t.y*2.6*k}; used.push(p); return p; };
+  // 空地 full (or none): park inside the fence, off the beams if possible, nearest the gate first — never out on the street
+  let inner=null;
+  const innerSpots=()=>{ if(inner) return inner; const xs=BND.map(q=>q.x), ys=BND.map(q=>q.y), C=[];
+    for(let yy=Math.min(...ys)+0.5; yy<Math.max(...ys); yy+=0.5) for(let xx=Math.min(...xs)+0.5; xx<Math.max(...xs); xx+=0.5) if(roomAt(xx,yy)&&!nearOffice(xx,yy)) C.push({x:xx,y:yy,busy:work.some(z=>(z.beamPts||z.beamXs)&&inZone(z,xx,yy))?1:0});
+    C.sort((a,b)=>(a.busy-b.busy)||(Math.hypot(a.x-park.x,a.y-park.y)-Math.hypot(b.x-park.x,b.y-park.y))); return inner=C; };
+  const takeSpot=()=>{ const sp=spots.find(p=>!used.includes(p)&&Math.hypot(p.x-park.x,p.y-park.y)>1.8); if(sp){ used.push(sp); return sp; }
+    const far=(p,d)=>Math.hypot(p.x-park.x,p.y-park.y)>2.2&&used.every(u=>Math.hypot(p.x-u.x,p.y-u.y)>d);
+    const q=innerSpots().find(p=>far(p,2.4))||innerSpots().find(p=>far(p,1.6));
+    if(q){ const p={x:q.x,y:q.y}; used.push(p); return p; }
+    const k=used.length+1; const p={x:gateOut.x+GT.t.x*2.6*k,y:gateOut.y+GT.t.y*2.6*k}; used.push(p); return p; };
   const transport=(offNow||allDone)?null:(tasks.find(t=>/運出|清運|載運|運走|運離/.test(t.text)) || (nHaul>0 ? tasks.find(t=>t.status==='doing'&&/拆模/.test(t.text)) : null));
   const tdir=Math.atan2(GT.t.y,GT.t.x);
   if(transport){
@@ -2858,9 +2870,9 @@ function simBuild(r){
     const span=GW+GH;
     for(let i=0;i<nT;i++){
       let pk=park;
-      if(i>0){ pk=yard? takeSpot() : {x:park.x-GT.t.x*2.3,y:park.y-GT.t.y*2.3}; }
+      if(i>0) pk=takeSpot();
       const A={x:gateOut.x-GT.t.x*span,y:gateOut.y-GT.t.y*span}, B={x:gateOut.x+GT.t.x*span,y:gateOut.y+GT.t.y*span};
-      const inPath=yard?[A,gateOut,gateIn,pk]:[A,pk], outPath=yard?[gateIn,gateOut,B]:[B];
+      const inPath=[A,gateOut,gateIn,pk], outPath=[gateIn,gateOut,B];
       vehicles.push({type:'truck',crane:i<nCraneTruck,park:pk,inPath,outPath,wp:0,x:i?A.x:pk.x,y:i?A.y:pk.y,phase:i?'away':'load',wait:i?11:7,loaded:false,hidden:i>0,dir:Math.atan2(-GT.n.y,-GT.n.x)});
     }
     const wz=work; const tgt=wz.length?{x:wz.reduce((s,z)=>s+z.cx,0)/wz.length,y:wz.reduce((s,z)=>s+z.cy,0)/wz.length}:{x:GW/2,y:GH/2};
@@ -2868,7 +2880,7 @@ function simBuild(r){
     z_loadPt={x:park.x+dx/dl*1.3,y:park.y+dy/dl*1.3};
   } else {
     z_loadPt=null;
-    for(let i=0;i<Math.min(2,nHaul);i++){ const p=i===0&&yard?park:takeSpot(); vehicles.push({type:'truck',crane:i<nCraneTruck,x:p.x,y:p.y,dir:tdir,static:true}); }
+    for(let i=0;i<Math.min(2,nHaul);i++){ const p=i===0?(used.push(park),park):takeSpot(); vehicles.push({type:'truck',crane:i<nCraneTruck,x:p.x,y:p.y,dir:tdir,static:true}); }
   }
   for(let i=0;i<Math.min(2,nCrane);i++){ const p=takeSpot(); vehicles.push({type:'mcrane',x:p.x,y:p.y,dir:tdir,ph:i*1.7}); }
   let pumpV=null;
@@ -2905,8 +2917,8 @@ function simBuild(r){
     // pump faces into the site → the mixer drives past the gate on the road, then reverses in through the gate up to the hopper
     const facesIn=Math.hypot(u.x+GT.n.x,u.y+GT.n.y)<0.5;
     const R={x:gateOut.x+GT.t.x*2.6+GT.n.x*1.2,y:gateOut.y+GT.t.y*2.6+GT.n.y*1.2}, Ro={x:gateOut.x+GT.n.x*1.2,y:gateOut.y+GT.n.y*1.2};
-    const inPath=facesIn?[A,R,Ro,gateOut,gateIn,feed]:yard?[A,gateOut,gateIn,appr,feed]:[A,appr,feed];
-    const outPath=facesIn?[gateIn,gateOut,Ro,B]:yard?[gateIn,gateOut,B]:[B];
+    const inPath=facesIn?[A,R,Ro,gateOut,gateIn,feed]:[A,gateOut,gateIn,appr,feed];
+    const outPath=facesIn?[gateIn,gateOut,Ro,B]:[gateIn,gateOut,B];
     vehicles.push({type:'mixer',x:feed.x,y:feed.y,dir:Math.atan2(-u.y,-u.x),feeding:pumpV,cycle:true,inPath,outPath,backFrom:facesIn?2:inPath.length-1,phase:'feed',wait:30,wp:0,trip:1});
   }
   for(let i=0;i<(pumpV?0:Math.min(2,nMix));i++){ const p=takeSpot(); vehicles.push({type:'mixer',x:p.x,y:p.y,dir:tdir}); }
