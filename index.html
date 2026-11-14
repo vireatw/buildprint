@@ -3782,8 +3782,9 @@ function simUpdate(dt){
       else {
         // not getting any closer for a while (blocked by a machine): give up and pick another spot
         if(w.bestD==null||d<w.bestD-0.05){ w.bestD=d; w.stuckT=0; } else if((w.stuckT=(w.stuckT||0)+dt)>1.5){ w.bestD=null; w.stuckT=0; w.state='work'; w.t=0.4+st.rng()*0.6; return; }
-        const v=w.speed*dt; w.x+=dx/d*Math.min(v,d); w.y+=dy/d*Math.min(v,d); const rr=RN(dx,dy), sx=rr[0]-rr[1]; if(Math.abs(sx)>0.01) w.flip=sx<0; }
-    } else { w.t-=dt; if(w.t<=0){ pickTarget(w,st.zones,st.anyZones,st.rng,st.stacks); w.state='walk'; w.bestD=null; w.stuckT=0; } }
+        const v=w.speed*dt*((w.z||0)>0.08&&(w.z||0)<0.4?0.55:1); w.x+=dx/d*Math.min(v,d); w.y+=dy/d*Math.min(v,d); const rr=RN(dx,dy), sx=rr[0]-rr[1]; if(Math.abs(sx)>0.01) w.flip=sx<0; }
+    } else { w.t-=dt; if(w.t<=0){ pickTarget(w,st.zones,st.anyZones,st.rng,st.stacks); if(climbTop(st,w.tx,w.ty)>0){ for(let k=0;k<16;k++){ const a=k*2.4, r=0.35+k*0.06, x=w.tx+Math.cos(a)*r, y=w.ty+Math.sin(a)*r; if(!climbTop(st,x,y)){ w.tx=x; w.ty=y; break; } } }   // work beside a beam, not on top of it
+      w.state='walk'; w.bestD=null; w.stuckT=0; } }
   });
   st.vehicles.forEach(v=>{
     if(v.type==='skid'){ if(!st.lunch) skidStep(v,dt,st); return; }
@@ -3857,6 +3858,12 @@ function keepInside(st){ const B=st.BND; if(!B||B.length<3) return; const P=B.ma
     for(let i=0;i<B.length;i++){ const a=B[i], b=B[(i+1)%B.length], ex=b.x-a.x, ey=b.y-a.y, L2=ex*ex+ey*ey||1, u=Math.max(0,Math.min(1,((o[kx]-a.x)*ex+(o[ky]-a.y)*ey)/L2)), px=a.x+ex*u, py=a.y+ey*u, d=Math.hypot(o[kx]-px,o[ky]-py); if(d<bd){ bd=d; bx=px; by=py; } }
     const dx=cx-bx, dy=cy-by, dl=Math.hypot(dx,dy)||1; for(let k=0.35;k<6;k+=0.25){ const x=bx+dx/dl*k, y=by+dy/dl*k; if(ok(x,y)){ o[kx]=x; o[ky]=y; return; } } o[kx]=cx; o[ky]=cy; };
   st.workers.forEach(w=>{ if(w.role==='signal'&&!w.resting) return; fix(w,'x','y'); if(w.tx!=null) fix(w,'tx','ty'); }); }
+// 地樑, columns and low stacks: nobody walks through them, they climb up and over (see simDraw); returns the height to stand at here
+function climbTop(st,x,y){ if(st._climbP!==st.props){ st._climbP=st.props; st._climb=st.props.filter(o=>!o.mound&&!o.sign&&(o.beam||((o.z0||0)+(o.h||0))<=0.75)); }
+  let top=0; for(const o of st._climb){ const h=(o.z0||0)+(o.h||0); if(h<=top) continue;
+    if(o.beam){ const vx=o.bx-o.ax, vy=o.by-o.ay, L2=vx*vx+vy*vy||1, k=Math.max(0,Math.min(1,((x-o.ax)*vx+(y-o.ay)*vy)/L2)); if(Math.hypot(x-o.ax-vx*k,y-o.ay-vy*k)<(o.wd||0.36)/2+0.1) top=h; }
+    else if(x>o.x-0.1&&x<o.x+o.w+0.1&&y>o.y-0.1&&y<o.y+o.d+0.1) top=h; }
+  return top; }
 function keepClear(st){ const Z=machZones(st); if(!Z.length) return;
   const first=!st._clear; st._clear=true;   // on the first frame people are simply placed outside, so nobody is seen being pushed
   const push=(o,kx,ky,ease)=>{ Z.forEach(z=>{ const dx=o[kx]-z.x, dy=o[ky]-z.y, d=Math.hypot(dx,dy); if(d>=z.r) return;
@@ -4035,7 +4042,7 @@ function simDraw(){
   FD.forEach(o=>items.push({d:o.d,f:()=>drawFill(c,o.f)}));
   st.vehicles.filter(v=>!behind(v)).forEach(v=>{ let d=DEP(v.x,v.y)+0.6; { const on=fillUnder(v.x,v.y,0.6); ease(v,on?FILL_H:0); if(on) d=above(v.x,v.y,v.type==='digger'?2.6:1.8,Math.max(d,on.d+0.05)); } items.push({d,f:()=>{ if(ISL.edit&&v.key&&ISL.machSel===v.key){ c.save(); c.strokeStyle='#F5B700'; c.lineWidth=2.5; c.setLineDash([6,4]); c.beginPath(); for(let i=0;i<=24;i++){ const a=i/24*Math.PI*2, q=SP(v.x+Math.cos(a)*1.5,v.y+Math.sin(a)*1.5,v.z||0); i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]); } c.stroke(); c.restore(); } if(v.type!=='digger'&&v.z){ /* lift the whole machine onto the soil */ c.save(); c.translate(0,SP(v.x,v.y,v.z)[1]-SP(v.x,v.y,0)[1]); drawVehicle(c,v,t); c.restore(); } else drawVehicle(c,v,t); }}); });
   st.workers.filter(w=>!behind(w)).forEach(w=>{ let d=DEP(w.x,w.y); const on=FD.find(o=>inPolyS([w.x,w.y],o.f.poly.map(p=>[p.x,p.y]))); if(on) d=Math.max(d,on.d+0.01);
-    /* stand on backfilled soil (and on the beam tops between filled cells), stepping up and down smoothly */ ease(w,fillUnder(w.x,w.y,0.42)?FILL_H:0); if(w.z>0.2) d=above(w.x,w.y,0.5,d); items.push({d,f:()=>drawPerson(c,w,t)}); });
+    /* stand on backfilled soil (and on the beam tops between filled cells), and climb over any 地樑 / column / low stack in the way, stepping up and down smoothly */ { let ct=climbTop(st,w.x,w.y); if(w.state==='walk'&&w.tx!=null){ const dx=w.tx-w.x, dy=w.ty-w.y, dl=Math.hypot(dx,dy); if(dl>0.05) ct=Math.max(ct,climbTop(st,w.x+dx/dl*Math.min(dl,0.22),w.y+dy/dl*Math.min(dl,0.22))); } ease(w,Math.max(fillUnder(w.x,w.y,0.42)?FILL_H:0,ct)); } /* stepping up just before the beam */ if(w.z>0.2) d=above(w.x,w.y,0.5,d); items.push({d,f:()=>drawPerson(c,w,t)}); });
   (st.decor?st.decor.trees:[]).forEach(q=>items.push({d:DEP(q.x,q.y),f:()=>drawTree(c,q,t)}));
   if(st.dog&&!dogBack){ const dg=st.dog; items.push({d:DEP(dg.x,dg.y),f:()=>drawDog(c,dg,t)}); }
   (st.fx||[]).forEach(q=>items.push({d:DEP(q.x,q.y)-0.3,f:()=>{ const k=(t-q.t0)/q.life; if(k<0||k>1) return; const pp=SP(q.x,q.y,0.1+k*0.35); c.fillStyle=`rgba(196,178,146,${0.42*(1-k)})`; c.beginPath(); c.arc(pp[0],pp[1],SIM.S*(0.12+k*0.26),0,Math.PI*2); c.fill(); }}));
