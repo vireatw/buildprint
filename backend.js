@@ -220,6 +220,7 @@ const CSS = `
 #bpGate.splash .hd b{font-size:34px;letter-spacing:.18em;padding-left:.18em;line-height:1.2}
 #bpGate.splash .hd small{display:block;margin-top:6px;font-size:14px;letter-spacing:.04em}
 #bpGate.splash .spin{display:block;margin:34px auto 0}
+#bpGate .lockup{display:block;width:200px;max-width:58vw;height:auto;margin:0 auto}
 #bpGate .walk{position:relative;width:236px;height:64px;margin:30px auto 0}
 #bpGate .walk i{position:absolute;width:44px;height:21px;background:url(logo-print.png?v=1) center/contain no-repeat;opacity:0;transform:rotate(var(--r));animation:bpstep 2.5s cubic-bezier(.3,.7,.4,1) infinite}
 @keyframes bpstep{0%{opacity:0;transform:translateY(-6px) scale(.7) rotate(var(--r))}7%{opacity:1;transform:translateY(0) scale(1.1) rotate(var(--r))}13%{transform:scale(1) rotate(var(--r))}55%{opacity:.9}78%,100%{opacity:0;transform:scale(1) rotate(var(--r))}}
@@ -255,10 +256,11 @@ function overlay(state, msg) {
   g.hidden = false;
   const head = `<div class="hd">${LOGO}<div><b>築跡</b><small>Buildprint · 工地日報</small></div></div>`;
   g.classList.toggle('splash', state === 'loading' || state === 'error');   // loading: big centred logo, 築跡 underneath
+  const lock = `<img class="lockup" src="logo-lockup.png?v=1" alt="築跡 BuildPrint" width="600" height="704">`;   // the full logo: BUILD footprint, 築跡, BuildPrint — in white
   if (state === 'loading') {   // footprints walking across under the logo, one step at a time (築跡: the traces of building)
     const steps = [0, 1, 2, 3, 4].map(i => `<i style="left:${i * 48}px;top:${i % 2 ? 36 : 6}px;--r:${i % 2 ? 7 : -7}deg;animation-delay:${(i * 0.32).toFixed(2)}s"></i>`).join('');
-    g.innerHTML = `<div class="bx">${head}<div class="walk" role="img" aria-label="載入中">${steps}</div></div>`; return; }
-  if (state === 'error') { g.innerHTML = `<div class="bx">${head}<p class="err">${esc(msg)}</p><button class="go" onclick="location.reload()">重新整理</button></div>`; return; }
+    g.innerHTML = `<div class="bx">${lock}<div class="walk" role="img" aria-label="載入中">${steps}</div></div>`; return; }
+  if (state === 'error') { g.innerHTML = `<div class="bx">${lock}<p class="err">${esc(msg)}</p><button class="go" onclick="location.reload()">重新整理</button></div>`; return; }
   if (state === 'join') {
     g.innerHTML = `<div class="bx">${head}
       <p class="note">你好，<b>${esc(me.name)}</b>（${esc(me.email)}）。輸入工地管理員給你的邀請碼就能加入。</p>
