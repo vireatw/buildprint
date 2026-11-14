@@ -62,6 +62,7 @@ function toolFor(act){ const hand=grp(), ground=grp(); let fx=null;
   case 'flag': hand.add(B(0.03,0.2,0.03,'#FF5A1F',0.02,-0.12,0)); break;
   case 'inspect': hand.add(B(0.02,0.2,0.15,'#FFF7E0',0.05,-0.02,0)); break;
   case 'broom': { const p=B(0.025,0.75,0.025,'#A0703C',0.2,-0.24,0); p.rotation.z=0.7; hand.add(p); hand.add(B(0.1,0.06,0.22,'#D8B25A',0.48,-0.52,0)); break; }
+  case 'bento': hand.add(B(0.2,0.08,0.15,'#F4F1E8',0.08,-0.02,-0.1),B(0.21,0.025,0.16,'#C0392B',0.08,0.025,-0.1)); break;
   case 'hose': fx=grp(); for(let i=0;i<7;i++){ const d=S(0.03,'#5AAFF0',0,0,0,G.ico,{transparent:true,opacity:0.8}); d.castShadow=false; fx.add(d); } hand.add(fx); hand.add(B(0.1,0.03,0.03,'#2D7D46',0.04,0,0)); break;
   }
   return {hand,ground,fx}; }
@@ -87,10 +88,11 @@ function buildPerson(w){
   const pipe=C(0.05,1.5,'#EEF2F5',0,1.0,0.16); pipe.rotation.z=Math.PI/2; pipe.visible=false; g.add(pipe);
   const bag=S(0.1,'#F4F6F8',0,-0.3,0,G.ico1); bag.visible=false; armL.add(bag);
   const groundSlot=grp(); g.add(groundSlot);
+  const seat=grp(C(0.15,0.27,'#3B7FC4',-0.03,0.135,0,G.cyl),C(0.16,0.03,'#2E6AA8',-0.03,0.27,0,G.cyl)); seat.visible=false; g.add(seat);   // an upturned bucket to sit on at 午休
   g.scale.setScalar(1.18*(w.sz||1));
-  g.userData={body,legL,legR,armR,armL,handR,head,visor,plank,pipe,bag,groundSlot,tool:null,toolKey:'',heading:(w.flip?2.4:0.7)+w.ph,eng};
+  g.userData={body,legL,legR,armR,armL,handR,head,visor,plank,pipe,bag,groundSlot,seat,tool:null,toolKey:'',heading:(w.flip?2.4:0.7)+w.ph,eng};
   return g; }
-function poseOf(w,inYard){ const walking=w.state==='walk';
+function poseOf(w,inYard){ const walking=w.state==='walk'; if(w.state==='rest') return 'rest';
   if(walking) return w.carry?'carry':w.pipe?'pipe':'walk';
   if(w.carry) return 'carry'; if(w.pipe) return 'pipe';
   if(w.clean) return w.cmode==='pick'?'pick':'broom';
@@ -103,18 +105,19 @@ function animPerson(g,w,t,dt,st,inYard,view){ const u=g.userData, T0=t+w.ph, pos
   else { const aim=w.role==='pour'&&st.pumpV&&st.pumpV.cur?st.pumpV.cur:(w.wash&&w.aim)?w.aim:null; hd=aim?Math.atan2(aim.y-w.y,aim.x-w.x):Math.PI/4+(w.ph-3)*0.2-(view?view.rot||0:0); }   // at work he turns three-quarters toward the viewer, so faces and tools are seen
   u.heading=lerpAng(u.heading,hd,Math.min(1,dt*7)); g.rotation.y=-u.heading;
   const key=walking?'':pose; if(key!==u.toolKey){ u.toolKey=key; if(u.tool){ u.handR.remove(u.tool.hand); u.groundSlot.remove(u.tool.ground); }
-    const tk={broom:'broom',pick:'',hose:'hose',flag:'flag',inspect:'inspect',handle:'handle',pour:'',carry:'',pipe:'',walk:'','':''}[key]; const act=tk!==undefined?tk:key; u.tool=act?toolFor(act):null; if(u.tool){ u.handR.add(u.tool.hand); u.groundSlot.add(u.tool.ground); } u.act=act; }
-  u.plank.visible=!!w.carry; u.pipe.visible=!!w.pipe; u.bag.visible=!!w.clean&&pose==='pick'; u.visor.visible=pose==='weld';
+    const tk={rest:'bento',broom:'broom',pick:'',hose:'hose',flag:'flag',inspect:'inspect',handle:'handle',pour:'',carry:'',pipe:'',walk:'','':''}[key]; const act=tk!==undefined?tk:key; u.tool=act?toolFor(act):null; if(u.tool){ u.handR.add(u.tool.hand); u.groundSlot.add(u.tool.ground); } u.act=act; }
+  u.seat.visible=pose==='rest'; u.plank.visible=!!w.carry; u.pipe.visible=!!w.pipe; u.bag.visible=!!w.clean&&pose==='pick'; u.visor.visible=pose==='weld';
   let aR=1.45, aL=1.45, lean=0, drop=0, bob=0, sw=0;
   if(walking){ sw=Math.sin(T0*9); bob=Math.abs(Math.sin(T0*9))*0.035; aR=1.45+sw*0.5; aL=1.45-sw*0.5; if(w.carry||w.pipe){ aR=aL=-1.3; } }
   else if(pose==='carry'||pose==='pipe'){ aR=aL=-1.3; }
   else if(pose==='pick'){ const k=(Math.sin(T0*2.6)+1)/2; lean=k*0.7; drop=k*0.06; aR=1.2; }
   else if(pose==='broom'){ aR=aL=1.0+Math.sin(T0*4)*0.28; }
   else if(pose==='hose'){ aR=0.2; aL=0.5; }
+  else if(pose==='rest'){ const bite=((T0*0.6)%3)<0.7; aR=0.75; aL=bite?-0.6:0.75; drop=0.04; }
   else if(pose==='pour'){ aR=aL=0.3; }
   else if(pose==='flag'){ aR=TOOL_ANG.flag(T0); aL=-1.25-Math.sin(T0*3.2)*0.35; }
   else { const f=TOOL_ANG[pose]||TOOL_ANG.hammer; aR=f(T0); aL=TWO_HANDS[pose]?aR+0.15:1.45; const lw=LOW[pose]; if(lw){ lean=0.45*lw; drop=0.1*lw; } if(pose==='breaker') bob=Math.abs(Math.sin(T0*40))*0.012; if(pose==='hammer') bob=Math.abs(Math.sin(T0*6))*0.02; bob+=Math.sin(T0*2.2)*0.004; }
-  u.armR.rotation.z=Math.PI/2-aR; u.armL.rotation.z=Math.PI/2-aL; u.legL.rotation.z=sw*0.55; u.legR.rotation.z=-sw*0.55;
+  u.armR.rotation.z=Math.PI/2-aR; u.armL.rotation.z=Math.PI/2-aL; const sit=pose==='rest'; u.legL.rotation.z=sit?1.0:sw*0.55; u.legR.rotation.z=sit?1.0:-sw*0.55; u.legL.position.y=u.legR.position.y=0.3;
   u.body.rotation.z=-lean; u.body.position.y=bob-drop; u.body.position.x=lean*0.12;
   // tool effects
   const fx=u.tool&&u.tool.fx; if(fx){ const a=u.act;
@@ -172,9 +175,9 @@ function buildVehicle(v){ const g=grp(), u={}; g.userData=u; u.wheels=[]; u.beac
       const jb=grp(); jb.position.y=4.5; g.add(jb); u.jib=jb; jb.add(B(4.0,0.1,0.14,'#E4A21B',1.0,0,0),B(0.1,0.6,0.1,'#E4A21B',0,0.3,0),B(0.4,0.3,0.4,'#8E8E88',-1.0,-0.15,0),link(mesh(G.box,M('#2B3238')),0,0.6,0,3.0,0,0,0.02),link(mesh(G.box,M('#2B3238')),0,0.6,0,-1.0,0,0,0.02)); u.cable=mesh(G.box,M('#22282E')); u.hook=B(0.3,0.25,0.3,'#C99555'); jb.add(u.cable,u.hook); }
     else { g.add(B(0.9,0.45,0.7,'#E4A21B',0,0.22,0),B(0.4,0.35,0.4,'#3B4650',0,0.62,0)); } }
   return g; }
-function animVehicle(g,v,t,st,view){ const u=g.userData, T0=t+(v.ph||0), dig=v.type==='digger';
+function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv; const u=g.userData, T0=t+(v.ph||0), dig=v.type==='digger';
   let x=v.x, y=v.y; const dir=v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0);
-  if(dig&&v.dig&&!view.edit){ const k=Math.sin(t*0.35+(v.ph||0))*0.7; x+=Math.cos(dir)*k; y+=Math.sin(dir)*k; }
+  if(dig&&v.dig&&!view.edit&&!view.lunch){ const k=Math.sin(t*0.35+(v.ph||0))*0.7; x+=Math.cos(dir)*k; y+=Math.sin(dir)*k; }
   g.visible=!v.hidden; if(v.hidden) return; g.position.set(x,(v.z||0),y);
   u.hd=u.hd==null?dir:lerpAng(u.hd,dir,0.25); g.rotation.y=-u.hd;
   const moving=v.phase==='arrive'||v.phase==='leave'; if(moving) u.wheels.forEach(w=>{ w.rotation.z=-t*8; });
@@ -190,7 +193,7 @@ function animVehicle(g,v,t,st,view){ const u=g.userData, T0=t+(v.ph||0), dig=v.t
     link(u.ram,0.35,0.3,0,Math.cos(el)*1.2,0.5+Math.sin(el)*1.2,0,0.07);
     const tipx=v.x+Math.cos(sl)*4.2*Math.cos(el), tipy=v.y+Math.sin(sl)*4.2*Math.cos(el), tipz=0.97+4.2*Math.sin(el), hz=1.25+0.45*Math.sin(t*0.8+(v.ph||0));
     const dx=tipx-v.x, dy=tipy-v.y, c=Math.cos(u.hd), s=Math.sin(u.hd), lx=dx*c+dy*s, lz=-dx*s+dy*c; link(u.cable,lx,tipz,lz,lx,hz+0.1,lz,0.02); u.hook.position.set(lx,hz,lz); }
-  else if(dig){ const sw=v.dig?Math.sin(T0*1.1):Math.sin(T0*0.33)*0.15, z=-0.18;
+  else if(dig){ const sw=view.lunch?-0.6:v.dig?Math.sin(T0*1.1):Math.sin(T0*0.33)*0.15, z=-0.18;
     const P0=[0.35,0.48,z], E=[1.25+0.1*sw,1.45+0.25*sw,z], Bk=[1.95+0.25*sw,0.25+0.45*sw,z];
     link(u.boom,...P0,...E,0.16); link(u.stick,...E,...Bk,0.12); link(u.ram1,0.62,0.44,z,(P0[0]+E[0])/2,(P0[1]+E[1])/2,z+0.0,0.06); link(u.ram2,(P0[0]+E[0]*2)/3,(P0[1]+E[1]*2)/3+0.14,z,(E[0]+Bk[0])/2,(E[1]+Bk[1])/2+0.12,z,0.05);
     u.bucket.position.set(...Bk); u.bucket.rotation.z=-0.5+sw*0.6; u.dirt.visible=!!v.dig&&sw>0.2; [P0,E,Bk].forEach((p,i)=>u.j[i].position.set(...p));
