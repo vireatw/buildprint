@@ -842,6 +842,9 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 const uid=()=>Math.random().toString(36).slice(2,10);
 const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('on'),2600); }
+// more names offered when adding a 工種／機具; the 工地動畫 has an action or a shape for each of them
+const TRADES_MORE=['測量工','土方工','基樁工','連續壁工','擋土支撐工','鷹架工','鋼構工','電焊工','鐵工','混凝土工','泥作工','砌磚工','磁磚工','石材工','地坪工','防水工','油漆工','噴塗工','木作工','輕隔間工','天花板工','門窗工','玻璃工','帷幕牆工','電工','弱電工','消防工','空調工','電梯工','打石工','拆除工','植筋工','植栽工','清潔工','交通指揮','監造','品管','安衛人員'];
+const MACH_MORE=['高空作業車','壓路機','推土機','鑽掘機','打樁機','發電機','空壓機','抽水機','塔吊','砂石車'];
 const MACH_DEFAULT=['吊卡車','吊車','怪手','預拌車','押送車','卡車','堆高機','山貓'];
 const isMachTrade=k=>/機具|吊車|吊卡|怪手|挖土機|司機/.test(k);
 const total=r=>Object.entries((r&&r.workers)||{}).reduce((s,[k,v])=>s+(isMachTrade(k)?0:(+v||0)),0);   // people only
@@ -1866,7 +1869,7 @@ function askNewCrew(done){ const sh=$('#crewSheet'), n=$('#ncName'), v=$('#ncVen
   const setKind=k=>{ kind=k; $$('#ncKind [data-nck]').forEach(b=>b.setAttribute('aria-checked',b.dataset.nck===k));
     $('#ncNameL').textContent=k==='mach'?'機具名稱':'工種'; n.placeholder=k==='mach'?'例如：吊卡車、怪手、高空作業車':'例如：鋼構工、泥作、油漆';
     const have=k==='mach'?Object.keys(draft.machines||{}):CREW_TRADES;
-    $('#ncTradeList').innerHTML=(k==='mach'?MACH_DEFAULT.concat(machList(),['高空作業車','發電機','鑽掘機']):TRADES_DEFAULT.concat(['鋼構工','泥作','油漆','防水','木工'])).filter((x,i,a)=>a.indexOf(x)===i&&!have.includes(x)).map(x=>`<option value="${esc(x)}">`).join(''); };
+    $('#ncTradeList').innerHTML=(k==='mach'?MACH_DEFAULT.concat(machList(),MACH_MORE):TRADES_DEFAULT.concat(TRADES_MORE)).filter((x,i,a)=>a.indexOf(x)===i&&!have.includes(x)).map(x=>`<option value="${esc(x)}">`).join(''); };
   n.value=''; v.value=''; msg.textContent=''; setKind('crew');
   $$('#ncKind [data-nck]').forEach(b=>b.onclick=()=>{ setKind(b.dataset.nck); n.focus(); });
   sh.hidden=false; setTimeout(()=>n.focus(),50);
@@ -2568,6 +2571,59 @@ function tradeKind(t){
   if(/水電|機電|電工|管/.test(t)) return 'mep'; if(/雜工|粗工|點工|清潔/.test(t)) return 'labor'; if(/機具|吊車|司機|怪手|操作/.test(t)) return 'mach';
   if(/工程師|監工|主任|技師/.test(t)) return 'eng'; return 'other';
 }
+// what a crew is seen doing in the 工地動畫: read from its 工作事項 first, then from the crew's name (ACT_TEXT / ACT_TRADE, first match wins)
+const ACT_TEXT=[
+  ['flag',/吊掛指揮|指揮/],
+  ['survey',/測量|放樣|放線|彈線|墨線|水準|定位|高程|複測/],
+  ['inspect',/查驗|檢查|檢驗|驗收|巡檢|巡查|會勘|勘驗|試驗|取樣|試體|測試|試水|試壓|拍照|記錄|點交|自主檢/],
+  ['weld',/焊|銲|熔接/],
+  ['grind',/切割|研磨|打磨|磨平|砂輪|切斷/],
+  ['breaker',/打石|敲除|打除|拆除|破碎|鑿|打毛|剔除/],
+  ['pipe',/配管|套管|管路|管線|排水管|給水|污水|消防管|風管|冷媒|埋管|接管|穿管/],
+  ['wire',/配線|拉線|穿線|電纜|線槽|弱電|接地|佈線|配電|電線|放纜/],
+  ['tie',/綁筋|綁紮|配筋|鋼筋|箍筋|主筋|續接|搭接|墊塊/],
+  ['hammer',/模板|組模|拆模|封模|立模|釘/],
+  ['brick',/砌磚|砌牆|砌築|紅磚|磚牆|砌/],
+  ['tile',/貼磚|磁磚|地磚|壁磚|石材|大理石|花崗|鋪面|舖面|鋪磚|石英磚|馬賽克/],
+  ['waterproof',/防水|止水|PU|瀝青|防潮|塗膜|隔熱/i],
+  ['spray',/噴漆|噴塗|噴漿|噴藥|消毒|噴砂|披覆|噴凝土/],
+  ['paint',/油漆|塗裝|塗料|批土|刷漆|面漆|底漆|上漆|補漆|烤漆/],
+  ['float',/粉光|整平|鏝平|抹平|地坪|收面|刮平|找平|洩水坡|舖砂|鋪砂|環氧/],
+  ['trowel',/泥作|粉刷|打底|抹灰|水泥砂漿|填縫|抿石|洗石|補土|修補|矽利康|打膠|嵌縫/],
+  ['glass',/玻璃|帷幕/],
+  ['saw',/木作|木工|鋸|裁板|裁切|角材|木地板|櫥櫃|系統櫃/],
+  ['wrench',/螺栓|鋼構|鷹架|施工架|搭架|拆架|支撐|安全網|護欄|組裝|吊裝|電梯|空調|機組|圍籬/],
+  ['drill',/鑽孔|植筋|鑽|鎖固|輕隔間|隔間|天花|矽酸鈣|石膏板|鋁窗|門窗|門框|窗框|安裝|裝設|固定|五金|欄杆|扶手|燈具|開關|插座|衛浴|器具|設備/],
+  ['plant',/植栽|種植|景觀|草皮|綠化|喬木|灌木/],
+  ['shovel',/開挖|挖土|挖溝|土方|回填|整地|鏟|清土|清淤|碎石|級配|砂石|溝渠|人工挖/],
+  ['handle',/搬運|進料|卸料|卸貨|材料|吊料|運料|收料|堆置/]];
+const ACT_TRADE=[
+  ['survey',/測量|放樣/],
+  ['inspect',/監造|品管|安衛|勞安|查驗|檢驗|建築師|業主|督導|顧問/],
+  ['flag',/指揮|交管|旗手/],
+  ['weld',/焊|銲|鐵工|鐵件/],
+  ['breaker',/打石|拆除|敲除|破碎/],
+  ['tie',/鋼筋|綁筋|紮筋/],
+  ['hammer',/模板|板模/],
+  ['brick',/砌/],
+  ['tile',/磁磚|貼磚|石材|大理石|地磚|鋪面|舖面|抿石/],
+  ['waterproof',/防水|止水/],
+  ['spray',/噴漆|噴塗|噴漿|消毒|披覆/],
+  ['paint',/油漆|塗裝|塗料|批土/],
+  ['float',/地坪|粉光|環氧/],
+  ['trowel',/泥作|泥水|粉刷|水泥工|填縫|矽利康|打膠/],
+  ['glass',/玻璃|帷幕/],
+  ['saw',/木工|木作|裝潢|系統櫃|櫥櫃/],
+  ['pipe',/水電|機電|配管|管工|消防|空調|冷氣|瓦斯|給排水|衛工/],
+  ['wire',/電工|弱電|配線|電氣|監控|電信|照明/],
+  ['drill',/輕隔間|隔間|天花|鋁窗|門窗|鋁門|門工|窗|五金|鑽孔|植筋|衛浴|廚具|裝修|金屬|欄杆|招牌/],
+  ['wrench',/鋼構|鷹架|施工架|架工|吊裝|電梯|昇降|升降|設備|支撐|擋土|圍籬|安全網|組立/],
+  ['plant',/植栽|景觀|園藝|綠化/],
+  ['shovel',/土方|土工|挖|回填|基樁|連續壁|地工/],
+  ['float',/混凝土|混泥土|灌漿|押送|泵浦/],
+  ['handle',/粗工|雜工|點工|搬運|小工|臨時工/]];
+const KIND_ACT={form:'hammer',rebar:'tie',conc:'float',mep:'pipe',labor:'handle',other:'hammer'};
+const actFrom=(tbl,str)=>{ const e=str?tbl.find(([,re])=>re.test(str)):null; return e?e[0]:null; };
 // every trade gets its own hard-hat colour: the one picked in settings, else a default, never two trades the same
 const HAT_COLORS=[['#FFFFFF','白'],['#E0782A','橘'],['#2F6DB5','藍'],['#8E5BC9','紫'],['#F2C200','黃'],['#2E9B57','綠'],['#D64545','紅'],['#8E8E8E','灰'],['#A0703C','咖啡'],['#E57AA8','粉紅'],['#3BB5C4','青'],['#3949AB','靛藍'],['#9CCC3C','萊姆綠'],['#00796B','墨綠'],['#37474F','黑'],['#64B5F6','天藍']];
 const HAT_TRADE=[[/工程師|監工|主任/,'#FFFFFF'],[/模板/,'#E0782A'],[/鋼筋/,'#2F6DB5'],[/押送|泵浦|幫浦/,'#8E5BC9'],[/混凝土|混泥土/,'#8E8E8E'],[/水電|機電|電工/,'#2E9B57'],[/粗工|雜工/,'#F2C200'],[/鋼構|吊裝/,'#D64545'],[/泥作|泥水/,'#A0703C'],[/油漆/,'#E57AA8'],[/焊/,'#3BB5C4']];
@@ -2855,7 +2911,10 @@ function simBuild(r){
   }
   for(let i=0;i<(pumpV?0:Math.min(2,nMix));i++){ const p=takeSpot(); vehicles.push({type:'mixer',x:p.x,y:p.y,dir:tdir}); }
   for(let i=1;i<Math.min(2,nPump);i++){ const p=takeSpot(); vehicles.push({type:'pump',x:p.x,y:p.y,dir:tdir,u:{x:Math.cos(tdir),y:Math.sin(tdir)},parked:true}); }
-  for(let i=0;i<Math.min(3,nSmall+nOther);i++){ const p=takeSpot(); vehicles.push({type:'small',x:p.x,y:p.y,dir:tdir}); }
+  // every other machine on the 日報 (堆高機、高空作業車、壓路機、鑽掘機、發電機…): one of each first, then more of the same, up to 4
+  { const oth=Object.keys(MM).filter(k=>!/卡車|砂石|貨車|未分類|吊卡|吊車|起重|怪手|挖|預拌|攪拌|泵浦|幫浦|押送|山貓/.test(k)), list=[];
+    for(let round=0;round<4&&list.length<4;round++) oth.forEach(k=>{ if(list.length<4&&(+MM[k]||0)>round) list.push(k); });
+    list.forEach(k=>{ const p=takeSpot(); vehicles.push({type:'small',mk0:k,sk:smallKind(k),x:p.x,y:p.y,dir:tdir,ph:rng()*6}); }); }
   // 山貓 (skid steer): shuttles soil from beside a working 怪手 to a spot a few metres away
   // it is on the day's 日報, so it works — unless its own 工作事項 only say it is idle (待命、保養…)
   { const own=((r&&r.tasks)||[]).filter(t=>t.trade&&/山貓/.test(t.trade)&&t.status!=='next'&&(t.text||'').trim());
@@ -2875,13 +2934,13 @@ function simBuild(r){
       if(!spot){ const z=work.find(z=>z.status==='doing')||work[0]; if(z){ const q=randIn(z,rng); spot={x:q.x,y:q.y,u:{x:1,y:0}}; } }
       const earth=((r&&r.tasks)||[]).some(t=>t.status==='doing'&&/怪手|挖/.test(t.trade||'')&&/挖|土|回填|整地|開挖/.test(t.text||''));
       if(spot) vehicles.push({type:'digger',x:spot.x,y:spot.y,u:spot.u,dig:!!spot.dig||earth,ph:rng()*6,dir:Math.atan2(spot.u.y,spot.u.x)}); } }
-  { const mkFor=v=>{ const re=v.type==='truck'?(v.crane?/吊卡/:/卡車|砂石|貨車|未分類|吊卡/):v.type==='mcrane'?/吊車|起重/:v.type==='mixer'?/預拌|攪拌/:v.type==='pump'?/泵浦|幫浦|押送/:v.type==='digger'?/怪手|挖/:v.type==='skid'?/山貓/:v.type==='small'?/堆高|鏟|高空/:/./;
+  { const mkFor=v=>{ if(v.mk0) return v.mk0; const re=v.type==='truck'?(v.crane?/吊卡/:/卡車|砂石|貨車|未分類|吊卡/):v.type==='mcrane'?/吊車|起重/:v.type==='mixer'?/預拌|攪拌/:v.type==='pump'?/泵浦|幫浦|押送/:v.type==='digger'?/怪手|挖/:v.type==='skid'?/山貓/:v.type==='small'?/堆高|鏟|高空/:/./;
       return Object.keys(MM).find(k=>re.test(k)&&!(v.type==='mcrane'&&/吊卡/.test(k)))||({truck:v.crane?'吊卡車':'卡車',mcrane:'吊車',mixer:'預拌車',pump:'押送車',digger:'怪手',skid:'山貓',small:'機具'})[v.type]; };
     vehicles.forEach(v=>{ v.mk=mkFor(v); v.vendor=((r&&r.vendors)||{})[v.mk]||''; v.count=MM[v.mk]||''; v.shift=shiftText(r||{},v.mk);
       v.job= v.type==='pump'?`泵送混凝土${pumpV&&pumpV.zone?'至'+pumpV.zone.name:''}`
            : v.type==='mixer'?(v.feeding?'將混凝土倒入押送車':'等待卸料')
            : v.type==='truck'?(v.static?'待命':(transport&&/模板|拆模/.test(transport.text)?'載運拆下的模板':(transport?transport.text:'載運')))
-           : v.type==='mcrane'?'吊掛作業' : v.type==='digger'?(v.dig?'挖土、整理土方':'待命') : v.type==='skid'?(v.work?'搬運土方':'待命') : '搬運作業';
+           : v.type==='mcrane'?'吊掛作業' : v.type==='digger'?(v.dig?'挖土、整理土方':'待命') : v.type==='skid'?(v.work?'搬運土方':'待命') : (SMALL_JOB[v.sk]||'作業中');
       // what the 日報 says this machine is doing wins over the generic label
       const mt=((r&&r.tasks)||[]).filter(t=>t.trade===v.mk&&t.status!=='next'&&(t.text||'').trim()).sort((x,y)=>(x.status==='done')-(y.status==='done'));
       if(mt.length) v.job=mt.map(t=>{ const zn=t.zone?zoneName(t.zone):''; return (zn?zn+' ':'')+t.text.trim()+(t.status==='done'?'（完成）':''); }).join('、'); });
@@ -2907,32 +2966,37 @@ function simBuild(r){
     const kind=tradeKind(trade); if(kind==='mach') return;
     n=Math.min(present(trade,n,false),30);
     const kw=KIND_KW[kind]||[];
-    let matched=pool.filter(t=>t.trade===trade);
+    let matched=pool.filter(t=>t.trade===trade), src='own';
     // 交通指揮 only when the 日報 actually says so (this crew's own work item, or an unassigned one for 粗工)
     const sigTask=matched.find(t=>/指揮|交通/.test(t.text))||(kind==='labor'?pool.find(t=>!t.trade&&/指揮|交通/.test(t.text)):null);
     matched=matched.filter(t=>!/指揮|交通/.test(t.text));
     if(matched.length){}
-    else if(kind==='labor') matched=pool.filter(t=>!t.trade&&kw.some(k=>t.text.includes(k)));
-    else for(const k of kw){ matched=pool.filter(t=>!t.trade&&t.text.includes(k)); if(matched.length) break; }
-    if(!matched.length) matched=pool.filter(t=>!t.trade||t.trade===trade);
+    else { src='kw'; if(kind==='labor') matched=pool.filter(t=>!t.trade&&kw.some(k=>t.text.includes(k)));
+      else for(const k of kw){ matched=pool.filter(t=>!t.trade&&t.text.includes(k)); if(matched.length) break; } }
+    if(!matched.length){ src='any'; matched=pool.filter(t=>!t.trade||t.trade===trade); }
     if(!matched.length) matched=pool;
+    const pipePt=()=>{ if(!st_pipePt&&yard){ const R=rngOf('pipes'+(SITE.name||'')); for(let k=0;k<30;k++){ const q=randIn(yard,R); if(!z_loadPt||Math.hypot(q.x-z_loadPt.x,q.y-z_loadPt.y)>1.6){ st_pipePt=q; break; } } if(!st_pipePt) st_pipePt=randIn(yard,R); } return st_pipePt; };
     let sigUsed=false;
-    if(kind==='mep'&&yard&&!st_pipePt){ const R=rngOf('pipes'+(SITE.name||'')); for(let k=0;k<30;k++){ const q=randIn(yard,R); if(!z_loadPt||Math.hypot(q.x-z_loadPt.x,q.y-z_loadPt.y)>1.6){ st_pipePt=q; break; } } if(!st_pipePt) st_pipePt=randIn(yard,R); }
     for(let i=0;i<n && total<60;i++,total++){
       const willSig=!!sigTask&&kind!=='eng'&&sigPt&&!signaller;
       const task=matched.length?matched[(willSig?0:i-(sigUsed?1:0))%matched.length]:null;
       let zone=task&&zoneOfTask(task,i); if(!zone||zone.isGate) zone=anyZones[i%anyZones.length];
       const _vd=((r&&r.vendors)||{})[trade]||'', _nm=kind==='eng'?_vd.split(/[,，、\s]+/).filter(Boolean):[];
       const w={vendor:kind==='eng'?(_nm.length?_nm[i%_nm.length]:''):_vd,loadPt:z_loadPt,trade,kind,hat:hatOf(trade),task:task?task.text:'',zone,x:0,y:0,tx:0,ty:0,state:'work',t:rng()*3,ph:rng()*6,flip:rng()<.5,carry:false,speed:kind==='eng'?0.75:0.95+rng()*0.3};
+      // the action: this crew's own 工作事項 (or one matched to it by keyword) says it, else the crew's name does
+      const tAct=task&&src!=='any'?actFrom(ACT_TEXT,task.text):null;
+      w.act=tAct||actFrom(ACT_TRADE,trade)||KIND_ACT[kind]||'hammer'; w.actOwn=!!tAct;
       if(kind==='eng') w.role='roam';
       else if(kind==='conc' && pumpV && !pumpV.parked){ w.role='pour'; w.pv=pumpV; w.task='管尾、震實'; w.zone=pumpV.zone||w.zone; const a=(pumpV.crew=(pumpV.crew||0)+1)*2.4; w.off={x:Math.cos(a)*(0.38+0.08*(pumpV.crew%2)),y:Math.sin(a)*(0.38+0.08*(pumpV.crew%2))}; }
       else if(willSig){ w.role='signal'; w.sig=sigPt; w.task=sigTask?sigTask.text:'指揮交通'; w.atSig=true; signaller=true; sigUsed=true; }
-      else if(kind==='mep' && st_pipePt){ w.role='pipe'; w.pipeAt=st_pipePt; w.pipe=i%2===0; }
+      else if(w.act==='pipe' && pipePt()){ w.role='pipe'; w.pipeAt=st_pipePt; w.pipe=i%2===0; }
       else if(kind==='labor' && task && /運出|清運|搬|運走/.test(task.text) && z_loadPt) w.role='carry';
       else if(kind==='form' && transport && /模板|拆模/.test(transport.text) && z_loadPt && stacks.length && i%3===2){ w.role='carry'; w.task=transport.text; }
       else w.role='work';
-      if(w.role==='work' && /沖洗|清洗|洗/.test(w.task)){ w.wash=true; w.okPt=q=>inSite(q.x,q.y); }
-      else if(w.role==='work' && /環境整理|清潔|清理|打掃|整理|掃地|垃圾|撿/.test(w.task)){ w.clean=true; w.okPt=q=>inSite(q.x,q.y); }   // 環境整理: sweeps and picks up litter, a few steps at a time
+      if(w.act==='pipe'&&w.role!=='pipe') w.act='wrench';
+      const mine=!task||!task.trade||task.trade===trade;   // not borrowing another crew's 工作事項
+      if(w.role==='work' && mine && /沖洗|清洗|灑水|澆水|養護|洗/.test(w.task) && !/洗石/.test(w.task)){ w.wash=true; w.okPt=q=>inSite(q.x,q.y); }
+      else if(w.role==='work' && ((mine&&/環境整理|清潔|清理|打掃|整理|掃地|垃圾|撿/.test(w.task))||(!w.actOwn&&/清潔|打掃/.test(trade)))){ w.clean=true; w.okPt=q=>inSite(q.x,q.y); }   // 環境整理: sweeps and picks up litter, a few steps at a time
       const p=w.role==='signal'?w.sig:randIn(zone,rng); w.x=p.x; w.y=p.y; pickTarget(w,zones,anyZones,rng,stacks);   // the flagger starts at his post
       workers.push(w);
     }
@@ -3136,11 +3200,16 @@ function drawPerson(c,w,t){
   const walking=w.state==='walk';
   const holding=w.role==='pour'&&!walking&&SIM.st&&SIM.st.pumpV&&SIM.st.pumpV.cur;
   const inYard=!!(SIM.st&&SIM.st.yard&&inZone(SIM.st.yard,w.x,w.y));
-  const handling=!walking&&!w.carry&&!w.pipe&&!w.clean&&(w.role==='carry'||(inYard&&w.kind!=='eng'&&w.role!=='signal'&&w.role!=='pour'&&!w.wash));   // moving material, not hammering
-  const tooling=!walking&&!w.carry&&!w.pipe&&!handling&&w.kind!=='eng'&&w.role!=='signal'&&!w.wash&&!w.clean&&w.role!=='pour';
+  const busy=!walking&&!w.carry&&!w.pipe&&!w.clean&&w.kind!=='eng'&&w.role!=='signal'&&w.role!=='pour'&&!w.wash;
+  const yardH=!walking&&!w.carry&&!w.pipe&&!w.clean&&(w.role==='carry'||(busy&&inYard&&!w.actOwn));   // in the 空地 moving material, unless the 日報 says what he is doing
+  const act=busy&&!yardH?(w.act||'hammer'):null;   // the tool in his hands (see ACT_TEXT / ACT_TRADE)
+  const handling=yardH||act==='handle';
+  const flagging=(w.role==='signal'&&!walking)||act==='flag', noting=w.kind==='eng'||act==='inspect';
+  const tooling=!!act&&act!=='handle'&&act!=='flag'&&act!=='inspect';
+  const low=act==='tie'||act==='tile'||act==='float';   // working bent down at the ground
   const sweeping=w.clean&&!walking&&w.cmode!=='pick', picking=w.clean&&!walking&&w.cmode==='pick', pk=picking?(Math.sin(T*2.6)+1)/2:0;   // pk: 0 standing … 1 bent down to the ground
   const hop=walking?Math.abs(Math.sin(T*9))*s*0.07:Math.sin(T*2.2)*s*0.012;   // walking hop / idle breathing
-  const squash=tooling?Math.abs(Math.sin(T*6))*s*0.03:picking?pk*s*0.07:0;
+  const squash=low?s*0.07+Math.sin(T*3)*s*0.008:act==='breaker'?Math.abs(Math.sin(T*40))*s*0.015:act==='hammer'?Math.abs(Math.sin(T*6))*s*0.03:picking?pk*s*0.07:0;
   if(w.role==='pour'&&SIM.st&&SIM.st.pumpV&&SIM.st.pumpV.cur){ const q=SP(SIM.st.pumpV.cur.x,SIM.st.pumpV.cur.y,0); w.flip=q[0]<p[0]; }
   if(w.wash&&w.aim&&w.state==='work'){ const q=SP(w.aim.x,w.aim.y,0); if(Math.abs(q[0]-p[0])>0.5) w.flip=q[0]<p[0]; }
   const f=w.flip?-1:1;
@@ -3164,23 +3233,25 @@ function drawPerson(c,w,t){
   let ang;
   if(walking) ang=1.4+Math.sin(T*9)*0.4;
   else if(w.carry||w.pipe) ang=-1.3;
-  else if(w.role==='signal') ang=-1.05+Math.sin(T*3.2)*0.55;
-  else if(w.kind==='eng') ang=0.9;
+  else if(flagging) ang=-1.05+Math.sin(T*3.2)*0.55;
+  else if(noting) ang=0.9;
   else if(w.role==='pour') ang=-0.2;
   else if(sweeping) ang=1.0+Math.sin(T*4)*0.28;
   else if(picking) ang=1.15+pk*0.4;
   else if(handling) ang=1.05+Math.sin(T*2.4)*0.22;
+  else if(act&&act!=='hammer') ang=TOOL_ANG[act](T);
   else ang=0.4+Math.abs(Math.sin(T*6))*1.0;
-  const al=s*0.2; let ax=shX+f*Math.cos(ang)*al, ay=shY+Math.sin(ang)*al;
+  const reach=act==='saw'?1+Math.sin(T*8)*0.3:act==='float'?1.1+Math.sin(T*3.5)*0.25:act==='trowel'?1.1:1;
+  const al=s*0.2; let ax=shX+f*Math.cos(ang)*al*reach, ay=shY+Math.sin(ang)*al;
   let hp=null; if(holding){ const c0=SIM.st.pumpV.cur; hp=SP(c0.x,c0.y,0.95); const dx=hp[0]-shX, dy=hp[1]-shY, dl=Math.hypot(dx,dy)||1; ax=shX+dx/dl*al; ay=shY+dy/dl*al; }
   const arm=(x0,y0,x1,y1)=>{ c.strokeStyle=w.kind==='eng'?'#FFFFFF':SC.vest; c.lineWidth=Math.max(2,s*0.085); c.beginPath(); c.moveTo(x0,y0); c.lineTo(x1,y1); c.stroke(); c.fillStyle=SC.skin; c.beginPath(); c.arc(x1,y1,Math.max(1.4,s*0.045),0,Math.PI*2); c.fill(); };
   // back arm
   const sh2=p[0]-f*bw*0.42;
   if(hp){ const dx=hp[0]-sh2, dy=hp[1]-shY, dl=Math.hypot(dx,dy)||1; arm(sh2,shY,sh2+dx/dl*al,shY+dy/dl*al); }
-  else if(w.role==='signal'&&!walking){ const a2=-1.25-Math.sin(T*3.2)*0.35; arm(sh2,shY,sh2-f*Math.cos(a2)*al,shY+Math.sin(a2)*al); }
+  else if(flagging){ const a2=-1.25-Math.sin(T*3.2)*0.35; arm(sh2,shY,sh2-f*Math.cos(a2)*al,shY+Math.sin(a2)*al); }
   else if(w.carry||w.pipe){ arm(sh2,shY,sh2-f*s*0.02,shY-al*0.9); }
   else if(handling){ const a2=1.05+Math.sin(T*2.4)*0.22; arm(sh2,shY,sh2+f*Math.cos(a2)*al*0.6,shY+Math.sin(a2)*al); }
-  else if(sweeping){ arm(sh2,shY,ax-f*s*0.07,ay-s*0.12); }   // both hands on the broom
+  else if(sweeping||TOOL_2H[act]){ arm(sh2,shY,ax-f*s*0.07,ay-s*0.12); }   // both hands on the broom / tool
   else arm(sh2,shY,sh2-f*s*0.05,shY+al*0.9);
   if(w.clean&&!sweeping){ // white rubbish bag in the back hand
     const bx=sh2-f*s*0.05, byy=shY+al*0.9; c.fillStyle='#F4F6F8'; c.strokeStyle='rgba(60,70,80,.45)'; c.lineWidth=1;
@@ -3197,7 +3268,9 @@ function drawPerson(c,w,t){
   if(picking){ // reaching down for a bit of litter, lifting it toward the bag
     if(pk>0.55){ c.fillStyle='#E9E2D2'; c.strokeStyle='rgba(80,70,50,.5)'; c.lineWidth=1; c.save(); c.translate(ax,ay+s*0.02); c.rotate(T); c.fillRect(-s*0.03,-s*0.02,s*0.06,s*0.04); c.strokeRect(-s*0.03,-s*0.02,s*0.06,s*0.04); c.restore(); }
     else { c.fillStyle='rgba(120,110,95,.75)'; c.beginPath(); c.arc(p[0]+f*s*0.3,base-s*0.01,s*0.025,0,Math.PI*2); c.fill(); } }
-  if(tooling){ // little hammer
+  if(act==='handle'){ c.fillStyle='#C99555'; c.strokeStyle='rgba(110,70,30,.6)'; c.lineWidth=1; const bx=ax-f*s*0.02, bq=s*0.17; c.beginPath(); c.rect(bx-bq/2,ay-bq*0.55,bq,bq*0.8); c.fill(); c.stroke(); c.beginPath(); c.moveTo(bx-bq/2,ay-bq*0.15); c.lineTo(bx+bq/2,ay-bq*0.15); c.stroke(); }
+  if(tooling&&act!=='hammer') drawTool(c,act,{ax,ay,f,s,T,px:p[0],base,ang});
+  if(act==='hammer'){ // little hammer
     const hx=ax+f*Math.cos(ang-1.2)*s*0.16, hy=ay+Math.sin(ang-1.2)*s*0.16;
     c.strokeStyle='#B07A43'; c.lineWidth=Math.max(1.4,s*0.04); c.beginPath(); c.moveTo(ax,ay); c.lineTo(hx,hy); c.stroke();
     c.fillStyle='#6B7680'; c.save(); c.translate(hx,hy); c.rotate(ang-1.2+Math.PI/2); c.fillRect(-s*0.06,-s*0.03,s*0.12,s*0.06); c.restore();
@@ -3210,8 +3283,8 @@ function drawPerson(c,w,t){
     for(let i=0;i<7;i++){ const k=((t*1.8)+i/7)%1; const px=ax+vx*(0.12+k*0.88), py=ay+vy*(0.12+k*0.88)-Math.sin(k*Math.PI)*s*0.22;
       c.fillStyle=`rgba(90,175,240,${0.85*(1-k)})`; c.beginPath(); c.arc(px,py,Math.max(1.2,s*(0.035+0.02*k)),0,Math.PI*2); c.fill(); }
     c.strokeStyle='#2D7D46'; c.lineWidth=Math.max(1.4,s*0.035); c.beginPath(); c.moveTo(ax,ay); c.quadraticCurveTo(ax-f*s*0.3,ay+s*0.35,ax-f*s*0.55,ay+s*0.45); c.stroke(); }
-  if(w.role==='signal'&&!walking){ c.strokeStyle='#FF5A1F'; c.lineWidth=Math.max(2,s*0.06); c.beginPath(); c.moveTo(ax,ay); c.lineTo(ax+f*Math.cos(ang)*s*0.16,ay+Math.sin(ang)*s*0.16); c.stroke(); }
-  if(w.kind==='eng'&&!walking){ c.fillStyle='#FFF7E0'; c.strokeStyle='#7A5A30'; c.lineWidth=1; c.beginPath(); c.roundRect?c.roundRect(ax-s*0.07,ay-s*0.12,s*0.14,s*0.18,2):c.rect(ax-s*0.07,ay-s*0.12,s*0.14,s*0.18); c.fill(); c.stroke(); }
+  if(flagging){ c.strokeStyle='#FF5A1F'; c.lineWidth=Math.max(2,s*0.06); c.beginPath(); c.moveTo(ax,ay); c.lineTo(ax+f*Math.cos(ang)*s*0.16,ay+Math.sin(ang)*s*0.16); c.stroke(); }
+  if(noting&&!walking){ c.fillStyle='#FFF7E0'; c.strokeStyle='#7A5A30'; c.lineWidth=1; c.beginPath(); c.roundRect?c.roundRect(ax-s*0.07,ay-s*0.12,s*0.14,s*0.18,2):c.rect(ax-s*0.07,ay-s*0.12,s*0.14,s*0.18); c.fill(); c.stroke(); }
   // big round head
   const hr=s*0.16, hx0=p[0], hy0=by-hr*0.8;
   if(w.pipe){ const x0=p[0]-s*0.7, y0=hy0-hr*1.05, x1=p[0]+s*0.7, y1=hy0-hr*1.6; c.lineCap='round'; c.strokeStyle='#7E8E9B'; c.lineWidth=Math.max(2.4,s*0.12); c.beginPath(); c.moveTo(x0,y0); c.lineTo(x1,y1); c.stroke(); c.strokeStyle='#EEF2F5'; c.lineWidth=Math.max(1.6,s*0.085); c.beginPath(); c.moveTo(x0,y0); c.lineTo(x1,y1); c.stroke(); c.lineCap='butt'; }
@@ -3223,6 +3296,7 @@ function drawPerson(c,w,t){
   [-1,1].forEach(k=>{ const ex=fx+k*hr*0.36, ey=hy0+hr*0.08; if(blink){ c.beginPath(); c.moveTo(ex-hr*0.1,ey); c.lineTo(ex+hr*0.1,ey); c.stroke(); } else { c.beginPath(); c.arc(ex,ey,Math.max(1,hr*0.11),0,Math.PI*2); c.fill(); } });
   c.fillStyle='rgba(255,120,120,.45)'; [-1,1].forEach(k=>{ c.beginPath(); c.ellipse(fx+k*hr*0.55,hy0+hr*0.38,hr*0.16,hr*0.1,0,0,Math.PI*2); c.fill(); });
   c.strokeStyle='#8A4B3A'; c.lineWidth=Math.max(0.8,s*0.018); c.beginPath(); c.arc(fx,hy0+hr*0.32,hr*0.14,0.15*Math.PI,0.85*Math.PI); c.stroke();
+  if(act==='weld'){ c.fillStyle='#22282E'; c.beginPath(); c.roundRect?c.roundRect(fx-hr*0.7,hy0-hr*0.2,hr*1.4,hr*0.85,hr*0.2):c.rect(fx-hr*0.7,hy0-hr*0.2,hr*1.4,hr*0.85); c.fill(); c.fillStyle='#5E7C8C'; c.fillRect(fx-hr*0.45,hy0-hr*0.02,hr*0.9,hr*0.26); }
   // hard hat: dome + brim + ridge + shine
   const hc=w.hat, rim=hc==='#FFFFFF'?'#C9CED2':shadeC(hc.startsWith('#')?hc:'#888888',0.8);
   c.fillStyle=hc; c.beginPath(); c.ellipse(hx0,hy0-hr*0.2,hr*1.08,hr*0.95,0,Math.PI,0); c.closePath(); c.fill();
@@ -3234,6 +3308,121 @@ function drawPerson(c,w,t){
   if(tooling && ((T*0.35)%5)<0.9){ const k=((T*0.35)%5)/0.9; c.fillStyle=`rgba(90,170,235,${1-k*0.6})`; const dx=hx0-f*hr*1.05, dy=hy0-hr*0.3+k*hr*0.8;
     c.beginPath(); c.moveTo(dx,dy-hr*0.32); c.quadraticCurveTo(dx+hr*0.2,dy,dx,dy+hr*0.12); c.quadraticCurveTo(dx-hr*0.2,dy,dx,dy-hr*0.32); c.fill(); }
   w.sx=p[0]; w.sy=by; w.sr=s*0.5;
+}
+// front-arm angle while working (0 = straight ahead, + = down, − = up) and which tools take both hands
+const TOOL_ANG={
+  tie:T=>1.15+Math.sin(T*9)*0.12, weld:T=>0.8+Math.sin(T*1.3)*0.06, trowel:T=>0.1+Math.sin(T*3.2)*0.7, float:T=>1.1+Math.sin(T*3.5)*0.08,
+  brick:T=>1.2-(Math.sin(T*2.2)+1)/2*1.0, tile:T=>1.15+Math.abs(Math.sin(T*5))*0.18, paint:T=>-0.55+Math.sin(T*3)*0.45, waterproof:T=>0.95+Math.sin(T*2.6)*0.12,
+  drill:T=>0.25+Math.sin(T*40)*0.02, saw:T=>0.95, grind:T=>1.0+Math.sin(T*2)*0.05, shovel:T=>{ const k=(T*0.9)%1; return k<0.5?1.2:1.2-(k-0.5)*2*1.5; }, plant:T=>{ const k=(T*0.9)%1; return k<0.5?1.2:1.2-(k-0.5)*2*1.5; },
+  survey:T=>0.25, wire:T=>0.3+Math.sin(T*3.5)*0.5, wrench:T=>0.55+Math.sin(T*5)*0.4, breaker:T=>1.2, glass:T=>0.5+Math.sin(T*1.5)*0.05, spray:T=>0.3+Math.sin(T*2)*0.25 };
+const TOOL_2H={breaker:1,shovel:1,plant:1,paint:1,waterproof:1,float:1,glass:1};
+function drawTool(c,act,o){
+  const {ax,ay,f,s,T,px,base,ang}=o, gx=px+f*s*0.4, gy=base;
+  const L=(x0,y0,x1,y1,col,lw)=>{ c.strokeStyle=col; c.lineWidth=Math.max(1.2,lw); c.beginPath(); c.moveTo(x0,y0); c.lineTo(x1,y1); c.stroke(); };
+  const dot=(x,y,r,col)=>{ c.fillStyle=col; c.beginPath(); c.arc(x,y,Math.max(0.7,r),0,Math.PI*2); c.fill(); };
+  const box=(x,y,w,h,col,ln)=>{ c.fillStyle=col; c.fillRect(x,y,w,h); if(ln){ c.strokeStyle=ln; c.lineWidth=1; c.strokeRect(x,y,w,h); } };
+  const dia=(x,y,r,col,ln)=>{ c.fillStyle=col; c.beginPath(); c.moveTo(x-r,y); c.lineTo(x,y-r*0.5); c.lineTo(x+r,y); c.lineTo(x,y+r*0.5); c.closePath(); c.fill(); if(ln){ c.strokeStyle=ln; c.lineWidth=1; c.stroke(); } };
+  c.save(); c.lineCap='round';
+  switch(act){
+  case 'tie': {   // 綁鋼筋: crossed bars at his feet, the hook twisting the tie wire
+    L(gx-s*0.26,gy-s*0.02,gx+s*0.22,gy-s*0.1,SC.rebar,s*0.04); L(gx-s*0.2,gy-s*0.12,gx+s*0.26,gy,SC.rebar,s*0.04); L(gx-s*0.1,gy+s*0.03,gx+s*0.3,gy-s*0.07,SC.rebar,s*0.04);
+    const a=T*14; L(ax,ay,ax+Math.cos(a)*s*0.035,ay+s*0.07+Math.sin(a)*s*0.02,'#5B6670',s*0.03); if(Math.sin(T*9)>0.6) dot(ax,ay+s*0.09,s*0.022,'rgba(255,255,255,.9)'); break; }
+  case 'weld': {   // 電焊: torch, flickering arc light, sparks falling
+    const tx=ax+f*s*0.13, ty=ay+s*0.1; L(ax,ay,tx,ty,'#3B4650',s*0.045);
+    const fl=Math.sin(T*37)+Math.sin(T*23.7); if(fl>-0.4){ const k=0.5+0.25*fl; const g=c.createRadialGradient(tx,ty,0,tx,ty,s*0.3); g.addColorStop(0,`rgba(255,255,255,${0.95*k})`); g.addColorStop(0.3,`rgba(140,200,255,${0.6*k})`); g.addColorStop(1,'rgba(140,200,255,0)'); c.fillStyle=g; c.beginPath(); c.arc(tx,ty,s*0.3,0,Math.PI*2); c.fill(); }
+    for(let i=0;i<6;i++){ const k=((T*2.2)+i/6)%1, a=-2.4+i*0.75; dot(tx+Math.cos(a)*k*s*0.3,ty+Math.sin(a)*k*s*0.16+k*k*s*0.3,s*0.018,`rgba(255,${170+i*12},60,${1-k})`); } break; }
+  case 'trowel': {   // 泥作粉刷: trowel sweeping up and down the wall
+    c.translate(ax+f*s*0.03,ay); c.rotate(f*0.15); box(-s*0.035,-s*0.1,s*0.07,s*0.2,'#C9CED2','rgba(60,70,80,.6)'); box(-s*0.02,-s*0.02,s*0.04,s*0.05,'#A0703C'); break; }
+  case 'float': {   // 粉光／整平: long-handled float sliding over the slab, a wet sheen behind it
+    const fx=px+f*s*(0.62+Math.sin(T*3.5)*0.14);
+    c.fillStyle='rgba(120,125,125,.28)'; c.beginPath(); c.ellipse(px+f*s*0.62,gy+s*0.01,s*0.3,s*0.08,0,0,Math.PI*2); c.fill();
+    L(ax,ay,fx,gy-s*0.03,'#A0703C',s*0.035); box(fx-s*0.11,gy-s*0.045,s*0.22,s*0.04,'#C9CED2','rgba(60,70,80,.6)'); break; }
+  case 'brick': {   // 砌磚: a brick in the hand, the wall going up course by course
+    const n=1+Math.floor((T*0.25)%3);
+    for(let r=0;r<n;r++) for(let i=0;i<3;i++) box(gx-s*0.2+i*s*0.135+(r%2)*s*0.06,gy-s*0.075*(r+1),s*0.125,s*0.068,'#B5553A','#7E3524');
+    box(ax-s*0.06,ay-s*0.01,s*0.125,s*0.068,'#C0603F','#7E3524'); break; }
+  case 'tile': {   // 貼磚／石材: tiles laid on the floor, one more tapped into place
+    for(let i=0;i<3;i++) dia(gx-s*0.14+i*s*0.14,gy-s*0.02+(i%2)*s*0.07-s*0.03,s*0.1,i%2?'#EFEAE0':'#E2DBCC','rgba(110,100,85,.7)');
+    dia(ax+f*s*0.02,ay+s*0.045,s*0.1,'#F6F2E8','rgba(110,100,85,.8)'); break; }
+  case 'paint': {   // 油漆: roller on a pole, up and down
+    const rx=ax+f*s*0.14, ry=ay-s*0.34; L(ax-f*s*0.05,ay+s*0.1,rx,ry,'#8E99A3',s*0.03);
+    box(rx-s*0.02,ry-s*0.08,s*0.05,s*0.16,'#F4F1E8','rgba(90,90,90,.5)'); c.fillStyle='rgba(244,241,232,.5)'; c.fillRect(rx+f*s*0.03-s*0.01,ry-s*0.08,s*0.02,s*0.5);
+    box(px-f*s*0.32,base-s*0.12,s*0.13,s*0.12,'#DADFE3','rgba(60,70,80,.6)'); break; }
+  case 'waterproof': {   // 防水: dark coating rolled out over the floor
+    const fx=px+f*s*(0.6+Math.sin(T*2.6)*0.13);
+    c.fillStyle='rgba(40,48,56,.42)'; c.beginPath(); c.ellipse(px+f*s*0.6,gy+s*0.01,s*0.32,s*0.09,0,0,Math.PI*2); c.fill();
+    L(ax,ay,fx,gy-s*0.04,'#8E99A3',s*0.03); box(fx-s*0.09,gy-s*0.07,s*0.18,s*0.06,'#2B3238'); break; }
+  case 'drill': {   // 鑽孔／鎖固／安裝: power drill
+    const j=Math.sin(T*40)*s*0.008; box(ax-s*0.03+j,ay-s*0.055,s*0.15*f,s*0.075,'#1E9AA8'); box(ax-s*0.025,ay,s*0.05,s*0.085,'#22282E'); L(ax+f*s*0.12+j,ay-s*0.02,ax+f*s*0.22+j,ay-s*0.02,'#6B7680',s*0.022);
+    if(Math.sin(T*3)>-0.3) for(let i=0;i<3;i++){ const k=((T*2)+i/3)%1; dot(ax+f*s*(0.23+k*0.05),ay-s*0.02+(i-1)*k*s*0.06+k*s*0.06,s*0.014,`rgba(160,150,135,${1-k})`); } break; }
+  case 'saw': {   // 木作: sawing a board on a trestle
+    const by=ay+s*0.07; L(px+f*s*0.12,by,px+f*s*0.68,by,SC.ply,s*0.05); L(px+f*s*0.2,by,px+f*s*0.16,base,'#8A6B45',s*0.03); L(px+f*s*0.6,by,px+f*s*0.64,base,'#8A6B45',s*0.03);
+    c.fillStyle='#C9CED2'; c.strokeStyle='rgba(60,70,80,.7)'; c.lineWidth=1; c.beginPath(); c.moveTo(ax,ay-s*0.03); c.lineTo(ax+f*s*0.24,ay+s*0.02); c.lineTo(ax+f*s*0.24,ay+s*0.06); c.lineTo(ax,ay+s*0.06); c.closePath(); c.fill(); c.stroke(); box(ax-f*s*0.04-s*0.03,ay-s*0.04,s*0.06,s*0.1,'#A0703C');
+    for(let i=0;i<3;i++){ const k=((T*1.8)+i/3)%1; dot(ax+f*s*0.14+(i-1)*s*0.03,by+k*s*0.2,s*0.014,`rgba(214,178,110,${1-k})`); } break; }
+  case 'grind': {   // 切割／研磨: grinder throwing a stream of sparks
+    const tx=ax+f*s*0.12, ty=ay+s*0.07; L(ax,ay,tx,ty,'#2B3238',s*0.055); dot(tx,ty,s*0.06,'#8E99A3'); dot(tx,ty,s*0.02,'#3B4650');
+    for(let i=0;i<8;i++){ const k=((T*3)+i/8)%1; dot(tx-f*k*s*(0.3+(i%3)*0.06),ty+k*s*0.1+(i%2)*k*s*0.08,s*0.016,`rgba(255,${190+(i%3)*20},70,${1-k})`); } break; }
+  case 'shovel': case 'plant': {   // 人工挖土／回填: dig, lift, toss
+    const k=(T*0.9)%1, a=ang+0.3, ex=ax+f*Math.cos(a)*s*0.3, ey=Math.min(gy,ay+Math.sin(a)*s*0.3);
+    c.fillStyle='#A98B5E'; c.beginPath(); c.ellipse(gx+f*s*0.12,gy,s*0.17,s*0.07,0,Math.PI,0); c.fill();
+    L(ax-f*Math.cos(a)*s*0.14,ay-Math.sin(a)*s*0.14,ex,ey,'#A0703C',s*0.035); c.save(); c.translate(ex,ey); c.rotate(f>0?a:Math.PI-a); box(0,-s*0.045,s*0.11,s*0.09,'#8E99A3','rgba(60,70,80,.6)'); c.restore();
+    if(k>0.72){ const q=(k-0.72)/0.28; for(let i=0;i<3;i++) dot(ex+f*q*s*(0.2+i*0.07),ey-Math.sin(q*Math.PI)*s*(0.16+i*0.03)+q*s*0.2,s*0.024,`rgba(150,118,74,${1-q*0.7})`); }
+    if(act==='plant'){ const sx=gx+f*s*0.3; L(sx,gy,sx,gy-s*0.16,'#3F8F4A',s*0.03); c.fillStyle='#57B15F'; [-1,1].forEach(d=>{ c.beginPath(); c.ellipse(sx+d*s*0.05,gy-s*0.15-(d>0?s*0.03:0),s*0.06,s*0.03,d*-0.5,0,Math.PI*2); c.fill(); }); } break; }
+  case 'survey': {   // 測量放樣: instrument on a tripod
+    const tx=px+f*s*0.4, ty=base-s*0.5; [[-0.15,0],[0.13,-0.02],[0,0.05]].forEach(([dx,dy])=>L(tx,ty,tx+dx*s,base+dy*s,'#D7A51E',s*0.03));
+    c.fillStyle='#F2C200'; c.strokeStyle='rgba(70,60,20,.7)'; c.lineWidth=1; c.beginPath(); c.roundRect?c.roundRect(tx-s*0.07,ty-s*0.12,s*0.14,s*0.12,2):c.rect(tx-s*0.07,ty-s*0.12,s*0.14,s*0.12); c.fill(); c.stroke(); dot(tx+f*s*0.07,ty-s*0.06,s*0.03,'#22282E');
+    if(((T*0.5)%3)<1.2){ c.strokeStyle='rgba(230,60,50,.55)'; c.lineWidth=1; c.setLineDash([3,3]); c.beginPath(); c.moveTo(tx+f*s*0.1,ty-s*0.06); c.lineTo(tx+f*s*1.3,ty+s*0.25); c.stroke(); c.setLineDash([]); } break; }
+  case 'wire': {   // 配線: pulling cable off a reel
+    const rx=gx+f*s*0.06, ry=gy-s*0.08; c.strokeStyle='#22282E'; c.lineWidth=Math.max(1.2,s*0.03); c.beginPath(); c.moveTo(rx,ry); c.quadraticCurveTo(rx-f*s*0.1,ay+s*0.1,ax,ay); c.stroke();
+    dot(rx,ry,s*0.085,'#E0782A'); dot(rx,ry,s*0.05,'#22282E'); dot(rx,ry,s*0.02,'#E0782A'); c.save(); c.translate(rx,ry); c.rotate(T*3*f); L(-s*0.08,0,s*0.08,0,'rgba(255,255,255,.5)',s*0.015); c.restore(); break; }
+  case 'wrench': {   // 鎖螺栓／組裝（鋼構、鷹架、設備）
+    const a=ang-0.9, ex=ax+f*Math.cos(a)*s*0.17, ey=ay+Math.sin(a)*s*0.17; L(ax,ay,ex,ey,'#C9CED2',s*0.04); c.strokeStyle='#C9CED2'; c.lineWidth=Math.max(1.2,s*0.035); c.beginPath(); c.arc(ex,ey,s*0.035,a+0.6,a+Math.PI*2-0.6); c.stroke(); break; }
+  case 'breaker': {   // 打石／敲除: breaker hammering the floor, dust and rubble
+    const v=Math.sin(T*45)*s*0.012, bx=ax+f*s*0.02; box(bx-s*0.05,ay-s*0.06+v,s*0.1,s*0.2,'#E4A21B','rgba(90,70,20,.7)'); L(bx-s*0.09,ay-s*0.04+v,bx+s*0.09,ay-s*0.04+v,'#22282E',s*0.035); L(bx,ay+s*0.14+v,bx,gy,'#5B6670',s*0.035);
+    for(let i=0;i<3;i++){ const k=((T*1.4)+i/3)%1; dot(bx+(i-1)*s*0.1*k*2,gy-k*s*0.14,s*(0.03+k*0.05),`rgba(170,165,155,${0.6*(1-k)})`); } dot(bx-s*0.09,gy,s*0.022,'#8E8E88'); dot(bx+s*0.1,gy+s*0.01,s*0.018,'#8E8E88'); break; }
+  case 'glass': {   // 玻璃／帷幕: holding a pane upright
+    const x=px+f*s*0.3; c.fillStyle='rgba(150,215,245,.5)'; c.strokeStyle='rgba(255,255,255,.9)'; c.lineWidth=1.2; c.beginPath(); c.moveTo(x,base-s*0.62); c.lineTo(x+f*s*0.22,base-s*0.69); c.lineTo(x+f*s*0.22,base-s*0.08); c.lineTo(x,base-s*0.02); c.closePath(); c.fill(); c.stroke();
+    L(x+f*s*0.05,base-s*0.52,x+f*s*0.13,base-s*0.4,'rgba(255,255,255,.8)',s*0.02); break; }
+  case 'spray': {   // 噴塗／噴漿: spray gun and a cone of mist
+    box(ax-s*0.02,ay-s*0.04,s*0.12*f,s*0.06,'#3B4650'); box(ax-s*0.02,ay-s*0.1,s*0.05,s*0.06,'#C9CED2');
+    for(let i=0;i<9;i++){ const k=((T*1.6)+i/9)%1; dot(ax+f*s*(0.12+k*0.5),ay-s*0.01+(i%3-1)*k*s*0.16,s*(0.02+k*0.04),`rgba(240,244,246,${0.7*(1-k)})`); } break; }
+  }
+  c.restore();
+}
+// the smaller machines: what each is, by its name on the 日報
+function smallKind(k){ return /堆高|叉車|叉架/.test(k)?'fork':/高空|升降|昇降|作業車/.test(k)?'lift':/壓路|滾壓|夯/.test(k)?'roller':/鑽|樁|連續壁|抓斗/.test(k)?'rig':/發電|空壓|抽水|電焊機|焊機|馬達/.test(k)?'gen':/推土|鏟|裝載/.test(k)?'dozer':/塔吊|塔式/.test(k)?'tower':'box'; }
+const SMALL_JOB={fork:'搬運材料',lift:'高空作業',roller:'滾壓整平',rig:'鑽掘作業',gen:'運轉中',dozer:'推土整地',tower:'吊掛作業',box:'作業中'};
+function drawSmall(c,v,t){
+  const T=t+(v.ph||0), x=v.x, y=v.y, Y='#E4A21B', D='#3B4650', K='#2B3238';
+  const B=[], add=(dx,dy,w,d,h,col,z0)=>B.push({x:x+dx,y:y+dy,w,d,h,col,z0:z0||0});
+  const flush=()=>{ B.sort((a,b)=>(DEP(a.x+a.w/2,a.y+a.d/2)-DEP(b.x+b.w/2,b.y+b.d/2))||(a.z0-b.z0)).forEach(o=>sBox(c,o)); B.length=0; };
+  const ln=(a,b,col,lw)=>{ const p=SP(a[0],a[1],a[2]), q=SP(b[0],b[1],b[2]); c.strokeStyle=col; c.lineWidth=Math.max(1.2,SIM.S*lw); c.lineCap='round'; c.beginPath(); c.moveTo(p[0],p[1]); c.lineTo(q[0],q[1]); c.stroke(); };
+  switch(v.sk){
+  case 'fork': { const fz=0.08+0.38*(Math.sin(T*0.8)+1)/2;   // 堆高機: the forks lift a pallet up and down
+    add(-0.45,-0.3,0.7,0.6,0.38,Y,0.1); add(-0.45,-0.3,0.25,0.6,0.2,D,0.48); add(-0.2,-0.26,0.06,0.06,0.5,K,0.48); add(-0.2,0.2,0.06,0.06,0.5,K,0.48); add(-0.42,-0.28,0.5,0.56,0.05,K,0.98);
+    add(0.27,-0.28,0.07,0.07,1.25,K); add(0.27,0.21,0.07,0.07,1.25,K); add(0.34,-0.22,0.5,0.08,0.04,'#6B7680',fz); add(0.34,0.14,0.5,0.08,0.04,'#6B7680',fz); add(0.4,-0.24,0.42,0.48,0.3,'#C99555',fz+0.04); flush(); break; }
+  case 'lift': { const H=0.55+0.5*(Math.sin(T*0.35)+1)/2;   // 高空作業車: the scissor platform rises and settles
+    add(-0.55,-0.32,1.1,0.64,0.25,'#E0782A',0.06); flush();
+    [-0.3,0.3].forEach(dy=>{ ln([x-0.48,y+dy,0.31],[x+0.48,y+dy,0.31+H/2],'#5B6670',0.035); ln([x+0.48,y+dy,0.31],[x-0.48,y+dy,0.31+H/2],'#5B6670',0.035); ln([x-0.48,y+dy,0.31+H/2],[x+0.48,y+dy,0.31+H],'#5B6670',0.035); ln([x+0.48,y+dy,0.31+H/2],[x-0.48,y+dy,0.31+H],'#5B6670',0.035); });
+    add(-0.55,-0.32,1.1,0.64,0.07,'#E0782A',0.31+H); flush(); const z=0.38+H;
+    [[-0.55,-0.32],[0.55,-0.32],[0.55,0.32],[-0.55,0.32]].forEach(([dx,dy],i,a)=>{ const n=a[(i+1)%4]; ln([x+dx,y+dy,z],[x+dx,y+dy,z+0.36],K,0.025); ln([x+dx,y+dy,z+0.36],[x+n[0],y+n[1],z+0.36],K,0.025); ln([x+dx,y+dy,z+0.18],[x+n[0],y+n[1],z+0.18],K,0.02); }); break; }
+  case 'roller': { const o=Math.sin(T*0.45)*0.5;   // 壓路機: rolls back and forth
+    add(o-0.25,-0.3,0.65,0.6,0.42,Y,0.2); add(o-0.1,-0.25,0.4,0.5,0.34,D,0.62); add(o+0.4,-0.34,0.34,0.68,0.42,'#6B7680'); add(o-0.5,-0.3,0.3,0.6,0.36,K); flush(); break; }
+  case 'rig': { const dz=0.25*(Math.sin(T*0.6)+1)/2;   // 鑽掘機／基樁: tall mast, the auger turning as it goes down
+    add(-0.75,-0.45,1.3,0.9,0.28,K); add(-0.65,-0.36,0.85,0.72,0.55,Y,0.28); add(-0.55,-0.3,0.4,0.6,0.4,D,0.83); add(0.38,-0.08,0.16,0.16,3.0,'#C98A12',0.28); flush();
+    ln([x+0.72,y,3.1],[x+0.46,y,3.2],K,0.04); ln([x+0.72,y,3.1],[x+0.72,y,0.05+dz],'#6B7680',0.05); for(let i=0;i<7;i++){ const z=0.1+((i/7+T*0.12)%1)*1.3; ln([x+0.6,y,z+0.07],[x+0.84,y,z-0.07],'#8E99A3',0.035); }
+    add(0.62,-0.12,0.2,0.24,0.22,D,2.3-dz); flush(); break; }
+  case 'gen': {   // 發電機／空壓機: a humming box with a puff of exhaust
+    const j=Math.sin(T*30)*0.006; add(-0.45+j,-0.28,0.9,0.56,0.5,'#3F8FB5',0.1); add(-0.4,-0.24,0.12,0.48,0.1,K); add(0.28,-0.24,0.12,0.48,0.1,K); add(0.2+j,-0.1,0.08,0.08,0.22,K,0.6); flush();
+    for(let i=0;i<3;i++){ const k=((T*0.7)+i/3)%1, q=SP(x+0.24,y-0.06,0.85+k*0.5); c.fillStyle=`rgba(120,125,130,${0.4*(1-k)})`; c.beginPath(); c.arc(q[0]+k*SIM.S*0.12,q[1],SIM.S*(0.05+k*0.09),0,Math.PI*2); c.fill(); } break; }
+  case 'dozer': { const o=Math.sin(T*0.4)*0.35;   // 推土機／鏟裝機: tracks, cab and a blade pushing forward
+    add(o-0.55,-0.4,1.0,0.8,0.26,K); add(o-0.45,-0.3,0.75,0.6,0.42,Y,0.26); add(o-0.4,-0.24,0.36,0.48,0.34,D,0.68); add(o+0.52,-0.5,0.1,1.0,0.5,'#8E99A3',0.02); flush(); break; }
+  case 'tower': {   // 塔吊: lattice mast and a slowly slewing jib
+    add(-0.3,-0.3,0.6,0.6,0.2,'#8E8E88'); add(-0.1,-0.1,0.2,0.2,4.2,Y,0.2); flush(); const a=T*0.12, cx=Math.cos(a), sy=Math.sin(a), z=4.5;
+    ln([x-cx*1.0,y-sy*1.0,z],[x+cx*3.0,y+sy*3.0,z],Y,0.07); ln([x,y,z+0.6],[x+cx*3.0,y+sy*3.0,z],K,0.02); ln([x,y,z+0.6],[x-cx*1.0,y-sy*1.0,z],K,0.02); ln([x,y,z],[x,y,z+0.6],Y,0.06);
+    const r=1.6+Math.sin(T*0.3)*0.8, hz=1.6+Math.sin(T*0.4)*0.7; ln([x+cx*r,y+sy*r,z],[x+cx*r,y+sy*r,hz],K,0.02); add(cx*r-0.15,sy*r-0.15,0.3,0.3,0.25,'#C99555',hz-0.25); add(-cx*1.0-0.2,-sy*1.0-0.2,0.4,0.4,0.3,'#8E8E88',z-0.3); flush(); break; }
+  default: add(-0.45,-0.35,0.9,0.7,0.45,Y); add(-0.2,-0.2,0.4,0.4,0.35,D,0.45); flush();
+  }
 }
 function drawVehicle(c,v,t){
   drawVehicle0(c,v,t);
@@ -3334,7 +3523,7 @@ function drawVehicle0(c,v,t){
     arm(-farSg);
     if(front) bucket();
     return; }
-  if(v.type==='small'){ sBox(c,{x:v.x-0.45,y:v.y-0.35,w:0.9,d:0.7,h:0.45,col:'#E4A21B'}); sBox(c,{x:v.x-0.2,y:v.y-0.2,w:0.4,d:0.4,h:0.35,col:'#3B4650',z0:0.45}); return; }
+  if(v.type==='small'){ drawSmall(c,v,t); return; }
   if(v.type==='mcrane'){
     sBox(c,{x,y,w:alongX?L+0.3:Wd,d:alongX?Wd:L+0.3,h:0.35,col:'#444B52'});
     sBox(c,{x:v.x-0.45,y:v.y-0.4,w:0.9,d:0.8,h:0.45,col:'#E4A21B',z0:0.35});
