@@ -189,7 +189,7 @@ const AUTH_ERR = {
   'auth/missing-password': '請輸入密碼',
 };
 const authMsg = e => AUTH_ERR[e && e.code] || ('發生錯誤：' + ((e && (e.code || e.message)) || e));
-const LOGO = '<img class="bplogo" src="icon-512.png?v=2" alt="" aria-hidden="true">';   // the BUILD footprint logo (same file as the home-screen icon)
+const LOGO = '<img class="bplogo" src="logo-icon.png?v=1" alt="" aria-hidden="true">';   // the BUILD footprint logo (same file as the home-screen icon)
 
 const CSS = `
 #bpGate{position:fixed;inset:0;z-index:9999;background:#15232E;color:#fff;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:calc(env(safe-area-inset-top) + 48px) 20px 40px;font-family:"Noto Sans TC","PingFang TC",system-ui,sans-serif}
