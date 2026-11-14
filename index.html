@@ -598,6 +598,8 @@ body.island-mode main{padding:0;max-width:none}
 .gt-bar b.done{background:#2EB39A}.gt-bar b.doing{background:#5B9BE6}.gt-bar b.next{background:transparent;border-bottom:3px dashed color-mix(in srgb,var(--gc) 80%,transparent)}
 
 .isl-full canvas{display:block;cursor:pointer}
+#sim3d{position:absolute;left:0;top:0;pointer-events:none}
+.isl-full.g3 #sim{position:relative}
 .isl-btn{width:44px;height:44px;border-radius:50%;background:rgba(22,34,44,.55);color:#fff;display:grid;place-items:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .isl-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .isl-btn:hover{background:rgba(22,34,44,.75)}
@@ -2640,6 +2642,12 @@ function hatOf(trade){ const m=hatMap(); if(m[trade]) return m[trade];
   const d=(HAT_TRADE.find(([re])=>re.test(trade))||[])[1]; if(d) return d; let h=0; for(const ch of trade) h=(h*31+ch.charCodeAt(0))%997; return HAT_COLORS[h%HAT_COLORS.length][0]; }
 function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
 
+// 3D 工地動畫 (sim3d.js): on with ?3d=1, off with ?3d=0; remembered on this device
+const G3_ON=(()=>{ try{ const q=new URLSearchParams(location.search).get('3d'); if(q==='1') localStorage.setItem('bp3d','1'); if(q==='0') localStorage.removeItem('bp3d'); return localStorage.getItem('bp3d')==='1'; }catch(e){ return false; } })();
+function g3Mount(){ if(!G3_ON||!SIM.cv) return; const host=SIM.cv.parentElement;
+  const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
+  if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
+  import('./sim3d.js?v=1').then(m=>{ try{ SIM.gl=m.create(); put(); }catch(e){ console.warn('3D off',e); SIM.gl=null; } }).catch(e=>console.warn('3D off',e)); }
 const SIM={zoom:1,panX:0,panY:0,focus:null,S0:30,ox0:0,oy0:0,st:null,key:'',raf:0,visible:false,paused:matchMedia('(prefers-reduced-motion: reduce)').matches,cv:null,ctx:null,W:0,H:0,S:30,ox:0,oy:0,last:0,clock:0,io:null,ro:null,tipT:0};
 let GW=20, GH=14;
 
@@ -3876,6 +3884,8 @@ function simDraw(){
   const t=SIM.clock;
   const N=(st.isToday&&!SIM.todayHalf)?nightNow():(halfOf(st.isToday?TODAY:'')==='ng'?1:0); SIM.night=N; SIM.lights=[]; SIM.glow=[];
   c.setTransform(SIM.dpr,0,0,SIM.dpr,0,0);
+  const G3=!!(SIM.gl&&SIM.gl.ok&&SIM.gl.canvas.parentElement===SIM.cv.parentElement);   // the 3D renderer draws the world; this canvas keeps only labels, weather and the 編輯 marks
+  if(G3){ c.clearRect(0,0,SIM.W,SIM.H); st.zones.forEach(z=>{ z.poly=z.pts? z.pts.map(p=>SP(p.x,p.y)) : [SP(z.x,z.y),SP(z.x+z.w,z.y),SP(z.x+z.w,z.y+z.h),SP(z.x,z.y+z.h)]; }); } else {
   c.fillStyle=N?mixHex(SC.water,'#1A2740',N):SC.water; c.fillRect(0,0,SIM.W,SIM.H);
   // ripples
   c.strokeStyle=SC.ripple; c.lineWidth=1;
@@ -3950,6 +3960,7 @@ function simDraw(){
       for(let i=0;i<2;i++){ const span=GW+GH+16, k=((t*0.35*(wx0.wind?2.5:1)+i*span/2)%span)-8, q=SP(k-GH*0.3+i*3,GH*(0.25+i*0.5)+k*0.15,0), R=SIM.S*(3.2+i);
         const g=c.createRadialGradient(q[0],q[1],R*0.2,q[0],q[1],R); g.addColorStop(0,`rgba(40,60,80,${0.10*(1-N*2.5)})`); g.addColorStop(1,'rgba(40,60,80,0)'); c.fillStyle=g; c.beginPath(); c.ellipse(q[0],q[1],R,R*0.55,0,0,Math.PI*2); c.fill(); }
       c.restore(); } }
+  }
   // back fences
   const G=st.GT;
   const edges=st.BND.map((p,i)=>{ const q=st.BND[(i+1)%st.BND.length], ex=q.x-p.x, ey=q.y-p.y, L=Math.hypot(ex,ey)||1; return {p,q,nx:ey/L,ny:-ex/L,i,L}; });
@@ -3968,9 +3979,9 @@ function simDraw(){
   const behind=v=>outside(v)&&(facing(G.n.x,G.n.y)<0)&&!inGate(v);   // a truck in the gate mouth sorts with the gate posts instead
   // anything out on the street behind a back fence is drawn before that fence, so the fence hides it properly
   const dogBack=!!(st.dog&&edges.some(e=>isBack(e)&&((st.dog.x-e.p.x)*e.nx+(st.dog.y-e.p.y)*e.ny)>0&&((st.dog.x-e.p.x)*(e.q.x-e.p.x)+(st.dog.y-e.p.y)*(e.q.y-e.p.y))>-e.L*0.5&&((st.dog.x-e.p.x)*(e.q.x-e.p.x)+(st.dog.y-e.p.y)*(e.q.y-e.p.y))<e.L*e.L+e.L*0.5));   // out behind a back fence: the fence hides him
-  [...st.vehicles.filter(behind).map(v=>({d:DEP(v.x,v.y)+0.6,f:()=>drawVehicle(c,v,t)})), ...st.workers.filter(behind).map(w=>({d:DEP(w.x,w.y),f:()=>drawPerson(c,w,t)})), ...(dogBack?[{d:DEP(st.dog.x,st.dog.y),f:()=>drawDog(c,st.dog,t)}]:[])]
+  if(!G3) [...st.vehicles.filter(behind).map(v=>({d:DEP(v.x,v.y)+0.6,f:()=>drawVehicle(c,v,t)})), ...st.workers.filter(behind).map(w=>({d:DEP(w.x,w.y),f:()=>drawPerson(c,w,t)})), ...(dogBack?[{d:DEP(st.dog.x,st.dog.y),f:()=>drawDog(c,st.dog,t)}]:[])]
     .sort((a,b)=>a.d-b.d).forEach(i=>i.f());
-  edges.filter(isBack).sort((a,b)=>(DEP(a.p.x,a.p.y)+DEP(a.q.x,a.q.y))-(DEP(b.p.x,b.p.y)+DEP(b.q.x,b.q.y))).forEach(e=>edgeSegs(e).forEach(q=>fence(...q)));
+  if(!G3) edges.filter(isBack).sort((a,b)=>(DEP(a.p.x,a.p.y)+DEP(a.q.x,a.q.y))-(DEP(b.p.x,b.p.y)+DEP(b.q.x,b.q.y))).forEach(e=>edgeSegs(e).forEach(q=>fence(...q)));
   // company banner on the longest back fence
   { const bk=edges.map(isBack).join(''); if(st.bannerKey!==bk){ st.bannerKey=bk; st.banner=undefined; } }   // re-pick when the view turns
   if(st.banner===undefined){ // longest stretch of back fence not hidden behind the office or the beams
@@ -3983,7 +3994,7 @@ function simDraw(){
     st.banner=best; }
   { const bf=st.banner;
     const txt=[SITE&&SITE.company,SITE&&SITE.name].filter(Boolean).join('　');
-    if(bf&&txt&&bf.L>2.2){ let a=SP(bf.q[0],bf.q[1],0), b=SP(bf.q[2],bf.q[3],0); if(b[0]<a[0]){ const tmp=a; a=b; b=tmp; }
+    if(!G3&&bf&&txt&&bf.L>2.2){ let a=SP(bf.q[0],bf.q[1],0), b=SP(bf.q[2],bf.q[3],0); if(b[0]<a[0]){ const tmp=a; a=b; b=tmp; }
       const dx=b[0]-a[0], dy=b[1]-a[1], Lp=Math.hypot(dx,dy), zs=SIM.S*0.5;
       let fs=Math.min(zs*0.4,30); c.font=`800 ${fs}px "Noto Sans TC",sans-serif`; let tw=c.measureText(txt).width; if(tw>Lp*0.86){ fs*=Lp*0.86/tw; c.font=`800 ${fs}px "Noto Sans TC",sans-serif`; tw=c.measureText(txt).width; }
       if(fs>=6){ c.save(); c.transform(dx/Lp,dy/Lp,0,1,a[0],a[1]); c.fillStyle="#2E8B57"; c.textBaseline="middle"; c.textAlign="center"; c.fillText(txt,Lp/2,-zs*0.52); c.restore(); c.textAlign='left'; } } }
@@ -4016,10 +4027,12 @@ function simDraw(){
     items.push({d:DEP(cu.x,cu.y)-0.6,f:()=>{ c.fillStyle='rgba(140,142,138,.85)'; c.beginPath(); c.ellipse(g[0],g[1],S*0.3,S*0.13,0,0,Math.PI*2); c.fill(); c.fillStyle='rgba(255,255,255,.35)'; c.beginPath(); c.ellipse(g[0]-S*0.08,g[1]-S*0.03,S*0.1,S*0.04,0,0,Math.PI*2); c.fill(); }}); }
   // gate posts sort with trucks and people, so a truck in the gate passes between them
   [-1,1].forEach(k=>{ const px=G.G.x+G.t.x*G.half*k, py=G.G.y+G.t.y*G.half*k; items.push({d:DEP(px,py)+0.15,f:()=>sBox(c,{x:px-0.12,y:py-0.12,w:0.24,d:0.24,h:1.25,col:'#5B6770'})}); });
-  items.sort((a,b)=>a.d-b.d).forEach(i=>i.f());
-  if(st.pumpV&&!st.pumpV.hidden) drawBoom(c,st.pumpV,t);
+  if(G3){ SIM.gl.render(st,{t,N,W:SIM.W,H:SIM.H,dpr:SIM.dpr,S:SIM.S,ox:SIM.ox,oy:SIM.oy,rot:ROT.a,cx:ROT.cx,cy:ROT.cy,GW,GH,FILL_H,wx:wxOf(st.weather),edit:!!ISL.edit,machSel:ISL.machSel,soilSel:ISL.soilSel,inZone,company:SITE&&SITE.company,site:SITE&&SITE.name});
+    st.workers.forEach(w=>{ const q=SP(w.x,w.y,(w.z||0)+0.55); w.sx=q[0]; w.sy=q[1]; w.sr=SIM.S*0.4; }); if(st.dog){ const q=SP(st.dog.x,st.dog.y,0.25); st.dog.sx=q[0]; st.dog.sy=q[1]; } }
+  else items.sort((a,b)=>a.d-b.d).forEach(i=>i.f());
+  if(!G3&&st.pumpV&&!st.pumpV.hidden) drawBoom(c,st.pumpV,t);
   // water sprays
-  st.sprays.forEach((s,si)=>{
+  (G3?[]:st.sprays).forEach((s,si)=>{
     const o=SP(s.x,s.y,0.6);
     c.fillStyle='#3E8FC4'; c.beginPath(); c.arc(o[0],o[1],SIM.S*0.08,0,Math.PI*2); c.fill();
     for(let i=0;i<14;i++){ const k=((t*0.9)+i/14+si*0.3)%1; const ang=i*2.39+si; const rr=s.r*k; const p=SP(s.x+Math.cos(ang)*rr*0.6,s.y+Math.sin(ang)*rr*0.6,0.6+Math.sin(k*Math.PI)*1.1);
@@ -4028,9 +4041,9 @@ function simDraw(){
   });
   // front fence (low)
   c.strokeStyle='rgba(46,139,87,.75)'; c.lineWidth=Math.max(1.5,SIM.S*0.06); c.lineCap='round';
-  c.beginPath(); edges.filter(e=>!isBack(e)).flatMap(edgeSegs).forEach(q=>{ const a=SP(q[0],q[1],0.25), b=SP(q[2],q[3],0.25); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); }); c.stroke();
+  c.beginPath(); (G3?[]:edges.filter(e=>!isBack(e))).flatMap(edgeSegs).forEach(q=>{ const a=SP(q[0],q[1],0.25), b=SP(q[2],q[3],0.25); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); }); c.stroke();
   // gate posts + sign
-  if(st.gateClosed){ // a closed sliding gate across the opening
+  if(st.gateClosed&&!G3){ // a closed sliding gate across the opening
     const a=G.G, h=G.half, P=(k,z)=>SP(a.x+G.t.x*h*k,a.y+G.t.y*h*k,z);
     c.fillStyle='rgba(214,221,226,.94)'; sPoly(c,[P(-1,0.04),P(1,0.04),P(1,1.02),P(-1,1.02)]); c.fill(); c.strokeStyle='rgba(60,75,85,.45)'; c.lineWidth=1; c.stroke();
     c.strokeStyle='#5B6770'; c.lineWidth=Math.max(1.2,SIM.S*0.05); c.beginPath(); const nb=Math.max(4,Math.round(h*5));
@@ -4039,12 +4052,12 @@ function simDraw(){
     c.fillStyle=SC.fenceStripe; sPoly(c,[P(-1,0.5),P(1,0.5),P(1,0.62),P(-1,0.62)]); c.fill(); }
   { const p=SP(G.G.x,G.G.y,1.55); c.font=`700 ${Math.max(10,Math.min(13,SIM.S*0.36))}px "Noto Sans TC",sans-serif`; const tw=c.measureText('出入口').width; c.fillStyle='#16222C'; c.beginPath(); c.roundRect? c.roundRect(p[0]-tw/2-7,p[1]-10,tw+14,20,6):c.rect(p[0]-tw/2-7,p[1]-10,tw+14,20); c.fill(); c.fillStyle='#F5B700'; c.textBaseline='middle'; c.fillText('出入口',p[0]-tw/2,p[1]+0.5); }
   // night: darken the scene, then switch on the lights
-  if(N>0){ c.save(); c.globalCompositeOperation='multiply'; c.fillStyle=`rgb(${Math.round(255-170*N)},${Math.round(255-150*N)},${Math.round(255-95*N)})`; c.fillRect(0,0,SIM.W,SIM.H); c.restore();
+  if(N>0&&!G3){ c.save(); c.globalCompositeOperation='multiply'; c.fillStyle=`rgb(${Math.round(255-170*N)},${Math.round(255-150*N)},${Math.round(255-95*N)})`; c.fillRect(0,0,SIM.W,SIM.H); c.restore();
     if(N>0.25){ const a=Math.min(1,(N-0.25)/0.4);
       SIM.lights.forEach(q=>{ c.fillStyle=`rgba(255,214,120,${0.95*a})`; sPoly(c,q); c.fill(); const mx=(q[0][0]+q[2][0])/2, my=(q[0][1]+q[2][1])/2, R=SIM.S*1.1; const g=c.createRadialGradient(mx,my,1,mx,my,R); g.addColorStop(0,`rgba(255,200,110,${0.35*a})`); g.addColorStop(1,'rgba(255,200,110,0)'); c.fillStyle=g; c.fillRect(mx-R,my-R,R*2,R*2); });
       const G=st.GT; if(G){ [-1,1].forEach(k=>{ const p=SP(G.G.x+G.t.x*G.half*k,G.G.y+G.t.y*G.half*k,1.32), R=SIM.S*1.4; const g=c.createRadialGradient(p[0],p[1],1,p[0],p[1],R); g.addColorStop(0,`rgba(255,226,150,${0.55*a})`); g.addColorStop(1,'rgba(255,226,150,0)'); c.fillStyle=g; c.fillRect(p[0]-R,p[1]-R,R*2,R*2); c.fillStyle=`rgba(255,240,190,${a})`; c.beginPath(); c.arc(p[0],p[1],Math.max(1.5,SIM.S*0.08),0,Math.PI*2); c.fill(); }); } } }
   // lamps, beacons and welding arcs glow, more so after dark
-  if(SIM.glow.length){ c.save(); c.globalCompositeOperation='lighter'; SIM.glow.forEach(q=>{ const a=q.a*(0.1+0.9*N), g=c.createRadialGradient(q.x,q.y,0,q.x,q.y,q.r); g.addColorStop(0,`rgba(${q.col},${a})`); g.addColorStop(1,`rgba(${q.col},0)`); c.fillStyle=g; c.fillRect(q.x-q.r,q.y-q.r,q.r*2,q.r*2); }); c.restore(); }
+  if(SIM.glow.length&&!G3){ c.save(); c.globalCompositeOperation='lighter'; SIM.glow.forEach(q=>{ const a=q.a*(0.1+0.9*N), g=c.createRadialGradient(q.x,q.y,0,q.x,q.y,q.r); g.addColorStop(0,`rgba(${q.col},${a})`); g.addColorStop(1,`rgba(${q.col},0)`); c.fillStyle=g; c.fillRect(q.x-q.r,q.y-q.r,q.r*2,q.r*2); }); c.restore(); }
   // weather: sun, clouds, rain (follows the day's report)
   { const wx=wxOf(st.weather), Z=(SIM.zoom||1), W=SIM.W, H=SIM.H;
     if(wx.dull){ c.fillStyle=wx.rain?(wx.heavy?'rgba(55,68,84,.28)':'rgba(60,72,88,.20)'):'rgba(90,100,112,.12)'; c.fillRect(0,0,W,H); }
@@ -4220,7 +4233,7 @@ function simMount(r){
   const key=CUR+"|"+(SIM.half||'all')+"|"+(SIM.todayHalf||'')+"|"+gateState()+"|"+todayPunches().map(p=>p.id+(p.out?'o':'i')).join(',')+"|"+(r?punchesOn(r.date).map(p=>p.id+(p.out||'')).join(',')+'|':'')+(r?r.date+'|'+(r.at||'')+'|'+JSON.stringify(r.workers)+'|'+r.tasks.length:'none')+'|'+JSON.stringify(SITE.zones||[])+JSON.stringify(SITE.beams||[])+JSON.stringify(SITE.gate||{})+JSON.stringify(SITE.boundary||{})+JSON.stringify(SITE.office||{})+((SITE.drawing&&SITE.drawing.id)||'');
   if(key!==SIM.key){ SIM.st=simBuild(r); SIM.key=key; SIM.selZone=null; } else { soilProps(SIM.st); fillsBuild(SIM.st); }
   rotCentre(SIM.st); setRot(SIM.rot||0); rotBtn();
-  SIM.cv=cv; SIM.ctx=cv.getContext('2d');
+  SIM.cv=cv; SIM.ctx=cv.getContext('2d'); g3Mount();
   if(SIM.io) SIM.io.disconnect();
   SIM.io=new IntersectionObserver(es=>{ SIM.visible=es[0].isIntersecting; simKick(); }); SIM.io.observe(cv);
   if(SIM.ro) SIM.ro.disconnect();

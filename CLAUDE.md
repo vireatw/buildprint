@@ -20,6 +20,8 @@ A construction daily-report app (工地日報) for Taiwanese job sites. Crews an
 | --- | --- |
 | `index.html` | The whole app: HTML, CSS and vanilla JS in one file, no framework, no build step. Edit it directly. |
 | `backend.js` | ES module. Loads Firebase 10.12.2 from gstatic and provides `window.claude.use(name)` for `db`, `user`, `assets`, `downloads`, the API index.html was written against (see below). Also the sign-in screen, invite codes, the 成員與邀請碼 card and 「從舊版匯入」. |
+| `sim3d.js` | ES module: the 3D 工地動畫 renderer (three.js). **Preview only for now**: on with `?3d=1`, off with `?3d=0` (remembered in localStorage `bp3d`); the 2D canvas renderer in index.html is still the default. index.html keeps the whole simulation (`simBuild`/`simUpdate`) and all taps/drags/labels; `simDraw` hands the state to `SIM.gl.render(st, view)` and then draws only labels, weather and 編輯 marks on the 2D canvas on top. The orthographic camera matches `SP()` exactly, so anything new drawn in 3D must use site coords (three X = x, Z = y, Y = height). |
+| `three.module.min.js` | three.js r170 (MIT), loaded only by sim3d.js. |
 | `config.js` | Firebase web config (public by design; data is protected by the rules). |
 | `firestore.rules` | Security rules. **GitHub does not deploy these**: after changing them, Danny pastes the file into Firebase → Firestore Database → 規則 → 發布. |
 | `CNAME` | `buildprint.tw` for GitHub Pages. |
