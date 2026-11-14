@@ -3132,7 +3132,10 @@ function simBuild(r){
     const okD=q=>q.x>-m&&q.x<GW+m&&q.y>-m&&q.y<GH+m&&!inSite(q.x,q.y)&&segD(q.x,q.y)>0.4&&!(((q.x-GT.G.x)*GT.n.x+(q.y-GT.G.y)*GT.n.y)>-0.5&&((q.x-GT.G.x)*GT.n.x+(q.y-GT.G.y)*GT.n.y)<2.1);
     const pick=()=>{ for(let k=0;k<60;k++){ const q={x:-m+R()*(GW+2*m),y:-m+R()*(GH+2*m)}; if(okD(q)) return q; } return null; };
     const home=pick();
-    if(home) dog={x:home.x,y:home.y,tx:home.x,ty:home.y,home,state:offNow?'sleep':'sit',t:1+R()*3,ph:R()*6,flip:false,pick,ok:okD,rng:R}; }
+    if(offNow){ // gate shut: he sleeps on the apron just outside the gate, and now and then gets up to pace up and down in front of it, keeping watch
+      const at=e=>({x:GT.G.x+GT.n.x*0.6+GT.t.x*e,y:GT.G.y+GT.n.y*0.6+GT.t.y*e}), h=at((R()-0.5)*GT.half);
+      dog={x:h.x,y:h.y,tx:h.x,ty:h.y,home:h,state:'sleep',t:8+R()*14,ph:R()*6,flip:false,guard:true,beat:e=>at(e),span:GT.half+0.8,rng:R}; }
+    else if(home) dog={x:home.x,y:home.y,tx:home.x,ty:home.y,home,state:'sit',t:1+R()*3,ph:R()*6,flip:false,pick,ok:okD,rng:R}; }
   if(st_pipePt&&workers.some(w=>w.role==='pipe')){ const q=st_pipePt; props.push({x:q.x-0.55,y:q.y-0.2,w:1.1,d:0.4,h:0.16,col:'#D9E0E5',z0:0,pipes:true}); props.push({x:q.x-0.5,y:q.y-0.16,w:1.0,d:0.32,h:0.12,col:'#E6EBEF',z0:0.16,pipes:true}); }
   // boards brought to the 空地 get stacked beside the truck
   if(z_loadPt&&workers.some(w=>w.role==='carry')){ props.push({x:z_loadPt.x-0.75,y:z_loadPt.y-0.3,w:0.55,d:0.8,h:0.22,col:SC.ply,z0:0,ply:true}); props.push({x:z_loadPt.x-0.7,y:z_loadPt.y-0.25,w:0.5,d:0.72,h:0.12,col:SC.ply,z0:0.22,ply:true}); }
@@ -3449,9 +3452,17 @@ function drawPerson(c,w,t){
     c.beginPath(); c.moveTo(dx,dy-hr*0.32); c.quadraticCurveTo(dx+hr*0.2,dy,dx,dy+hr*0.12); c.quadraticCurveTo(dx-hr*0.2,dy,dx,dy-hr*0.32); c.fill(); }
   w.sx=p[0]; w.sy=by; w.sr=s*0.5;
 }
-// 工地小黃: the site dog. Wanders, follows people about, sits and wags; asleep when the gate is shut
+// 工地小黃: the site dog. Wanders the grass outside the fence, sits and wags; when the gate is shut he sleeps in front of it and now and then gets up to pace it
 function dogStep(d,dt,st){
-  if(d.state==='sleep') return; const R=d.rng;
+  const R=d.rng;
+  if(d.guard){ // 看門: sleep → wake, pace the gate a few times (stopping to look about) → back to his spot → sleep
+    if(d.state==='walk'){ const dx=d.tx-d.x, dy=d.ty-d.y, L=Math.hypot(dx,dy); if(L>0.06){ const sp=0.85*dt; d.x+=dx/L*Math.min(sp,L); d.y+=dy/L*Math.min(sp,L); const rr=RN(dx,dy), sx=rr[0]-rr[1]; if(Math.abs(sx)>0.01) d.flip=sx<0; return; }
+      if(d.legs>0){ d.state=R()<0.5?'sit':'sniff'; d.t=1+R()*2.5; } else { d.state='sleep'; d.t=18+R()*30; } return; }
+    d.t-=dt; if(d.t>0) return;
+    if(d.state==='sleep'){ d.legs=2+Math.floor(R()*3); d.state='sit'; d.t=1.2+R()*1.5; return; }   // wakes, sits up, then sets off
+    if(d.legs>0){ d.legs--; const e=d.legs===0?null:(d.side=-(d.side||1))*d.span*(0.7+R()*0.3), q=e==null?d.home:d.beat(e); d.tx=q.x; d.ty=q.y; d.state='walk'; return; }
+    d.state='sleep'; d.t=18+R()*30; return; }
+  if(d.state==='sleep') return;
   if(d.state==='walk'){ const dx=d.tx-d.x, dy=d.ty-d.y, L=Math.hypot(dx,dy);
     if(L<0.08||(d.walkT=(d.walkT||0)+dt)>9){ d.state=R()<0.5?'sit':'sniff'; d.t=2.5+R()*5; d.walkT=0; return; }
     const sp=1.25*dt; d.x+=dx/L*Math.min(sp,L); d.y+=dy/L*Math.min(sp,L); const rr=RN(dx,dy), sx=rr[0]-rr[1]; if(Math.abs(sx)>0.01) d.flip=sx<0; return; }
@@ -4136,7 +4147,8 @@ function simDraw(){
   // gate posts sort with trucks and people, so a truck in the gate passes between them
   [-1,1].forEach(k=>{ const px=G.G.x+G.t.x*G.half*k, py=G.G.y+G.t.y*G.half*k; items.push({d:DEP(px,py)+0.15,f:()=>sBox(c,{x:px-0.12,y:py-0.12,w:0.24,d:0.24,h:1.25,col:'#5B6770'})}); });
   if(G3){ SIM.gl.render(st,{t,N,W:SIM.W,H:SIM.H,dpr:SIM.dpr,S:SIM.S,ox:SIM.ox,oy:SIM.oy,rot:ROT.a,cx:ROT.cx,cy:ROT.cy,GW,GH,FILL_H,wx:wxOf(st.weather),edit:!!ISL.edit,lunch:!!st.lunch,tv:st.lunch?(st.lunchT||0):t,machSel:ISL.machSel,soilSel:ISL.soilSel,inZone,company:SITE&&SITE.company,site:SITE&&SITE.name});
-    st.workers.forEach(w=>{ if(w.inside){ w.sx=-9999; w.sy=-9999; return; } const q=SP(w.x,w.y,(w.z||0)+0.55); w.sx=q[0]; w.sy=q[1]; w.sr=SIM.S*0.4; }); if(st.dog){ const q=SP(st.dog.x,st.dog.y,0.25); st.dog.sx=q[0]; st.dog.sy=q[1]; } }
+    st.workers.forEach(w=>{ if(w.inside){ w.sx=-9999; w.sy=-9999; return; } const q=SP(w.x,w.y,(w.z||0)+0.55); w.sx=q[0]; w.sy=q[1]; w.sr=SIM.S*0.4; }); if(st.dog){ const q=SP(st.dog.x,st.dog.y,0.25); st.dog.sx=q[0]; st.dog.sy=q[1];
+      if(st.dog.state==='sleep'){ const s0=SIM.S*0.5; c.fillStyle=`rgba(255,255,255,${N>0.3?0.85:0.95})`; c.strokeStyle='rgba(22,34,44,.5)'; c.lineWidth=2.5; c.textAlign='left'; [0,1,2].forEach(i=>{ const k=((t*0.4)+i/3)%1; c.globalAlpha=1-k; c.font=`800 ${Math.max(9,s0*(0.28+k*0.2))}px sans-serif`; const x=q[0]+s0*(0.3+k*0.5), y=q[1]-s0*(0.4+k*1.1); c.strokeText('z',x,y); c.fillText('z',x,y); }); c.globalAlpha=1; } } }   // 小黃 asleep: a few z's drifting up
   else items.sort((a,b)=>a.d-b.d).forEach(i=>i.f());
   if(!G3&&st.pumpV&&!st.pumpV.hidden) drawBoom(c,st.pumpV,t);
   // water sprays
@@ -4386,7 +4398,7 @@ function simMount(r){
     let html='';
     if(!best){ let bv=null,vd=1e9; st.vehicles.forEach(v=>{ if(v.hidden) return; const q=SP(v.x,v.y,0.55), d=Math.hypot(q[0]-x,q[1]-y); if(d<Math.max(26,SIM.S*1.1)&&d<vd){vd=d;bv=v;} });
       if(bv){ html=`<b>${esc(bv.mk||'')}${bv.vendor?'（'+esc(bv.vendor)+'）':''}</b>${bv.count?' × '+fmtN(bv.count)+' 台':''}${bv.shift?' · '+esc(bv.shift):''}<br>${esc(bv.job||'')}`; } }
-    if(!best&&!html&&st.dog&&st.dog.sx!=null&&Math.hypot(st.dog.sx-x,st.dog.sy-y)<Math.max(18,SIM.S*0.5)) html=`<b>工地小黃</b>：${st.dog.state==='sleep'?'睡覺中':st.dog.state==='walk'?'巡邏中':'休息中'}`;
+    if(!best&&!html&&st.dog&&st.dog.sx!=null&&Math.hypot(st.dog.sx-x,st.dog.sy-y)<Math.max(18,SIM.S*0.5)) html=`<b>工地小黃</b>：${st.dog.guard?(st.dog.state==='sleep'?'在門口睡覺，幫忙看門':'起來巡門口'):st.dog.state==='sleep'?'睡覺中':st.dog.state==='walk'?'巡邏中':'休息中'}`;
     if(html){}
     else if(best&&best.resting){ html=`<b>${esc(best.trade)}${best.vendor?'（'+esc(best.vendor)+'）':''}</b> · 午休中，13:00 開工`; }
     else if(best){ html=best.kind==='eng'?`<b>${esc(best.vendor||'')}${best.vendor?' · ':''}${esc(best.trade)}</b>${best.zone&&best.zone.name?'<br>現場巡查（'+esc(best.zone.name)+'）':''}`:`<b>${esc(best.trade)}${best.vendor?'（'+esc(best.vendor)+'）':''}</b>${best.task?' · '+esc(best.task):''}${best.zone&&best.zone.name?'（'+esc(best.zone.name)+'）':''}`; }

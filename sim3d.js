@@ -228,8 +228,8 @@ function buildDog(){ const fur='#D9A657', dk='#B5803A'; const g=grp(), b=grp(); 
 function animDog(g,d,t,dt){ const u=g.userData, T0=t+d.ph, walk=d.state==='walk', sit=d.state==='sit', sleep=d.state==='sleep';
   g.position.set(d.x,0,d.y); if(walk){ const hd=Math.atan2(d.ty-d.y,d.tx-d.x); u.hd0=lerpAng(u.hd0,hd,Math.min(1,dt*8)); } g.rotation.y=-u.hd0;
   const sw=walk?Math.sin(T0*10)*0.6:0; u.legs.forEach((l,i)=>{ l.rotation.z=(i%3===0?sw:-sw); l.visible=!sleep; });
-  u.b.rotation.z=sit?0.45:0; u.b.position.y=sleep?-0.14:sit?-0.02:(walk?Math.abs(Math.sin(T0*10))*0.02:0); u.b.rotation.x=sleep?1.2:0;
-  u.tail.rotation.x=Math.sin(T0*(walk?9:sit?13:5))*0.6; u.tail.rotation.z=0.5; u.hd.rotation.z=d.state==='sniff'?-0.7+Math.sin(T0*8)*0.05:sit?-0.35:0; }
+  u.b.rotation.z=sit?0.45:0; u.b.position.y=sleep?-0.15+Math.sin(T0*1.4)*0.006:sit?-0.02:(walk?Math.abs(Math.sin(T0*10))*0.02:0); u.b.rotation.x=0;   // asleep: lying flat on his belly, breathing
+  u.tail.rotation.x=Math.sin(T0*(walk?9:sit?13:5))*0.6; u.tail.rotation.z=0.5; u.hd.rotation.z=sleep?0.55:d.state==='sniff'?-0.7+Math.sin(T0*8)*0.05:sit?-0.35:0; u.hd.position.y=sleep?0.31:0.38; }
 
 /* ---------------- the renderer ---------------- */
 export function create(){
