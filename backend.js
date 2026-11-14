@@ -257,8 +257,8 @@ function overlay(state, msg) {
   const head = `<div class="hd">${LOGO}<div><b>築跡</b><small>Buildprint · 工地日報</small></div></div>`;
   g.classList.toggle('splash', state === 'loading' || state === 'error');   // loading: big centred logo, 築跡 underneath
   const lock = `<img class="lockup" src="logo-lockup.png?v=1" alt="築跡 BuildPrint" width="600" height="704">`;   // the full logo: BUILD footprint, 築跡, BuildPrint — in white
-  if (state === 'loading') {   // footprints walking across under the logo, one step at a time (築跡: the traces of building)
-    const steps = [0, 1, 2, 3, 4].map(i => `<i style="left:${i * 48}px;top:${i % 2 ? 36 : 6}px;--r:${i % 2 ? 7 : -7}deg;animation-delay:${(i * 0.32).toFixed(2)}s"></i>`).join('');
+  if (state === 'loading') {   // footprints walking from right to left under the logo, one step at a time (築跡: the traces of building)
+    const steps = [0, 1, 2, 3, 4].map(i => `<i style="left:${(4 - i) * 48}px;top:${i % 2 ? 36 : 6}px;--r:${i % 2 ? 7 : -7}deg;animation-delay:${(i * 0.32).toFixed(2)}s"></i>`).join('');
     g.innerHTML = `<div class="bx">${lock}<div class="walk" role="img" aria-label="載入中">${steps}</div></div>`; return; }
   if (state === 'error') { g.innerHTML = `<div class="bx">${lock}<p class="err">${esc(msg)}</p><button class="go" onclick="location.reload()">重新整理</button></div>`; return; }
   if (state === 'join') {
