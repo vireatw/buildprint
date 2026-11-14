@@ -1703,6 +1703,7 @@ function islLegend(){
   const hat=c=>`<svg class="lh" viewBox="0 0 20 14" aria-hidden="true"><path d="M3 11C3 5.5 6 2.5 10 2.5S17 5.5 17 11Z" fill="${c}" stroke="rgba(0,0,0,.35)" stroke-width="1"/><rect x="1" y="10.5" width="18" height="2.6" rx="1.3" fill="${c}" stroke="rgba(0,0,0,.35)" stroke-width="1"/></svg>`;
   let mini=false; try{ mini=localStorage.getItem('gongdi.legendMini')==='1'; }catch(e){}
   const vm={}; ((SIM.st&&SIM.st.vehicles)||[]).forEach(v=>{ if(v.hidden&&v.type!=='mixer') return; const k=v.mk||''; if(!k) return; (vm[k]=vm[k]||{n:0,v:v.vendor||''}).n++; });
+  { const MC=(SIM.st&&SIM.st.machCount)||{}; Object.keys(MC).forEach(k=>{ const n=Math.ceil(+MC[k]||0); if(n>0){ (vm[k]=vm[k]||{n:0,v:''}).n=Math.max(vm[k].n,n); } }); }   // the count on the 日報 (a truck that is out on the road still counts)
   const mk=Object.keys(vm), mIco=`<svg class="lh lm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5h9a2 2 0 0 1 0 4H4a2 2 0 0 1 0-4z"/><path d="M3 16.5v-4h3.5l1-3.5H11v7.5"/><path d="M11 12.5l4.5-6 4.5 3.2"/><path d="M20 9.7v3.3l-2.6 1.2"/></svg>`;
   const tot=ks.reduce((a,k)=>a+by[k].n,0)+mk.reduce((a,k)=>a+vm[k].n,0);   // each machine counts as one person (its operator)
   el.classList.toggle('mini',mini);
@@ -2802,6 +2803,8 @@ function simBuild(r){
   });
   const work=zones.filter(z=>!z.isGate&&!z.isStore&&!z.isYard);
   const unz=tasks.filter(t=>!zoneIds(t.zone).some(id=>zones.find(z=>z.id===id)));
+  // 拆模 is shown being done: a 進行中 item, or (looking back at a day / half day) one finished that day; with no zone picked it applies to every beam
+  const stripAll=unz.some(t=>/拆模/.test(t.text)&&(t.status==='doing'||!live)), stripZ=z=>!!z&&(/拆模/.test(z.doing)||(!live&&/拆模/.test(z.txt)));
   // zones a task covers: 全區 → every work zone; one or several named zones → those
   const zonesOfTask=t=>{ const ids=zoneIds(t.zone); if(ids.includes(ZONE_ALL)) return work.length?work:zones; const nm=ids.map(id=>zoneName(id)).filter(Boolean); return zones.filter(z=>ids.includes(z.id)||nm.includes(z.name)); };
   { // tasks without a zone apply to every work zone
@@ -2863,7 +2866,7 @@ function simBuild(r){
       for(let y=z.y+ins;y<=z.y+z.h-ins+0.01;y+=step) ys.push(y);
       let mode='concrete';
       if(/綁筋/.test(z.doing)) mode='rebar'; else if(/組立/.test(z.doing)) mode='form'; else if(/(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing)) mode='form';
-      else if(/拆模/.test(z.doing)) mode='strip'; else if(/拆模/.test(z.txt)) mode='concrete';
+      else if(stripZ(z)||stripAll) mode='strip'; else if(/拆模/.test(z.txt)) mode='concrete';
       else if(/(灌漿|澆置|打設|混凝土|混泥土)|組立/.test(z.txt)) mode='form';
       const seg=(x,y,w,d)=>{
         let m=mode; if(m==='rebar'&&rng()<0.3) m='form';
@@ -2893,15 +2896,15 @@ function simBuild(r){
     const zoneNear=(x,y,lim)=>{ let best=null,bd=lim; wz.forEach(z=>{ const P=z.pts||[{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}];
         P.forEach((p,i)=>{ const q=P[(i+1)%P.length], dx=q.x-p.x, dy=q.y-p.y, L2=dx*dx+dy*dy||1e-9, t=Math.max(0,Math.min(1,((x-p.x)*dx+(y-p.y)*dy)/L2)), d=Math.hypot(p.x+dx*t-x,p.y+dy*t-y);
           if(d<bd-1e-6||(Math.abs(d-bd)<1e-6&&best&&z.pts&&P.length<(best.pts||[]).length)){ bd=d; best=z; } }); }); return best; };
-    const modeOf=z=>{ if(!z) return /地樑|基礎/.test(stageName)?'concrete':'concrete';
-      if(/綁筋/.test(z.doing)) return 'rebar'; if(/組立|(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing)) return 'form'; if(/拆模/.test(z.doing)) return 'strip';
+    const modeOf=z=>{ if(!z) return stripAll?'strip':'concrete';
+      if(/綁筋/.test(z.doing)) return 'rebar'; if(/組立|(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing)) return 'form'; if(stripZ(z)||stripAll) return 'strip';
       if(/拆模/.test(z.txt)) return 'concrete'; if(/(灌漿|澆置|打設|混凝土|混泥土)|組立/.test(z.txt)) return 'form'; if(/綁筋/.test(z.txt)) return 'form'; return 'concrete'; };
     const TH=0.34, CH=0.23;   // beam width; half the column size (columns a little wider than the beams)
     const pick=mode=>{ let m=mode; if(m==='strip') m='form'; if(m==='rebar'&&rng()<0.3) m='form'; return m; };
     const fillOf=(z,md)=>{ if(!z) return 'empty'; if(md==='strip') return 'full'; if(/(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing+' '+z.txt)) return 'dyn'; return 'empty'; };
     const beamPiece=(ax,ay,bx,by,m,fl,zn)=>{
       if(m==='rebar') props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.42,col:SC.rebar,cage:true});
-      else if(m==='form'){ const st0=!!zn&&modeOf(zn)==='strip'; props.push({beam:true,ax,ay,bx,by,wd:TH+0.12,h:0.56,col:SC.ply,ply:true,form:true,fill:fl,filled:fl==='full',zn,strip:st0,stripped:st0&&rng()<0.3}); }   // 拆模: boards come off one by one (stripStep)
+      else if(m==='form'){ const st0=modeOf(zn)==='strip'; props.push({beam:true,ax,ay,bx,by,wd:TH+0.12,h:0.56,col:SC.ply,ply:true,form:true,fill:fl,filled:fl==='full',zn,strip:st0,stripped:st0&&rng()<0.3}); }   // 拆模: boards come off one by one (stripStep)
       else props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.46,col:m==='fresh'?SC.fresh:SC.concrete});
     };
     const segs=SITE.beams.map(b=>({x1:MX(+b.x1),y1:MY(+b.y1),x2:MX(+b.x2),y2:MY(+b.y2)})).map(g=>Object.assign(g,{len:Math.hypot(g.x2-g.x1,g.y2-g.y1)})).filter(g=>g.len>0.1);
@@ -2968,8 +2971,8 @@ function simBuild(r){
   const innerSpots=()=>{ if(inner) return inner; const xs=BND.map(q=>q.x), ys=BND.map(q=>q.y), C=[];
     for(let yy=Math.min(...ys)+0.5; yy<Math.max(...ys); yy+=0.5) for(let xx=Math.min(...xs)+0.5; xx<Math.max(...xs); xx+=0.5) if(roomAt(xx,yy)&&!nearOffice(xx,yy)) C.push({x:xx,y:yy,busy:work.some(z=>(z.beamPts||z.beamXs)&&inZone(z,xx,yy))?1:0});
     C.sort((a,b)=>(a.busy-b.busy)||(Math.hypot(a.x-park.x,a.y-park.y)-Math.hypot(b.x-park.x,b.y-park.y))); return inner=C; };
-  const takeSpot=()=>{ const sp=spots.find(p=>!used.includes(p)&&Math.hypot(p.x-park.x,p.y-park.y)>1.8); if(sp){ used.push(sp); return sp; }
-    const far=(p,d)=>Math.hypot(p.x-park.x,p.y-park.y)>2.2&&used.every(u=>Math.hypot(p.x-u.x,p.y-u.y)>d);
+  const takeSpot=()=>{ const sp=spots.find(p=>!used.includes(p)&&Math.hypot(p.x-park.x,p.y-park.y)>2.7); if(sp){ used.push(sp); return sp; }
+    const far=(p,d)=>Math.hypot(p.x-park.x,p.y-park.y)>2.7&&used.every(u=>Math.hypot(p.x-u.x,p.y-u.y)>d);
     const q=innerSpots().find(p=>far(p,2.4))||innerSpots().find(p=>far(p,1.6));
     if(q){ const p={x:q.x,y:q.y}; used.push(p); return p; }
     const k=used.length+1; const p={x:gateOut.x+GT.t.x*2.6*k,y:gateOut.y+GT.t.y*2.6*k}; used.push(p); return p; };
@@ -2982,7 +2985,8 @@ function simBuild(r){
       let pk=park;
       if(i>0) pk=takeSpot();
       const A={x:gateOut.x-GT.t.x*span,y:gateOut.y-GT.t.y*span}, B={x:gateOut.x+GT.t.x*span,y:gateOut.y+GT.t.y*span};
-      const inPath=[A,gateOut,gateIn,pk], outPath=[gateIn,gateOut,B];
+      let inPath=[A,gateOut,gateIn,pk], outPath=[gateIn,gateOut,B];
+      if(i>0){ const via={x:gateIn.x+(pk.x-park.x)*0.9,y:gateIn.y+(pk.y-park.y)*0.9}; if(inSite(via.x,via.y)&&Math.hypot(via.x-park.x,via.y-park.y)>2.2){ inPath=[A,gateOut,gateIn,via,pk]; outPath=[via,gateIn,gateOut,B]; } }   // the second truck swings wide of the first one's parking place
       vehicles.push({type:'truck',crane:i<nCraneTruck,park:pk,inPath,outPath,wp:0,x:i?A.x:pk.x,y:i?A.y:pk.y,phase:i?'away':'load',wait:i?11:7,loaded:false,hidden:i>0,dir:Math.atan2(-GT.n.y,-GT.n.x)});
     }
     const wz=work; const tgt=wz.length?{x:wz.reduce((s,z)=>s+z.cx,0)/wz.length,y:wz.reduce((s,z)=>s+z.cy,0)/wz.length}:{x:GW/2,y:GH/2};
@@ -3158,7 +3162,7 @@ function simBuild(r){
   const pourLater=!todayView&&SIM.half==='am'&&Object.keys(machinesOf(r)).some(k=>{ if(!/押送|泵浦|幫浦|預拌/.test(k)) return false; const x=splitOf(r,k,true); return !x.f&&!x.am&&x.pm>0; });   // morning of an afternoon pour: forms still empty
   props.forEach(o=>{ if(o.fill==='dyn'&&(!pumpV||pumpV.parked||pumpV.zone!==o.zn)){ if(pourLater){ o.fill='empty'; o.filled=false; } else { o.fill='full'; o.filled=true; } } });
   const toG=(x,y)=>({x:MX(x),y:MY(y)}), toN=(gx,gy)=>({x:+(bx0+gx/GW*bw).toFixed(4),y:+(by0+gy/GH*bh).toFixed(4)});
-  const stOut={pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
+  const stOut={machCount:MM,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
 }
 let z_loadPt=null, st_pipePt=null;
 function inZone(z,x,y){ if(z.pts) return inPolyS([x,y],z.pts.map(p=>[p.x,p.y])); return x>=z.x-0.05&&x<=z.x+z.w+0.05&&y>=z.y-0.05&&y<=z.y+z.h+0.05; }
@@ -3900,8 +3904,9 @@ function simUpdate(dt){
     if(v.type==='skid'){ if(!st.lunch) skidStep(v,dt,st); return; }
     if(v.type==='mixer'&&v.cycle){ if(!st.lunch) mixerStep(v,dt); return; }
     if(v.type!=='truck'||v.static) return;
-    if(v.phase==='load'){ v.wait-=dt; if(v.wait<4) v.loaded=true; if(v.wait<=0){ v.phase='leave'; v.wp=0; if(st.pile) st.pile.taken+=Math.min(st.pile.n,5); } return; }   // the truck drives off with part of the 拆模 pile
-    if(v.phase==='away'){ v.wait-=dt; if(v.wait<=0){ v.x=v.inPath[0].x; v.y=v.inPath[0].y; v.loaded=false; v.phase='arrive'; v.wp=1; } else { v.hidden=true; return; } }
+    const busyGate=st.vehicles.some(o=>o!==v&&o.type==='truck'&&!o.static&&(o.phase==='arrive'||o.phase==='leave'));   // one truck at a time through the gate, so two never meet
+    if(v.phase==='load'){ v.wait-=dt; if(v.wait<4) v.loaded=true; if(v.wait<=0&&busyGate){ v.wait=0.5; return; } if(v.wait<=0){ v.phase='leave'; v.wp=0; if(st.pile) st.pile.taken+=Math.min(st.pile.n,5); } return; }   // the truck drives off with part of the 拆模 pile
+    if(v.phase==='away'){ v.wait-=dt; if(v.wait<=0&&busyGate) v.wait=0.5; if(v.wait<=0){ v.x=v.inPath[0].x; v.y=v.inPath[0].y; v.loaded=false; v.phase='arrive'; v.wp=1; } else { v.hidden=true; return; } }
     const path=v.phase==='arrive'?v.inPath:v.outPath; const target=path[Math.min(v.wp,path.length-1)];
     const dx=target.x-v.x, dy=target.y-v.y, d=Math.hypot(dx,dy);
     if(d<0.05){ v.wp++; if(v.wp>=path.length){ if(v.phase==='arrive'){ v.phase='load'; v.wait=10; } else { v.phase='away'; v.wait=4; v.hidden=true; } } return; }
@@ -3985,6 +3990,7 @@ function stripStep(st,dt){ if(st._stripP!==st.props){ st._stripP=st.props; st._s
   const W=st.workers.filter(w=>/拆模/.test(w.task||'')&&!w.resting); let best=null;
   if(!W.length) best={o:left[0]};   // nobody listed for it: the boards still come off
   else W.forEach(w=>{ if(w.state!=='work') return; left.forEach(o=>{ const q=stripC(o), d=Math.hypot(q.x-w.x,q.y-w.y)-(o.beam?Math.hypot(o.bx-o.ax,o.by-o.ay)/2:0); if(d<1.1&&(!best||d<best.d)) best={d,o}; }); });
+  if(!best&&st.stripT>14) best={o:left[0]};   // nobody has got to it for a while: it comes off anyway, so the job always finishes
   if(best){ st.stripT=0; best.o.stripped=true; best.o.stripT=SIM.clock; } }
 function stripTarget(st,w){ const left=(st._strip||[]).filter(o=>!o.stripped&&(!o.zn||!w.zone||o.zn===w.zone)); if(!left.length) return;
   const near=left.map(o=>({o,q:stripC(o)})).sort((a,b)=>Math.hypot(a.q.x-w.x,a.q.y-w.y)-Math.hypot(b.q.x-w.x,b.q.y-w.y)).slice(0,3), c=near[Math.floor(st.rng()*near.length)], o=c.o, sd=st.rng()<0.5?1:-1;
