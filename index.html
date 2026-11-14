@@ -1446,7 +1446,7 @@ const nowHalf=()=>{ const h=new Date().getHours(); return h<12?'am':h<18?'pm':'n
 // the part of the day on screen: past days use the picked part (default 全天); today follows the clock until one is picked
 const halfOf=day=>day===TODAY?(SIM.todayHalf||null):(SIM.half||'all');
 function islTopHTML(r){ const today=selDate===TODAY, cur=today?(SIM.todayHalf||nowHalf()):(SIM.half||'all');
-  return (r?`<div class="isl-half"><div class="seg2" role="radiogroup" aria-label="時段">${[['am','上午'],['all','全天'],['pm','下午'],['ng','晚上']].map(([k,l])=>`<button type="button" role="radio" data-half="${k}" aria-checked="${cur===k}">${l}${today&&!SIM.todayHalf&&k===cur?'<i class="nowdot" aria-label="現在"></i>':''}</button>`).join('')}</div></div>`:''); }
+  return (r?`<div class="isl-half"><div class="seg2" role="radiogroup" aria-label="時段">${[['all','全天'],['am','上午'],['pm','下午'],['ng','晚上']].map(([k,l])=>`<button type="button" role="radio" data-half="${k}" aria-checked="${cur===k}">${l}${today&&!SIM.todayHalf&&k===cur?'<i class="nowdot" aria-label="現在"></i>':''}</button>`).join('')}</div></div>`:''); }
 // 晚上 picked on a day without night work: hide the site and just say so
 function islNightGate(){ const box=$('#p-island .isl-full'), m=$('#islNoNight'); if(!box||!m) return; const r=REPORTS[selDate]||null;
   const off=!!r&&halfOf(selDate)==='ng'&&!hasNight(engFill(r));
