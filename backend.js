@@ -214,6 +214,13 @@ const CSS = `
 #bpGate .uid code{flex:1;min-width:0;overflow:auto;background:#0f1a22;border-radius:8px;padding:8px 10px;font-size:13px;color:#cfd8e0}
 #bpGate .uid button{border:1px solid #3a4d5b;background:none;color:#fff;border-radius:8px;padding:8px 10px;font:inherit;font-size:14px}
 #bpGate .spin{width:28px;height:28px;border:3px solid #3a4d5b;border-top-color:#F2A900;border-radius:50%;animation:bpspin .8s linear infinite;margin:40px auto}
+#bpGate.splash{align-items:center;padding-top:env(safe-area-inset-top);padding-bottom:calc(env(safe-area-inset-bottom) + 40px)}
+#bpGate.splash .hd{flex-direction:column;gap:0;text-align:center;margin-bottom:0}
+#bpGate.splash .hd .bplogo{width:128px;height:128px;margin-bottom:22px}
+#bpGate.splash .hd b{font-size:34px;letter-spacing:.18em;padding-left:.18em;line-height:1.2}
+#bpGate.splash .hd small{display:block;margin-top:6px;font-size:14px;letter-spacing:.04em}
+#bpGate.splash .spin{display:block;margin:34px auto 0}
+#bpGate.splash .err{text-align:center;margin-top:28px}
 @keyframes bpspin{to{transform:rotate(360deg)}}
 .bp-codes{display:grid;gap:10px;margin:10px 0}
 .bp-code{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -243,6 +250,7 @@ function overlay(state, msg) {
   if (!state) { g.hidden = true; g.innerHTML = ''; return; }
   g.hidden = false;
   const head = `<div class="hd">${LOGO}<div><b>築跡</b><small>Buildprint · 工地日報</small></div></div>`;
+  g.classList.toggle('splash', state === 'loading' || state === 'error');   // loading: big centred logo, 築跡 underneath
   if (state === 'loading') { g.innerHTML = `<div class="bx">${head}<div class="spin" aria-label="載入中"></div></div>`; return; }
   if (state === 'error') { g.innerHTML = `<div class="bx">${head}<p class="err">${esc(msg)}</p><button class="go" onclick="location.reload()">重新整理</button></div>`; return; }
   if (state === 'join') {
