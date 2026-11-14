@@ -30,8 +30,8 @@ async function boot() {
     app = fa.initializeApp(FIREBASE_CONFIG);
     auth = A.getAuth(app);
     try {
-      db = F.initializeFirestore(app, { ignoreUndefinedProperties: true, experimentalAutoDetectLongPolling: true, localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) });   // long-polling fallback: some mobile networks block Firestore's streaming connection, which leaves writes waiting forever
-    } catch (e) { db = F.initializeFirestore(app, { ignoreUndefinedProperties: true, experimentalAutoDetectLongPolling: true }); }
+      db = F.initializeFirestore(app, { ignoreUndefinedProperties: true, localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) });
+    } catch (e) { db = F.initializeFirestore(app, { ignoreUndefinedProperties: true }); }
   } catch (e) {
     console.error(e); overlay('error', '連不上伺服器，請確認網路後重新整理。'); return;
   }
@@ -50,10 +50,9 @@ async function boot() {
 
 async function resolveMember(u) {
   me = { uid: u.uid, email: u.email || '', name: u.displayName || '', role: null };
-  const [ad, mb] = await Promise.all([
-    F.getDoc(F.doc(db, 'admins/' + u.uid)).catch(() => null),
-    F.getDoc(F.doc(db, 'members/' + u.uid)).catch(() => null),
-  ]);
+  // on a slow or blocked connection getDoc can wait a long time: after 8 s use what this phone already has
+  const look = path => { const r = F.doc(db, path); return Promise.race([F.getDoc(r), new Promise((_, no) => setTimeout(() => no(new Error('slow')), 8000))]).catch(() => F.getDocFromCache(r)).catch(() => null); };
+  const [ad, mb] = await Promise.all([look('admins/' + u.uid), look('members/' + u.uid)]);
   if (ad && ad.exists()) me.role = 'admin';
   else if (mb && mb.exists()) me.role = (mb.data().role === 'edit') ? 'edit' : 'view';
   if (!me.name && mb && mb.exists()) me.name = mb.data().name || '';
@@ -259,7 +258,8 @@ function overlay(state, msg) {
   const lock = `<img class="lockup" src="logo-lockup.png?v=1" alt="築跡 BuildPrint" width="600" height="704">`;   // the full logo: BUILD footprint, 築跡, BuildPrint — in white
   if (state === 'loading') {   // footprints walking from right to left under the logo, one step at a time (築跡: the traces of building)
     const steps = [0, 1, 2, 3, 4].map(i => `<i style="left:${(4 - i) * 48}px;top:${i % 2 ? 36 : 6}px;--r:${i % 2 ? 7 : -7}deg;animation-delay:${(i * 0.32).toFixed(2)}s"></i>`).join('');
-    g.innerHTML = `<div class="bx">${lock}<div class="walk" role="img" aria-label="載入中">${steps}</div></div>`; return; }
+    g.innerHTML = `<div class="bx">${lock}<div class="walk" role="img" aria-label="載入中">${steps}</div><p class="note slow" hidden style="text-align:center;margin-top:22px">連線比較慢，還在載入…<br><button class="lnk" type="button" onclick="location.reload()">重新整理</button></p></div>`;
+    clearTimeout(overlay.slowT); overlay.slowT = setTimeout(() => { const n = g.querySelector('.slow'); if (n && g.classList.contains('splash') && !g.hidden) n.hidden = false; }, 15000); return; }
   if (state === 'error') { g.innerHTML = `<div class="bx">${lock}<p class="err">${esc(msg)}</p><button class="go" onclick="location.reload()">重新整理</button></div>`; return; }
   if (state === 'join') {
     g.innerHTML = `<div class="bx">${head}
