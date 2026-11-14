@@ -189,14 +189,14 @@ const AUTH_ERR = {
   'auth/missing-password': '請輸入密碼',
 };
 const authMsg = e => AUTH_ERR[e && e.code] || ('發生錯誤：' + ((e && (e.code || e.message)) || e));
-const LOGO = '<svg viewBox="0 0 160 160" aria-hidden="true"><rect width="160" height="160" rx="36" fill="#1E5AA0"/><g transform="translate(0 3)"><mask id="bpm"><path d="M50 60C50 37 62 24 80 24s30 13 30 36l-6 38H56z" fill="#fff"/><path d="M56 102h48v12a16 16 0 0 1-16 16H72a16 16 0 0 1-16-16z" fill="#fff"/><g fill="#000"><rect x="62.5" y="43" width="9" height="9" rx="2"/><rect x="75.5" y="43" width="9" height="9" rx="2"/><rect x="88.5" y="43" width="9" height="9" rx="2"/><rect x="62.5" y="59" width="9" height="9" rx="2"/><rect x="75.5" y="59" width="9" height="9" rx="2"/><rect x="88.5" y="59" width="9" height="9" rx="2"/><rect x="62.5" y="75" width="9" height="9" rx="2"/><rect x="75.5" y="75" width="9" height="9" rx="2"/><rect x="88.5" y="75" width="9" height="9" rx="2"/><path d="M73 123.5v-8a7 7 0 0 1 14 0v8z"/></g></mask><g mask="url(#bpm)"><path d="M50 60C50 37 62 24 80 24s30 13 30 36l-6 38H56z" fill="#fff"/><path d="M56 102h48v12a16 16 0 0 1-16 16H72a16 16 0 0 1-16-16z" fill="#F2A900"/></g></g></svg>';
+const LOGO = '<img class="bplogo" src="icon-512.png?v=2" alt="" aria-hidden="true">';   // the BUILD footprint logo (same file as the home-screen icon)
 
 const CSS = `
 #bpGate{position:fixed;inset:0;z-index:9999;background:#15232E;color:#fff;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:calc(env(safe-area-inset-top) + 48px) 20px 40px;font-family:"Noto Sans TC","PingFang TC",system-ui,sans-serif}
 #bpGate[hidden]{display:none}
 #bpGate .bx{width:100%;max-width:380px}
 #bpGate .hd{display:flex;align-items:center;gap:14px;margin-bottom:26px}
-#bpGate .hd svg{width:56px;height:56px;flex:none}
+#bpGate .hd .bplogo{width:56px;height:56px;flex:none;display:block}
 #bpGate .hd b{display:block;font-size:26px;letter-spacing:.06em}
 #bpGate .hd small{color:#9fb0bf;font-size:14px}
 #bpGate .tabs{display:flex;background:#22343f;border-radius:12px;padding:4px;margin-bottom:18px}
