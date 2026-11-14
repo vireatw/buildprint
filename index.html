@@ -3032,11 +3032,12 @@ function simBuild(r){
     [-1,1].forEach(sg=>{ const q=at(sg*(GT.half+0.45),0.45); if(ok(q)) deco.push({k:'cone',x:q.x,y:q.y}); const q2=at(sg*(GT.half+0.45),1.5); if(ok(q2)) deco.push({k:'cone',x:q2.x,y:q2.y}); });
     const sq=[at(GT.half+1.3,0.5),at(-GT.half-1.3,0.5)].find(q=>ok(q)&&!nearOffice(q.x,q.y)); if(sq) deco.push({k:'sign',x:sq.x,y:sq.y}); }
   let dog=null;
-  { const R=rngOf('dog'+(SITE.name||'')), xs=BND.map(q=>q.x), ys=BND.map(q=>q.y), x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
-    const okD=q=>inSite(q.x,q.y)&&inSite(q.x+0.5,q.y)&&inSite(q.x-0.5,q.y)&&inSite(q.x,q.y+0.5)&&inSite(q.x,q.y-0.5);
-    const pick=()=>{ for(let k=0;k<40;k++){ const q={x:x0+R()*(x1-x0),y:y0+R()*(y1-y0)}; if(okD(q)) return q; } return null; };
-    const home=[{x:gateIn.x-GT.n.x*1.2+GT.t.x*(GT.half+1),y:gateIn.y-GT.n.y*1.2+GT.t.y*(GT.half+1)}].find(okD)||pick();
-    if(home) dog={x:home.x,y:home.y,tx:home.x,ty:home.y,home,state:offNow?'sleep':'sit',t:1+R()*3,ph:R()*6,flip:false,pick,rng:R}; }
+  { const R=rngOf('dog'+(SITE.name||'')), m=1.15;   // he lives on the grass outside the fence: never inside the site, never on the road
+    const segD=(px,py)=>{ let best=1e9; for(let i=0;i<BND.length;i++){ const a=BND[i],b=BND[(i+1)%BND.length], ex=b.x-a.x, ey=b.y-a.y, L2=ex*ex+ey*ey||1, u=Math.max(0,Math.min(1,((px-a.x)*ex+(py-a.y)*ey)/L2)); best=Math.min(best,Math.hypot(px-a.x-ex*u,py-a.y-ey*u)); } return best; };
+    const okD=q=>q.x>-m&&q.x<GW+m&&q.y>-m&&q.y<GH+m&&!inSite(q.x,q.y)&&segD(q.x,q.y)>0.4&&!(((q.x-GT.G.x)*GT.n.x+(q.y-GT.G.y)*GT.n.y)>-0.5&&((q.x-GT.G.x)*GT.n.x+(q.y-GT.G.y)*GT.n.y)<2.1);
+    const pick=()=>{ for(let k=0;k<60;k++){ const q={x:-m+R()*(GW+2*m),y:-m+R()*(GH+2*m)}; if(okD(q)) return q; } return null; };
+    const home=pick();
+    if(home) dog={x:home.x,y:home.y,tx:home.x,ty:home.y,home,state:offNow?'sleep':'sit',t:1+R()*3,ph:R()*6,flip:false,pick,ok:okD,rng:R}; }
   if(st_pipePt&&workers.some(w=>w.role==='pipe')){ const q=st_pipePt; props.push({x:q.x-0.55,y:q.y-0.2,w:1.1,d:0.4,h:0.16,col:'#D9E0E5',z0:0,pipes:true}); props.push({x:q.x-0.5,y:q.y-0.16,w:1.0,d:0.32,h:0.12,col:'#E6EBEF',z0:0.16,pipes:true}); }
   // boards brought to the 空地 get stacked beside the truck
   if(z_loadPt&&workers.some(w=>w.role==='carry')){ props.push({x:z_loadPt.x-0.75,y:z_loadPt.y-0.3,w:0.55,d:0.8,h:0.22,col:SC.ply,z0:0,ply:true}); props.push({x:z_loadPt.x-0.7,y:z_loadPt.y-0.25,w:0.5,d:0.72,h:0.12,col:SC.ply,z0:0.22,ply:true}); }
@@ -3353,9 +3354,10 @@ function dogStep(d,dt,st){
     if(L<0.08||(d.walkT=(d.walkT||0)+dt)>9){ d.state=R()<0.5?'sit':'sniff'; d.t=2.5+R()*5; d.walkT=0; return; }
     const sp=1.25*dt; d.x+=dx/L*Math.min(sp,L); d.y+=dy/L*Math.min(sp,L); const rr=RN(dx,dy), sx=rr[0]-rr[1]; if(Math.abs(sx)>0.01) d.flip=sx<0; return; }
   d.t-=dt; if(d.t>0) return;
-  let q=null; const B=st.BND.map(p=>[p.x,p.y]), ok=(x,y)=>inPolyS([x,y],B)&&inPolyS([x+0.4,y+0.4],B)&&inPolyS([x-0.4,y-0.4],B);
-  if(st.workers.length&&R()<0.55){ const w=st.workers[Math.floor(R()*st.workers.length)], a=R()*6.28, c={x:w.x+Math.cos(a)*0.8,y:w.y+Math.sin(a)*0.8}; if(ok(c.x,c.y)) q=c; }
-  if(!q) q=R()<0.2?d.home:d.pick(); if(!q) q=d.home;
+  // next spot: somewhere along the grass he can trot to in a straight line without cutting through the site or over the road
+  const clear=q=>{ const L=Math.hypot(q.x-d.x,q.y-d.y), n=Math.max(1,Math.ceil(L/0.3)); for(let i=1;i<=n;i++) if(!d.ok({x:d.x+(q.x-d.x)*i/n,y:d.y+(q.y-d.y)*i/n})) return false; return true; };
+  let q=null; for(let k=0;k<12&&!q;k++){ const c=R()<0.15?d.home:d.pick(); if(c&&clear(c)) q=c; }
+  if(!q){ d.state='sit'; d.t=2+R()*3; return; }
   d.tx=q.x; d.ty=q.y; d.state='walk'; d.walkT=0;
 }
 function drawDog(c,d,t){
@@ -3815,7 +3817,7 @@ function keepClear(st){ const Z=machZones(st); if(!Z.length) return;
     if(w.state==='walk'&&w.tx!=null) Z.forEach(z=>{ const dx=w.x-z.x, dy=w.y-z.y, d=Math.hypot(dx,dy); if(d>=z.r+0.05) return;
       const nx=dx/(d||1), ny=dy/(d||1); let tx=-ny, ty=nx; if(tx*(w.tx-w.x)+ty*(w.ty-w.y)<0){ tx=-tx; ty=-ty; } const sp=(w.speed||1)*0.02; w.x+=tx*sp; w.y+=ty*sp; });
     push(w,'x','y',first?1:0.7); });
-  if(st.dog&&(first||st.dog.state!=='sleep')){ const d=st.dog, x0=d.x, y0=d.y; push(d,'x','y',first?1:0.7); if(inside(d.tx,d.ty)){ d.state='sit'; d.t=0.5; } if(first&&(x0!==d.x||y0!==d.y)){ d.home={x:d.x,y:d.y}; } } }
+}
 // mixer drum: a shaded, tilted barrel with two helical fins that turn smoothly (slow mixing; fast reverse while unloading)
 function drawDrum(c,v,ux,uy,t){
   const F=[v.x+ux*0.18,v.y+uy*0.18,0.8], R=[v.x-ux*1.02,v.y-uy*1.02,1.12];
@@ -3965,7 +3967,8 @@ function simDraw(){
   const outside=v=>!inPolyS([v.x,v.y],st.BND.map(p=>[p.x,p.y])); const inGate=v=>{ const dx=v.x-G.G.x, dy=v.y-G.G.y; return Math.abs(dx*G.t.x+dy*G.t.y)<G.half+0.2&&(dx*G.n.x+dy*G.n.y)<0.75; };
   const behind=v=>outside(v)&&(facing(G.n.x,G.n.y)<0)&&!inGate(v);   // a truck in the gate mouth sorts with the gate posts instead
   // anything out on the street behind a back fence is drawn before that fence, so the fence hides it properly
-  [...st.vehicles.filter(behind).map(v=>({d:DEP(v.x,v.y)+0.6,f:()=>drawVehicle(c,v,t)})), ...st.workers.filter(behind).map(w=>({d:DEP(w.x,w.y),f:()=>drawPerson(c,w,t)}))]
+  const dogBack=!!(st.dog&&edges.some(e=>isBack(e)&&((st.dog.x-e.p.x)*e.nx+(st.dog.y-e.p.y)*e.ny)>0&&((st.dog.x-e.p.x)*(e.q.x-e.p.x)+(st.dog.y-e.p.y)*(e.q.y-e.p.y))>-e.L*0.5&&((st.dog.x-e.p.x)*(e.q.x-e.p.x)+(st.dog.y-e.p.y)*(e.q.y-e.p.y))<e.L*e.L+e.L*0.5));   // out behind a back fence: the fence hides him
+  [...st.vehicles.filter(behind).map(v=>({d:DEP(v.x,v.y)+0.6,f:()=>drawVehicle(c,v,t)})), ...st.workers.filter(behind).map(w=>({d:DEP(w.x,w.y),f:()=>drawPerson(c,w,t)})), ...(dogBack?[{d:DEP(st.dog.x,st.dog.y),f:()=>drawDog(c,st.dog,t)}]:[])]
     .sort((a,b)=>a.d-b.d).forEach(i=>i.f());
   edges.filter(isBack).sort((a,b)=>(DEP(a.p.x,a.p.y)+DEP(a.q.x,a.q.y))-(DEP(b.p.x,b.p.y)+DEP(b.q.x,b.q.y))).forEach(e=>edgeSegs(e).forEach(q=>fence(...q)));
   // company banner on the longest back fence
@@ -4007,7 +4010,7 @@ function simDraw(){
   st.workers.filter(w=>!behind(w)).forEach(w=>{ let d=DEP(w.x,w.y); const on=FD.find(o=>inPolyS([w.x,w.y],o.f.poly.map(p=>[p.x,p.y]))); if(on) d=Math.max(d,on.d+0.01);
     /* stand on backfilled soil (and on the beam tops between filled cells), stepping up and down smoothly */ ease(w,fillUnder(w.x,w.y,0.42)?FILL_H:0); if(w.z>0.2) d=above(w.x,w.y,0.5,d); items.push({d,f:()=>drawPerson(c,w,t)}); });
   (st.decor?st.decor.trees:[]).forEach(q=>items.push({d:DEP(q.x,q.y),f:()=>drawTree(c,q,t)}));
-  if(st.dog){ const dg=st.dog; let d=DEP(dg.x,dg.y); ease(dg,fillUnder(dg.x,dg.y,0.42)?FILL_H:0); if(dg.z>0.2) d=above(dg.x,dg.y,0.5,d); items.push({d,f:()=>drawDog(c,dg,t)}); }
+  if(st.dog&&!dogBack){ const dg=st.dog; items.push({d:DEP(dg.x,dg.y),f:()=>drawDog(c,dg,t)}); }
   (st.fx||[]).forEach(q=>items.push({d:DEP(q.x,q.y)-0.3,f:()=>{ const k=(t-q.t0)/q.life; if(k<0||k>1) return; const pp=SP(q.x,q.y,0.1+k*0.35); c.fillStyle=`rgba(196,178,146,${0.42*(1-k)})`; c.beginPath(); c.arc(pp[0],pp[1],SIM.S*(0.12+k*0.26),0,Math.PI*2); c.fill(); }}));
   if(st.pumpV&&st.pumpV.cur&&SIM.boomT0!=null&&t-SIM.boomT0>3){ const cu=st.pumpV.cur, S=SIM.S, g=SP(cu.x,cu.y,0.46); // fresh concrete under the hose
     items.push({d:DEP(cu.x,cu.y)-0.6,f:()=>{ c.fillStyle='rgba(140,142,138,.85)'; c.beginPath(); c.ellipse(g[0],g[1],S*0.3,S*0.13,0,0,Math.PI*2); c.fill(); c.fillStyle='rgba(255,255,255,.35)'; c.beginPath(); c.ellipse(g[0]-S*0.08,g[1]-S*0.03,S*0.1,S*0.04,0,0,Math.PI*2); c.fill(); }}); }
