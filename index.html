@@ -2856,8 +2856,10 @@ function simBuild(r){
   for(let i=0;i<(pumpV?0:Math.min(2,nMix));i++){ const p=takeSpot(); vehicles.push({type:'mixer',x:p.x,y:p.y,dir:tdir}); }
   for(let i=1;i<Math.min(2,nPump);i++){ const p=takeSpot(); vehicles.push({type:'pump',x:p.x,y:p.y,dir:tdir,u:{x:Math.cos(tdir),y:Math.sin(tdir)},parked:true}); }
   for(let i=0;i<Math.min(3,nSmall+nOther);i++){ const p=takeSpot(); vehicles.push({type:'small',x:p.x,y:p.y,dir:tdir}); }
-  // 山貓 (skid steer): shuttles soil from beside a working 怪手 to a spot a few metres away, when the day has earthwork for it
-  { const skWork=((r&&r.tasks)||[]).some(t=>t.status==='doing'&&((t.trade&&/山貓/.test(t.trade))||/土方|回填|整地|搬運|清運|運土/.test(t.text||'')));
+  // 山貓 (skid steer): shuttles soil from beside a working 怪手 to a spot a few metres away
+  // it is on the day's 日報, so it works — unless its own 工作事項 only say it is idle (待命、保養…)
+  { const own=((r&&r.tasks)||[]).filter(t=>t.trade&&/山貓/.test(t.trade)&&t.status!=='next'&&(t.text||'').trim());
+    const skWork=!own.length||own.some(t=>!/待命|停工|停機|休息|保養|維修|故障|檢修/.test(t.text));
     for(let i=0;i<Math.min(2,nSkid);i++){ const p=takeSpot(); vehicles.push({type:'skid',x:p.x,y:p.y,dir:tdir,u:{x:Math.round(Math.cos(tdir)),y:Math.round(Math.sin(tdir))},work:skWork,bz:0.15,ph:rng()*6,ok:q=>inSite(q.x,q.y)&&inSite(q.x+0.6,q.y+0.6)&&inSite(q.x-0.6,q.y-0.6)}); } }
   { const piles=((SITE&&SITE.soil)||[]).filter(q=>soilOn(q,r?r.date:selDate)).map(q=>({x:MX(+q.x),y:MY(+q.y),r:SOIL_R[q.s]||SOIL_R.m}));
     const clear=(x,y)=>inSite(x,y)&&inSite(x+0.7,y+0.6)&&inSite(x-0.7,y-0.6)&&!vehicles.some(v=>Math.hypot(v.x-x,v.y-y)<2);
