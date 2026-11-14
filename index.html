@@ -832,7 +832,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 /* ============ constants & helpers ============ */
 const DEMO_PLAN = "plan-demo.svg";
 const TRADES_DEFAULT=['模板工','鋼筋工','押送工','水電工','粗工','工程師／監工'];
-const WEATHER=['晴','多雲','陰','雨','大雨','颱風停工'];
+const WEATHER=['晴','多雲','陰','雨','大雨','大雨停工','颱風停工'];
 // weather is kept per half day (r.wx={am,pm}); r.weather stays as the one-line label 「晴」 or 「上午晴・下午雨」 for older readers
 function wxHalf(r,h){ if(!r) return ''; if(r.wx&&r.wx[h]) return r.wx[h];
   const w=String(r.weather||''), m=w.match(h==='am'?/上午[：:]?\s*([^・\s　,，、]+)/:/下午[：:]?\s*([^・\s　,，、]+)/); return m?m[1]:w; }
