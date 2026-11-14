@@ -2737,7 +2737,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=5').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=6').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -2970,6 +2970,7 @@ function simBuild(r){
     for(let yy=Math.min(...ys)+0.5; yy<Math.max(...ys); yy+=0.5) for(let xx=Math.min(...xs)+0.5; xx<Math.max(...xs); xx+=0.5) if(roomAt(xx,yy)&&dProp(xx,yy)>1.2) C.push({x:xx,y:yy});
     C.sort((a,b)=>Math.hypot(a.x-gateIn.x,a.y-gateIn.y)-Math.hypot(b.x-gateIn.x,b.y-gateIn.y)); const best=C.find(q=>pathClear(gateIn,q))||C[0]; if(best) park=best; }
   const offLane=q=>{ const vx=park.x-gateIn.x, vy=park.y-gateIn.y, L2=vx*vx+vy*vy||1, k=Math.max(0,Math.min(1,((q.x-gateIn.x)*vx+(q.y-gateIn.y)*vy)/L2)); return Math.hypot(q.x-gateIn.x-vx*k,q.y-gateIn.y-vy*k)>2.5; };   // nothing parks on the trucks' way in from the gate
+  let drop=null; const offDrop=q=>!drop||Math.hypot(q.x-(drop.x+drop.w/2),q.y-(drop.y+drop.d/2))>2.2;
   const spots=[]; const used=[];
   if(yard){ for(let yy=yard.y+0.9; yy<yard.y+yard.h-0.6; yy+=1.5) for(let xx=yard.x+1.1; xx<yard.x+yard.w-0.9; xx+=2.3) if(inZone(yard,xx,yy)&&inZone(yard,xx+1,yy)&&inZone(yard,xx-1,yy)&&!nearOffice(xx,yy)&&dProp(xx,yy)>1.15) spots.push({x:xx,y:yy}); }
   spots.sort((a,b)=>Math.hypot(a.x-park.x,a.y-park.y)-Math.hypot(b.x-park.x,b.y-park.y));
@@ -2978,8 +2979,8 @@ function simBuild(r){
   const innerSpots=()=>{ if(inner) return inner; const xs=BND.map(q=>q.x), ys=BND.map(q=>q.y), C=[];
     for(let yy=Math.min(...ys)+0.5; yy<Math.max(...ys); yy+=0.5) for(let xx=Math.min(...xs)+0.5; xx<Math.max(...xs); xx+=0.5) if(roomAt(xx,yy)&&!nearOffice(xx,yy)&&dProp(xx,yy)>1.15) C.push({x:xx,y:yy,busy:work.some(z=>(z.beamPts||z.beamXs)&&inZone(z,xx,yy))?1:0});
     C.sort((a,b)=>(a.busy-b.busy)||(Math.hypot(a.x-park.x,a.y-park.y)-Math.hypot(b.x-park.x,b.y-park.y))); return inner=C; };
-  const takeSpot=()=>{ const sp=spots.find(p=>!used.includes(p)&&Math.hypot(p.x-park.x,p.y-park.y)>2.7&&offLane(p)); if(sp){ used.push(sp); return sp; }
-    const far=(p,d)=>Math.hypot(p.x-park.x,p.y-park.y)>2.7&&offLane(p)&&used.every(u=>Math.hypot(p.x-u.x,p.y-u.y)>d);
+  const takeSpot=()=>{ const sp=spots.find(p=>!used.includes(p)&&Math.hypot(p.x-park.x,p.y-park.y)>2.7&&offLane(p)&&offDrop(p)); if(sp){ used.push(sp); return sp; }
+    const far=(p,d)=>Math.hypot(p.x-park.x,p.y-park.y)>2.7&&offLane(p)&&offDrop(p)&&used.every(u=>Math.hypot(p.x-u.x,p.y-u.y)>d);
     const q=innerSpots().find(p=>far(p,2.4))||innerSpots().find(p=>far(p,1.6));
     if(q){ const p={x:q.x,y:q.y}; used.push(p); return p; }
     const k=used.length+1; const p={x:gateOut.x+GT.t.x*2.6*k,y:gateOut.y+GT.t.y*2.6*k}; used.push(p); return p; };
@@ -2996,9 +2997,12 @@ function simBuild(r){
       if(i>0){ const via={x:gateIn.x+(pk.x-park.x)*0.9,y:gateIn.y+(pk.y-park.y)*0.9}; if(inSite(via.x,via.y)&&Math.hypot(via.x-park.x,via.y-park.y)>2.2){ inPath=[A,gateOut,gateIn,via,pk]; outPath=[via,gateIn,gateOut,B]; } }   // the second truck swings wide of the first one's parking place
       vehicles.push({type:'truck',crane:i<nCraneTruck,park:pk,inPath,outPath,wp:0,x:i?A.x:pk.x,y:i?A.y:pk.y,phase:i?'away':'load',wait:i?11:7,loaded:false,hidden:i>0,dir:Math.atan2(-GT.n.y,-GT.n.x)});
     }
-    const wz=work; const tgt=wz.length?{x:wz.reduce((s,z)=>s+z.cx,0)/wz.length,y:wz.reduce((s,z)=>s+z.cy,0)/wz.length}:{x:GW/2,y:GH/2};
-    const dx=tgt.x-park.x, dy=tgt.y-park.y, dl=Math.hypot(dx,dy)||1;
-    z_loadPt={x:park.x+dx/dl*1.3,y:park.y+dy/dl*1.3};
+    // 待運的料: what the crew brings over is set down in one stack beside the truck (never in its way); the truck loads from that stack and nothing else
+    { const lx=park.x-gateIn.x, ly=park.y-gateIn.y, ll=Math.hypot(lx,ly)||1, nx=-ly/ll, ny=lx/ll, wz=work, tgt=wz.length?{x:wz.reduce((s,z)=>s+z.cx,0)/wz.length,y:wz.reduce((s,z)=>s+z.cy,0)/wz.length}:{x:GW/2,y:GH/2};
+      const sd0=((tgt.x-park.x)*nx+(tgt.y-park.y)*ny)>=0?1:-1, C=[sd0,-sd0].map(sd=>({sd,x:park.x+nx*sd*1.5,y:park.y+ny*sd*1.5}));
+      const ok=q=>[[0,0],[0.5,0.4],[-0.5,0.4],[0.5,-0.4],[-0.5,-0.4]].every(([a,b])=>inSite(q.x+a,q.y+b))&&dProp(q.x,q.y)>0.55, q=C.find(ok)||C[0];
+      drop={x:q.x-0.45,y:q.y-0.35,w:0.9,d:0.7,h:0.02,col:SC.ply,z0:0,ply:true,pile:true,n:0}; props.push(drop);
+      z_loadPt={x:q.x+nx*q.sd*0.75,y:q.y+ny*q.sd*0.75}; }
   } else {
     z_loadPt=null;
     for(let i=0;i<Math.min(2,nHaul);i++){ const p=i===0?(used.push(park),park):takeSpot(); vehicles.push({type:'truck',crane:i<nCraneTruck,x:p.x,y:p.y,dir:tdir,static:true}); }
@@ -3052,7 +3056,7 @@ function simBuild(r){
   // it is on the day's 日報, so it works — unless its own 工作事項 only say it is idle (待命、保養…)
   { const own=((r&&r.tasks)||[]).filter(t=>t.trade&&/山貓/.test(t.trade)&&t.status!=='next'&&(t.text||'').trim());
     const skWork=!own.length||own.some(t=>!/待命|停工|停機|休息|保養|維修|故障|檢修/.test(t.text));
-    for(let i=0;i<Math.min(2,nSkid);i++){ const p=takeSpot(); vehicles.push({type:'skid',x:p.x,y:p.y,dir:tdir,u:{x:Math.round(Math.cos(tdir)),y:Math.round(Math.sin(tdir))},work:skWork,bz:0.15,ph:rng()*6,ok:q=>inSite(q.x,q.y)&&inSite(q.x+0.6,q.y+0.6)&&inSite(q.x-0.6,q.y-0.6)}); } }
+    for(let i=0;i<Math.min(2,nSkid);i++){ const p=takeSpot(); vehicles.push({type:'skid',x:p.x,y:p.y,dir:tdir,u:{x:Math.round(Math.cos(tdir)),y:Math.round(Math.sin(tdir))},work:skWork,bz:0.15,ph:rng()*6,ok:q=>inSite(q.x,q.y)&&inSite(q.x+0.6,q.y+0.6)&&inSite(q.x-0.6,q.y-0.6)&&dProp(q.x,q.y)>0.75}); } }   // the 山貓 keeps off beams, stacks and piles too
   { const piles=((SITE&&SITE.soil)||[]).filter(q=>soilOn(q,r?r.date:selDate)).map(q=>({x:MX(+q.x),y:MY(+q.y),r:SOIL_R[q.s]||SOIL_R.m}));
     const clear=(x,y)=>inSite(x,y)&&inSite(x+0.7,y+0.6)&&inSite(x-0.7,y-0.6)&&!vehicles.some(v=>Math.hypot(v.x-x,v.y-y)<2);
     // the 日報 says where the 怪手 works → it goes to that zone (digging a pile there if there is one)
@@ -3164,12 +3168,11 @@ function simBuild(r){
     else if(home) dog={x:home.x,y:home.y,tx:home.x,ty:home.y,home,state:'sit',t:1+R()*3,ph:R()*6,flip:false,pick,ok:okD,rng:R}; }
   if(st_pipePt&&workers.some(w=>w.role==='pipe')){ const q=st_pipePt; props.push({x:q.x-0.55,y:q.y-0.2,w:1.1,d:0.4,h:0.16,col:'#D9E0E5',z0:0,pipes:true}); props.push({x:q.x-0.5,y:q.y-0.16,w:1.0,d:0.32,h:0.12,col:'#E6EBEF',z0:0.16,pipes:true}); }
   // boards brought to the 空地 get stacked beside the truck
-  if(z_loadPt&&workers.some(w=>w.role==='carry')){ props.push({x:z_loadPt.x-0.75,y:z_loadPt.y-0.3,w:0.55,d:0.8,h:0.22,col:SC.ply,z0:0,ply:true}); props.push({x:z_loadPt.x-0.7,y:z_loadPt.y-0.25,w:0.5,d:0.72,h:0.12,col:SC.ply,z0:0.22,ply:true}); }
   // forms waiting for concrete: filled progressively by the pump hose; without a pump on that zone show them poured
   const pourLater=!todayView&&SIM.half==='am'&&Object.keys(machinesOf(r)).some(k=>{ if(!/押送|泵浦|幫浦|預拌/.test(k)) return false; const x=splitOf(r,k,true); return !x.f&&!x.am&&x.pm>0; });   // morning of an afternoon pour: forms still empty
   props.forEach(o=>{ if(o.fill==='dyn'&&(!pumpV||pumpV.parked||pumpV.zone!==o.zn)){ if(pourLater){ o.fill='empty'; o.filled=false; } else { o.fill='full'; o.filled=true; } } });
   const toG=(x,y)=>({x:MX(x),y:MY(y)}), toN=(gx,gy)=>({x:+(bx0+gx/GW*bw).toFixed(4),y:+(by0+gy/GH*bh).toFixed(4)});
-  const stOut={machCount:MM,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
+  const stOut={machCount:MM,drop,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
 }
 let z_loadPt=null, st_pipePt=null;
 function inZone(z,x,y){ if(z.pts) return inPolyS([x,y],z.pts.map(p=>[p.x,p.y])); return x>=z.x-0.05&&x<=z.x+z.w+0.05&&y>=z.y-0.05&&y<=z.y+z.h+0.05; }
@@ -3899,7 +3902,7 @@ function simUpdate(dt){
       if(d>0.12){ const v=Math.min(d,(d>0.6?1.6:0.9)*dt); w.x+=dx/d*v; w.y+=dy/d*v; w.state=d>0.35?'walk':'hold'; } else w.state='hold'; return; }
     if(w.state==='walk'){
       const dx=w.tx-w.x, dy=w.ty-w.y, d=Math.hypot(dx,dy);
-      if(d<0.05){ w.state='work'; w.t=w.role==='carry'?0.8+st.rng()*0.8:w.role==='signal'?5+st.rng()*4:w.role==='pour'?1.5+st.rng()*2:2+st.rng()*4; if(w.role==='carry') w.carry=!w.carry; if(w.role==='pipe'){ w.pipe=!w.pipe; w.t=w.pipe?0.8+st.rng()*0.6:2.5+st.rng()*2.5; } }
+      if(d<0.05){ w.state='work'; w.t=w.role==='carry'?0.8+st.rng()*0.8:w.role==='signal'?5+st.rng()*4:w.role==='pour'?1.5+st.rng()*2:2+st.rng()*4; if(w.role==='carry'){ if(w.carry){ w.carry=false; const D=st.drop; if(D){ D.n=Math.min(10,D.n+1); D.h=Math.max(0.02,D.n*0.07); } } else { const P=st.pile; if(!P||P.n>0){ w.carry=true; if(P) P.taken++; } } }   /* one board off the 拆模 pile, one more on the stack by the truck */ if(w.role==='pipe'){ w.pipe=!w.pipe; w.t=w.pipe?0.8+st.rng()*0.6:2.5+st.rng()*2.5; } }
       else {
         // not getting any closer for a while (blocked by a machine): give up and pick another spot
         if(w.bestD==null||d<w.bestD-0.05){ w.bestD=d; w.stuckT=0; } else if((w.stuckT=(w.stuckT||0)+dt)>1.5){ w.bestD=null; w.stuckT=0; w.state='work'; w.t=0.4+st.rng()*0.6; return; }
@@ -3912,8 +3915,14 @@ function simUpdate(dt){
     if(v.type==='mixer'&&v.cycle){ if(!st.lunch) mixerStep(v,dt); return; }
     if(v.type!=='truck'||v.static) return;
     const busyGate=st.vehicles.some(o=>o!==v&&o.type==='truck'&&!o.static&&(o.phase==='arrive'||o.phase==='leave'));   // one truck at a time through the gate, so two never meet
-    if(v.phase==='load'){ v.wait-=dt; if(v.wait<4) v.loaded=true; if(v.wait<=0&&busyGate){ v.wait=0.5; return; } if(v.wait<=0){ v.phase='leave'; v.wp=0; if(st.pile) st.pile.taken+=Math.min(st.pile.n,5); } return; }   // the truck drives off with part of the 拆模 pile
-    if(v.phase==='away'){ v.wait-=dt; if(v.wait<=0&&st.vehicles.some(o=>o!==v&&o.type==='truck'&&!o.static&&o.phase!=='away')) v.wait=1.5; if(v.wait<=0){ v.x=v.inPath[0].x; v.y=v.inPath[0].y; v.loaded=false; v.phase='arrive'; v.wp=1; } else { v.hidden=true; return; } }
+    if(v.phase==='load'){ // the truck takes only what is in the stack beside it: the 吊卡 lifts it on a bundle at a time, and it leaves when it is full
+      const D=st.drop; v.loadT=(v.loadT||0)+dt; v.cargo=v.cargo||0;
+      if(D&&!st.workers.some(w=>w.role==='carry')){ if((v.autoT=(v.autoT||0)+dt)>3){ v.autoT=0; const P=st.pile; if(!P||P.n>0){ D.n=Math.min(10,D.n+2); if(P) P.taken+=2; } } }   // no crew listed to carry: the stack still fills from the pile
+      if(v.lift){ if(SIM.clock-v.lift.t0>=3.3){ v.lift=null; v.cargo++; v.loaded=true; } }
+      else if(D&&D.n>=2&&v.cargo<3&&!st.lunch){ D.n-=2; v.lift={t0:SIM.clock,h:D.h}; }
+      if(D) D.h=Math.max(0.02,D.n*0.07);
+      if(!v.lift&&(v.cargo>=3||v.loadT>60)){ v.phase='leave'; v.wp=0; v.loadT=0; } return; }
+    if(v.phase==='away'){ v.wait-=dt; if(v.wait<=0&&st.vehicles.some(o=>o!==v&&o.type==='truck'&&!o.static&&o.phase!=='away')) v.wait=1.5; if(v.wait<=0){ v.x=v.inPath[0].x; v.y=v.inPath[0].y; v.loaded=false; v.cargo=0; v.lift=null; v.phase='arrive'; v.wp=1; } else { v.hidden=true; return; } }
     const path=v.phase==='arrive'?v.inPath:v.outPath; const target=path[Math.min(v.wp,path.length-1)];
     const dx=target.x-v.x, dy=target.y-v.y, d=Math.hypot(dx,dy);
     if(d<0.05){ v.wp++; if(v.wp>=path.length){ if(v.phase==='arrive'){ v.phase='load'; v.wait=10; } else { v.phase='away'; v.wait=4; v.hidden=true; } } return; }

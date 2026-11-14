@@ -194,10 +194,13 @@ function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv;
   u.hd=u.hd==null?dir:lerpAng(u.hd,dir,0.25); g.rotation.y=-u.hd;
   const moving=v.phase==='arrive'||v.phase==='leave'; if(moving) u.wheels.forEach(w=>{ w.rotation.z=-t*8; });
   u.beacons.forEach(b=>{ const on=Math.sin(T0*7)>0; b.material.emissiveIntensity=on?(1.2+view.N*3):0.1; });
-  if(v.type==='truck'){ u.load.visible=!!v.loaded; if(u.kn){ // 吊卡: while loading, the knuckle crane picks a bundle of boards up from beside the truck, swings it over and sets it on the bed
-      const on=v.phase==='load'&&v.wait>0.6, k=on?((t*0.3)%1):1, sm=x=>x*x*(3-2*x), sw=k<0.3?0:k<0.7?sm((k-0.3)/0.4):1, tz=1.35*(1-sw), tx=-0.55+0.15*(1-sw), ty=on?2.0:1.25;
-      const by=k<0.15?0.1:k<0.3?0.1+sm((k-0.15)/0.15)*1.2:k<0.7?1.3:k<0.9?1.3-sm((k-0.7)/0.2)*0.5:0.8;
-      link(u.kn,0.28,1.1,0,tx,ty,tz,0.09); u.rope.visible=u.bundle.visible=on&&k<0.94; if(on){ link(u.rope,tx,ty,tz,tx,by+0.26,tz,0.02); u.bundle.position.set(tx,by,tz); u.bundle.rotation.y=sw*0.0; } } }
+  if(v.type==='truck'){ const cg=v.cargo==null?(v.loaded?3:0):v.cargo; u.load.visible=cg>0; u.load.children.forEach((b,i)=>{ b.visible=i<cg; });
+    if(u.kn){ // 吊卡: the knuckle crane picks a bundle up off the stack beside the truck, swings it over and sets it on the bed
+      const D=st.drop, L=v.lift, sm=x=>x*x*(3-2*x); let tx=-0.55, ty=1.25, tz=0, on=false, bx=0, by=0, bz=0;
+      if(L&&D){ const k=Math.max(0,Math.min(1,(t-L.t0)/3.3)), dx=D.x+D.w/2-v.x, dy=D.y+D.d/2-v.y, c=Math.cos(u.hd), s2=Math.sin(u.hd), sx=dx*c+dy*s2, sz=-dx*s2+dy*c, ex=-0.32, ey=0.74+cg*0.09;
+        const sw=k<0.35?0:k<0.75?sm((k-0.35)/0.4):1, y0=0.06+(L.h||0.1); bx=sx+(ex-sx)*sw; bz=sz*(1-sw); by=k<0.12?y0:k<0.35?y0+sm((k-0.12)/0.23)*(1.5-y0):k<0.75?1.5:1.5-sm((k-0.75)/0.25)*(1.5-ey);
+        on=k>0.1&&k<0.98; tx=bx; tz=bz; ty=Math.max(1.9,by+0.7); if(k<0.12){ tx=sx; tz=sz; } }
+      link(u.kn,0.28,1.1,0,tx,ty,tz,0.09); u.rope.visible=!!(L&&D); u.bundle.visible=on; if(L&&D){ link(u.rope,tx,ty,tz,tx,(on?by+0.26:0.2+(L.h||0)),tz,0.02); u.bundle.position.set(bx,by,bz); } } }
   else if(v.type==='mixer'){ u.drum.rotation.x=0; u.drum.children.forEach((c,i)=>{ if(i>=2) c.rotation.y=(i-2)*Math.PI/2+t*((v.feeding&&(!v.cycle||v.feedNow))?-3:1.2); }); u.chute.visible=!!(v.feeding&&(!v.cycle||v.feedNow)); }
   else if(v.type==='pump'){ u.out.visible=!v.parked; const cu=v.cur, c=Math.cos(u.hd), s=Math.sin(u.hd);
     // boom from the turret up and over to above the hose end, then the hose hanging down (all in the truck's own frame)
@@ -243,7 +246,7 @@ export function create(){
   sun.castShadow=true; sun.shadow.mapSize.set(2048,2048); sun.shadow.bias=-0.0006; sun.shadow.normalBias=0.03; const sc=sun.shadow.camera; sc.left=-22; sc.right=22; sc.top=22; sc.bottom=-22; sc.near=1; sc.far=140;
   const world=grp(); world.scale.y=YS; scene.add(world);
   const back=grp(); back.scale.y=YS; scene.add(back);
-  let stat=null, dyn=null, built={st:null,props:null,fills:null,GW:0,GH:0}, people=new Map(), machines=new Map(), dogM=null, fences=[], lamps=[], soilM=[], formM=[], flagM=null, selRing=null, water=null, ripples=[], boats=[], clouds=[], dust=[], sprayM=[], gatePts=[], winMats=[], nightL=[], flood=[], pileM=null, lastT=0;
+  let stat=null, dyn=null, built={st:null,props:null,fills:null,GW:0,GH:0}, people=new Map(), machines=new Map(), dogM=null, fences=[], lamps=[], soilM=[], formM=[], flagM=null, selRing=null, water=null, ripples=[], boats=[], clouds=[], dust=[], sprayM=[], gatePts=[], winMats=[], nightL=[], flood=[], pileM=[], lastT=0;
   // --- the ground round the site: always at the back of the view ---
   function buildBackdrop(GW,GH){ back.clear(); ripples=[]; boats=[]; clouds=[];
     // open ground running off every edge of the view (no sea, no island, no hills)
@@ -252,7 +255,7 @@ export function create(){
   function shapeOf(pts){ const s=new T.Shape(); pts.forEach((p,i)=>i?s.lineTo(p.x,-p.y):s.moveTo(p.x,-p.y)); s.closePath(); return s; }
   function flat(pts,col,y,o){ const m=mesh(new T.ShapeGeometry(shapeOf(pts)),M(col,Object.assign({flatShading:false},o||{})),false); m.rotation.x=-Math.PI/2; m.position.y=y; m.receiveShadow=true; return m; }
   // --- everything that stands still: island, ground, zones, fence, gate, office, materials, cones ---
-  function buildStatic(st,v){ if(stat){ world.remove(stat); freeTree(stat); } stat=grp(); world.add(stat); fences=[]; lamps=[]; soilM=[]; formM=[]; pileM=null; flagM=null; winMats=[]; gatePts=[]; nightL=[];
+  function buildStatic(st,v){ if(stat){ world.remove(stat); freeTree(stat); } stat=grp(); world.add(stat); fences=[]; lamps=[]; soilM=[]; formM=[]; pileM=[]; flagM=null; winMats=[]; gatePts=[]; nightL=[];
     // 夜間照明: a floodlight tower in each corner of the site, lit at night whenever anyone is working
     flood=[]; { const BND=st.BND; let cx=0, cy=0; BND.forEach(p=>{ cx+=p.x/BND.length; cy+=p.y/BND.length; }); const xs=BND.map(p=>p.x), ys=BND.map(p=>p.y), bx=[Math.min(...xs),Math.max(...xs)], by=[Math.min(...ys),Math.max(...ys)];
       const used=new Set(), R=Math.max(v.GW,v.GH)*1.15;
@@ -298,7 +301,7 @@ export function create(){
       if(o.sign){ g.add(B(w,h,d,'#4E7FAE',0,h/2,0),B(w+0.1,0.06,d+0.1,'#E9EEF2',0,h+0.03,0)); const n=Math.max(2,Math.floor(w/0.7)); [-1,1].forEach(k=>{ for(let i=0;i<n;i++){ const gx=-w/2+0.18+i*(w-0.36)/n; if(i===0) g.add(B(0.26,0.57,0.02,'#3A5E82',gx+0.13,0.33,k*(d/2+0.006))); else { const wm=M('#BFE3F5',{emissive:'#FFD27A',emissiveIntensity:0}).clone(); winMats.push(wm); g.add(B(0.34,0.3,0.02,wm,gx+0.22,0.47,k*(d/2+0.006)),B(0.38,0.03,0.03,'#FFFFFF',gx+0.22,0.31,k*(d/2+0.012))); } } });
         const tx=textTex(o.sign), al=w>=d, Lr=al?w:d, Dr=al?d:w, th2=Math.min(Dr*0.62,Lr*0.82/tx.userData.asp), pl=mesh(new T.PlaneGeometry(th2*tx.userData.asp,th2),new T.MeshBasicMaterial({map:tx,transparent:true}),false); pl.rotation.x=-Math.PI/2; pl.rotation.z=al?0:Math.PI/2; pl.position.y=h+0.065; g.add(pl); pl.userData.z0=pl.rotation.z; stat.userData.roof=pl; if(!st.gateClosed) lamp(cx,z0+1.9,cy+d/2+0.9,16,8);
         g.add(B(0.3,0.16,0.4,'#C9CED2',w/2-0.3,h+0.14,-d/2+0.3)); const pole=B(0.035,1.05,0.035,'#8E99A3',-w/2+0.12,h+0.52,-d/2+0.12); g.add(pole); const fg=grp(), nm=(v.company||v.site||'').trim(), ft=flagTex(nm), FH=0.34, FW=Math.min(1.8,Math.max(0.5,FH*ft.userData.asp)); const fl=mesh(new T.PlaneGeometry(FW,FH,10,1),new T.MeshBasicMaterial({map:ft,side:T.DoubleSide}),false); fl.position.x=FW/2; fl.userData.W=FW; fg.add(fl); fg.position.set(-w/2+0.12,h+0.84,-d/2+0.12); g.add(fg); flagM=fg; return; }
-      if(o.pile){ const L=[]; for(let i=0;i<10;i++){ const b=B(w-(i%2)*0.06,0.062,d-((i+1)%2)*0.05,i%2?'#C99555':'#B98245',(i%3-1)*0.015,0.035+i*0.07,0); b.rotation.y=(i%3-1)*0.03; g.add(b); L.push(b); } [-0.3,0.3].forEach(x=>g.add(B(0.08,0.03,d,'#8A6B45',x,0.012,0))); pileM={o,L}; return; }   // 拆模 boards stacked up, one layer per piece stripped
+      if(o.pile){ const L=[]; for(let i=0;i<10;i++){ const b=B(w-(i%2)*0.06,0.062,d-((i+1)%2)*0.05,i%2?'#C99555':'#B98245',(i%3-1)*0.015,0.035+i*0.07,0); b.rotation.y=(i%3-1)*0.03; g.add(b); L.push(b); } [-0.3,0.3].forEach(x=>g.add(B(0.08,0.03,d,'#8A6B45',x,0.012,0))); pileM.push({o,L}); return; }   // 拆模 boards stacked up, one layer per piece stripped
       const bm=B(w,h,d,o.col||'#B6B5AF',0,h/2,0); g.add(bm); if(o.ply&&h>0.2){ const k=Math.round(h/0.1); for(let i=1;i<k;i++){ const s=B(w+0.006,0.008,d+0.006,'#8A5A28',0,h*i/k,0); s.castShadow=false; g.add(s); } }
       if(o.pipes){ bm.visible=false; const n=4; for(let i=0;i<n;i++){ const p=C(Math.min(h,d/n)*0.48,w,'#E6EBEF',0,h/2,-d/2+d*(i+0.5)/n,G.cyl,{flatShading:false}); p.rotation.z=Math.PI/2; g.add(p); } } });
     // backfilled cells
@@ -336,7 +339,7 @@ export function create(){
     // fence: full height at the back, a low rail at the front
     fences.forEach(f=>{ const r0=f.nx*ca-f.ny*sa, r1=f.nx*sa+f.ny*ca, isBack=(r0+r1)<0; f.g.visible=isBack; f.low.visible=!isBack; });
     lamps.forEach(l=>{ const on=Math.sin(t*3.2+l.ph)>0.2; l.m.material.emissiveIntensity=on?1+N*3:0.05; });
-    soilM.forEach(({o,m})=>{ m.position.x=o.x; m.position.z=o.y; }); if(pileM) pileM.L.forEach((b,i)=>{ b.visible=i<(pileM.o.n||0); });
+    soilM.forEach(({o,m})=>{ m.position.x=o.x; m.position.z=o.y; }); pileM.forEach(P=>P.L.forEach((b,i)=>{ b.visible=i<(P.o.n||0); }));
     formM.forEach(({o,fl,rb,pg})=>{ fl.visible=!!o.filled; rb.visible=!o.filled;
       if(o.strip){ const k=o.stripped?(o.stripT==null?1:Math.min(1,Math.max(0,(t-o.stripT)/0.9))):0, e=k*k; pg.visible=k<1; pg.children.forEach(b=>{ if(b.userData.z0==null){ b.userData.z0=b.position.z; b.userData.x0=b.position.x; } b.position.z=b.userData.z0*(1+e*0.9); b.position.x=b.userData.x0*(1+e*0.25); }); pg.rotation.x=0; pg.position.y=-e*o.h*0.85; } });   // 拆模: the boards are pried off outward and dropped
     if(flagM){ const fl=flagM.children[0], W=fl.userData.W||0.5, g=fl.geometry, p=g.attributes.position; for(let i=0;i<p.count;i++){ const k=(p.getX(i)+W/2)/W; p.setZ(i,Math.sin(t*3.5-k*5)*0.045*k); } p.needsUpdate=true; flagM.rotation.y=a+Math.PI/4-0.15; }   // faces the viewer so the name reads
