@@ -2736,7 +2736,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=3').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=4').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -2866,8 +2866,9 @@ function simBuild(r){
       else if(/拆模/.test(z.doing)) mode='strip'; else if(/拆模/.test(z.txt)) mode='concrete';
       else if(/(灌漿|澆置|打設|混凝土|混泥土)|組立/.test(z.txt)) mode='form';
       const seg=(x,y,w,d)=>{
-        let m=mode; if(m==='strip') m=rng()<0.5?'form':'fresh'; if(m==='rebar'&&rng()<0.3) m='form';
-        if(m==='rebar') box(x,y,w,d,0.42,SC.rebar,{cage:true});
+        let m=mode; if(m==='rebar'&&rng()<0.3) m='form';
+        if(m==='strip') box(x-0.06,y-0.06,w+0.12,d+0.12,0.55,SC.ply,{ply:true,form:true,fill:'full',filled:true,strip:true,stripped:rng()<0.3,zn:z});   // 拆模: poured, boards still on; taken off one by one (stripStep)
+        else if(m==='rebar') box(x,y,w,d,0.42,SC.rebar,{cage:true});
         else if(m==='form') box(x-0.06,y-0.06,w+0.12,d+0.12,0.55,SC.ply,{ply:true});
         else box(x,y,w,d,0.45,m==='fresh'?SC.fresh:SC.concrete);
       };
@@ -2896,11 +2897,11 @@ function simBuild(r){
       if(/綁筋/.test(z.doing)) return 'rebar'; if(/組立|(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing)) return 'form'; if(/拆模/.test(z.doing)) return 'strip';
       if(/拆模/.test(z.txt)) return 'concrete'; if(/(灌漿|澆置|打設|混凝土|混泥土)|組立/.test(z.txt)) return 'form'; if(/綁筋/.test(z.txt)) return 'form'; return 'concrete'; };
     const TH=0.34, CH=0.23;   // beam width; half the column size (columns a little wider than the beams)
-    const pick=mode=>{ let m=mode; if(m==='strip') m=rng()<0.5?'form':'fresh'; if(m==='rebar'&&rng()<0.3) m='form'; return m; };
+    const pick=mode=>{ let m=mode; if(m==='strip') m='form'; if(m==='rebar'&&rng()<0.3) m='form'; return m; };
     const fillOf=(z,md)=>{ if(!z) return 'empty'; if(md==='strip') return 'full'; if(/(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing+' '+z.txt)) return 'dyn'; return 'empty'; };
     const beamPiece=(ax,ay,bx,by,m,fl,zn)=>{
       if(m==='rebar') props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.42,col:SC.rebar,cage:true});
-      else if(m==='form') props.push({beam:true,ax,ay,bx,by,wd:TH+0.12,h:0.56,col:SC.ply,ply:true,form:true,fill:fl,filled:fl==='full',zn});
+      else if(m==='form'){ const st0=!!zn&&modeOf(zn)==='strip'; props.push({beam:true,ax,ay,bx,by,wd:TH+0.12,h:0.56,col:SC.ply,ply:true,form:true,fill:fl,filled:fl==='full',zn,strip:st0,stripped:st0&&rng()<0.3}); }   // 拆模: boards come off one by one (stripStep)
       else props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.46,col:m==='fresh'?SC.fresh:SC.concrete});
     };
     const segs=SITE.beams.map(b=>({x1:MX(+b.x1),y1:MY(+b.y1),x2:MX(+b.x2),y2:MY(+b.y2)})).map(g=>Object.assign(g,{len:Math.hypot(g.x2-g.x1,g.y2-g.y1)})).filter(g=>g.len>0.1);
@@ -2932,8 +2933,8 @@ function simBuild(r){
       for(let k=0.4;k<A.len;k+=0.7){ const px=A.x1+ux*k, py=A.y1+uy*k; const z=zoneAt(px+(axTag==='v'?0.4:0),py+(axTag==='v'?0:0.4))||zoneAt(px,py)||zoneNear(px,py,0.5); if(z){ (z.beamPts||(z.beamPts=[])).push({x:px,y:py,ax:axTag}); } }
     });
     joints.forEach(j=>{ const z=zoneAt(j.x+0.3,j.y+0.3)||zoneAt(j.x-0.3,j.y-0.3)||zoneAt(j.x+0.3,j.y-0.3)||zoneAt(j.x-0.3,j.y+0.3); const m=modeOf(z);
-      const fl=fillOf(z,m); const mm=m==='strip'?(rng()<0.5?'form':'fresh'):m;
-      box(j.x-CH,j.y-CH,CH*2,CH*2,0.56,mm==='rebar'?SC.rebar:mm==='form'?SC.ply:SC.fresh,{cage:mm==='rebar',ply:mm==='form',form:mm==='form',fill:fl,filled:fl==='full',cx:j.x,cy:j.y,zn:z}); });
+      const fl=fillOf(z,m); const mm=m==='strip'?'form':m;
+      box(j.x-CH,j.y-CH,CH*2,CH*2,0.56,mm==='rebar'?SC.rebar:mm==='form'?SC.ply:SC.fresh,{cage:mm==='rebar',ply:mm==='form',form:mm==='form',fill:fl,filled:fl==='full',cx:j.x,cy:j.y,zn:z,strip:m==='strip',stripped:m==='strip'&&rng()<0.3}); });
   }
   // unzoned curing / pouring → apply to beam zones
   if(unz.some(t=>/養護|灑水/.test(t.text)&&t.status==='doing')) work.forEach(z=>{ if((z.beamXs||z.beamPts)&&!sprays.find(s=>s.x===z.cx)) sprays.push({x:z.cx,y:z.cy,r:Math.min(z.w,z.h)*0.45}); });
@@ -3885,7 +3886,7 @@ function simUpdate(dt){
         // not getting any closer for a while (blocked by a machine): give up and pick another spot
         if(w.bestD==null||d<w.bestD-0.05){ w.bestD=d; w.stuckT=0; } else if((w.stuckT=(w.stuckT||0)+dt)>1.5){ w.bestD=null; w.stuckT=0; w.state='work'; w.t=0.4+st.rng()*0.6; return; }
         const v=w.speed*dt*((w.z||0)>0.08&&(w.z||0)<0.4?0.55:1); w.x+=dx/d*Math.min(v,d); w.y+=dy/d*Math.min(v,d); const rr=RN(dx,dy), sx=rr[0]-rr[1]; if(Math.abs(sx)>0.01) w.flip=sx<0; }
-    } else { w.t-=dt; if(w.t<=0){ pickTarget(w,st.zones,st.anyZones,st.rng,st.stacks); if(climbTop(st,w.tx,w.ty)>0){ for(let k=0;k<16;k++){ const a=k*2.4, r=0.35+k*0.06, x=w.tx+Math.cos(a)*r, y=w.ty+Math.sin(a)*r; if(!climbTop(st,x,y)){ w.tx=x; w.ty=y; break; } } }   // work beside a beam, not on top of it
+    } else { w.t-=dt; if(w.t<=0){ pickTarget(w,st.zones,st.anyZones,st.rng,st.stacks); if(w.role==='work'&&/拆模/.test(w.task||'')&&st.rng()<0.8) stripTarget(st,w); if(climbTop(st,w.tx,w.ty)>0){ for(let k=0;k<16;k++){ const a=k*2.4, r=0.35+k*0.06, x=w.tx+Math.cos(a)*r, y=w.ty+Math.sin(a)*r; if(!climbTop(st,x,y)){ w.tx=x; w.ty=y; break; } } }   // work beside a beam, not on top of it
       w.state='walk'; w.bestD=null; w.stuckT=0; } }
   });
   st.vehicles.forEach(v=>{
@@ -3901,6 +3902,7 @@ function simUpdate(dt){
     v.hidden = v.x<-2.2||v.x>GW+2.2||v.y<-2.2||v.y>GH+2.2;
   });
   if(st.dog) dogStep(st.dog,dt,st);
+  if(!st.lunch) stripStep(st,dt);
   // dust kicked up behind anything driving (not in the rain)
   if(!wxOf(st.weather).rain) st.vehicles.forEach(v=>{ if(v.hidden){ v._lx=null; return; } if(v._lx!=null){ const mv=Math.hypot(v.x-v._lx,v.y-v._ly); v._dust=(v._dust||0)+mv; if(v._dust>0.3&&st.fx.length<70){ v._dust=0; const a=v.dir||0, back=v.type==='skid'?0.4:1.1; st.fx.push({x:v.x-Math.cos(a)*back+(Math.random()-.5)*0.5,y:v.y-Math.sin(a)*back+(Math.random()-.5)*0.5,t0:SIM.clock,life:1.1}); } } v._lx=v.x; v._ly=v.y; });
   if(st.fx.length) st.fx=st.fx.filter(q=>SIM.clock-q.t0<q.life);
@@ -3966,6 +3968,20 @@ function climbTop(st,x,y){ if(st._climbP!==st.props){ st._climbP=st.props; st._c
     if(o.beam){ const vx=o.bx-o.ax, vy=o.by-o.ay, L2=vx*vx+vy*vy||1, k=Math.max(0,Math.min(1,((x-o.ax)*vx+(y-o.ay)*vy)/L2)); if(Math.hypot(x-o.ax-vx*k,y-o.ay-vy*k)<(o.wd||0.36)/2+0.1) top=h; }
     else if(x>o.x-0.1&&x<o.x+o.w+0.1&&y>o.y-0.1&&y<o.y+o.d+0.1) top=h; }
   return top; }
+// 拆模: a 拆模 worker standing at a formed beam takes its boards off (every few seconds); when all are off, after a while it starts over
+const stripC=o=>o.beam?{x:(o.ax+o.bx)/2,y:(o.ay+o.by)/2}:{x:o.x+o.w/2,y:o.y+o.d/2};
+function stripStep(st,dt){ if(st._stripP!==st.props){ st._stripP=st.props; st._strip=st.props.filter(o=>o.strip); } const F=st._strip; if(!F.length) return;
+  const left=F.filter(o=>!o.stripped);
+  if(!left.length){ if((st.stripRest=(st.stripRest||0)+dt)>30){ st.stripRest=0; F.forEach(o=>{ o.stripped=false; o.stripT=null; }); } return; }
+  if((st.stripT=(st.stripT||0)+dt)<2.4) return;
+  const W=st.workers.filter(w=>/拆模/.test(w.task||'')&&!w.resting); let best=null;
+  if(!W.length) best={o:left[0]};   // nobody listed for it: the boards still come off
+  else W.forEach(w=>{ if(w.state!=='work') return; left.forEach(o=>{ const q=stripC(o), d=Math.hypot(q.x-w.x,q.y-w.y)-(o.beam?Math.hypot(o.bx-o.ax,o.by-o.ay)/2:0); if(d<1.1&&(!best||d<best.d)) best={d,o}; }); });
+  if(best){ st.stripT=0; best.o.stripped=true; best.o.stripT=SIM.clock; } }
+function stripTarget(st,w){ const left=(st._strip||[]).filter(o=>!o.stripped&&(!o.zn||!w.zone||o.zn===w.zone)); if(!left.length) return;
+  const near=left.map(o=>({o,q:stripC(o)})).sort((a,b)=>Math.hypot(a.q.x-w.x,a.q.y-w.y)-Math.hypot(b.q.x-w.x,b.q.y-w.y)).slice(0,3), c=near[Math.floor(st.rng()*near.length)], o=c.o, sd=st.rng()<0.5?1:-1;
+  if(o.beam){ const L=Math.hypot(o.bx-o.ax,o.by-o.ay)||1, k=(st.rng()-0.5)*0.6; w.tx=c.q.x+(o.bx-o.ax)*k-(o.by-o.ay)/L*sd*(o.wd/2+0.3); w.ty=c.q.y+(o.by-o.ay)*k+(o.bx-o.ax)/L*sd*(o.wd/2+0.3); }
+  else { w.tx=c.q.x+sd*(o.w/2+0.3); w.ty=c.q.y+(st.rng()-0.5)*o.d; } }
 function keepClear(st){ const Z=machZones(st); if(!Z.length) return;
   const first=!st._clear; st._clear=true;   // on the first frame people are simply placed outside, so nobody is seen being pushed
   const push=(o,kx,ky,ease)=>{ Z.forEach(z=>{ const dx=o[kx]-z.x, dy=o[ky]-z.y, d=Math.hypot(dx,dy); if(d>=z.r) return;
@@ -4126,7 +4142,7 @@ function simDraw(){
 
   // sortable objects
   const items=[];
-  st.props.forEach(p=>items.push({d:p.beam?DEP((p.ax+p.bx)/2,(p.ay+p.by)/2)+0.15:p.soil?DEP(p.x,p.y)+p.r*1.3:p.mound?DEP(p.x,p.y):DEP(p.x+p.w*0.5,p.y+p.d*0.5)+Math.max(p.w,p.d)*0.35,f:()=>p.beam?sPrism(c,p):p.mound?drawMound(c,p):sBox(c,p)}));
+  st.props.forEach(p=>items.push({d:p.beam?DEP((p.ax+p.bx)/2,(p.ay+p.by)/2)+0.15:p.soil?DEP(p.x,p.y)+p.r*1.3:p.mound?DEP(p.x,p.y):DEP(p.x+p.w*0.5,p.y+p.d*0.5)+Math.max(p.w,p.d)*0.35,f:()=>{ const q=p.strip&&p.stripped?Object.assign({},p,{col:SC.fresh,ply:false,form:false}):p; return q.beam?sPrism(c,q):q.mound?drawMound(c,q):sBox(c,q); }}));
 
   st.props.forEach(o=>{ if(!o.sign) return; const cs=[[o.x+0.12,o.y+0.12],[o.x+o.w-0.12,o.y+0.12],[o.x+o.w-0.12,o.y+o.d-0.12],[o.x+0.12,o.y+o.d-0.12]], q=cs.reduce((a,b)=>DEP(b[0],b[1])<DEP(a[0],a[1])?b:a), z0=(o.z0||0)+o.h;   // the company's flag on the office roof
     items.push({d:DEP(o.x+o.w*0.5,o.y+o.d*0.5)+Math.max(o.w,o.d)*0.35+0.01,f:()=>{ const a=SP(q[0],q[1],z0), b=SP(q[0],q[1],z0+1.0), S=SIM.S, fw=S*0.5, fh=S*0.3; c.strokeStyle='#8E99A3'; c.lineWidth=Math.max(1.5,S*0.04); c.lineCap='round'; c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke();
