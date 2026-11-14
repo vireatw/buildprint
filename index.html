@@ -2645,12 +2645,14 @@ function hatOf(trade){ if(isWhiteHat(trade)) return WHITE_HAT; const m=hatMap();
   const d=(HAT_TRADE.find(([re])=>re.test(trade))||[])[1]; if(d&&d!==WHITE_HAT) return d; const NW=HAT_COLORS.filter(([c])=>c!==WHITE_HAT); let h=0; for(const ch of trade) h=(h*31+ch.charCodeAt(0))%997; return NW[h%NW.length][0]; }
 function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
 
-// 3D 工地動畫 (sim3d.js): the default; ?3d=0 switches this device to the 2D drawing, ?3d=1 back; falls back to 2D if WebGL fails
-const G3_ON=(()=>{ try{ const q=new URLSearchParams(location.search).get('3d'); if(q==='0') localStorage.setItem('bp3d','0'); if(q==='1') localStorage.removeItem('bp3d'); return localStorage.getItem('bp3d')!=='0'; }catch(e){ return true; } })();
-function g3Mount(){ if(!G3_ON||!SIM.cv) return; const host=SIM.cv.parentElement;
+// 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
+// 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
+try{ localStorage.removeItem('bp3d'); }catch(e){}
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=3').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
-  import('./sim3d.js?v=2').then(m=>{ try{ SIM.gl=m.create(); put(); }catch(e){ console.warn('3D off',e); SIM.gl=null; } }).catch(e=>console.warn('3D off',e)); }
+  G3_LOAD.then(m=>{ if(!m){ SIM.glFail=true; simDraw(); return; } try{ SIM.gl=m.create(); put(); }catch(e){ console.warn('3D off',e); SIM.gl=null; SIM.glFail=true; simDraw(); } }); }
 const SIM={zoom:1,panX:0,panY:0,focus:null,S0:30,ox0:0,oy0:0,st:null,key:'',raf:0,visible:false,paused:matchMedia('(prefers-reduced-motion: reduce)').matches,cv:null,ctx:null,W:0,H:0,S:30,ox:0,oy:0,last:0,clock:0,io:null,ro:null,tipT:0};
 let GW=20, GH=14;
 
@@ -3935,6 +3937,7 @@ function simDraw(){
   const N=(st.isToday&&!SIM.todayHalf)?nightNow():(halfOf(st.isToday?TODAY:'')==='ng'?1:0); SIM.night=N; SIM.lights=[]; SIM.glow=[];
   c.setTransform(SIM.dpr,0,0,SIM.dpr,0,0);
   const G3=!!(SIM.gl&&SIM.gl.ok&&SIM.gl.canvas.parentElement===SIM.cv.parentElement);   // the 3D renderer draws the world; this canvas keeps only labels, weather and the 編輯 marks
+  if(!G3&&!SIM.glFail){ c.fillStyle=mixHex('#A6CF8B','#24331F',N); c.fillRect(0,0,SIM.W,SIM.H); return; }   // 3D still loading: just the ground, no flash of the 2D drawing
   if(G3){ c.clearRect(0,0,SIM.W,SIM.H); st.zones.forEach(z=>{ z.poly=z.pts? z.pts.map(p=>SP(p.x,p.y)) : [SP(z.x,z.y),SP(z.x+z.w,z.y),SP(z.x+z.w,z.y+z.h),SP(z.x,z.y+z.h)]; }); } else {
   // the site sits on open ground that runs off every edge of the view (no sea, no island)
   { const wxw=wxOf(st.weather), cc=SP(GW/2,GH/2,0), g=c.createRadialGradient(cc[0],cc[1],SIM.S*3,cc[0],cc[1],Math.max(SIM.W,SIM.H)*0.9);
