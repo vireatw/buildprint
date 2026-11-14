@@ -2973,7 +2973,7 @@ function simBuild(r){
     // in the gate mouth, just out on the street, beside the trucks' lane and on the side where the fence can't hide him
     // out on the street just past the gate post, on the camera side so neither the post nor the sign hides him
     const sd=(Math.sign(GT.t.x+GT.t.y)||1), k=GT.half+0.5;
-    sigPt={x:GT.G.x+GT.n.x*0.5+GT.t.x*sd*k,y:GT.G.y+GT.n.y*0.5+GT.t.y*sd*k}; if(!on(sigPt)) sigPt={x:GT.G.x+GT.t.x*sd*k,y:GT.G.y+GT.t.y*sd*k}; }
+    sigPt={x:GT.G.x-GT.n.x*0.6+GT.t.x*sd*k,y:GT.G.y-GT.n.y*0.6+GT.t.y*sd*k}; if(!inSite(sigPt.x,sigPt.y)) sigPt={x:GT.G.x-GT.n.x*1.0+GT.t.x*sd*(k-0.3),y:GT.G.y-GT.n.y*1.0+GT.t.y*sd*(k-0.3)}; }   // just inside the gate, beside the trucks' lane
   let signaller=false;
   // workers
   const workers=[];
@@ -3766,7 +3766,7 @@ function simUpdate(dt){
   // dust kicked up behind anything driving (not in the rain)
   if(!wxOf(st.weather).rain) st.vehicles.forEach(v=>{ if(v.hidden){ v._lx=null; return; } if(v._lx!=null){ const mv=Math.hypot(v.x-v._lx,v.y-v._ly); v._dust=(v._dust||0)+mv; if(v._dust>0.3&&st.fx.length<70){ v._dust=0; const a=v.dir||0, back=v.type==='skid'?0.4:1.1; st.fx.push({x:v.x-Math.cos(a)*back+(Math.random()-.5)*0.5,y:v.y-Math.sin(a)*back+(Math.random()-.5)*0.5,t0:SIM.clock,life:1.1}); } } v._lx=v.x; v._ly=v.y; });
   if(st.fx.length) st.fx=st.fx.filter(q=>SIM.clock-q.t0<q.life);
-  keepClear(st);
+  keepClear(st); keepInside(st);
 }
 // people never stand in or walk through a machine: each machine keeps a small clear area (its body, and the 怪手's bucket);
 // anyone inside is eased out to its edge, and a walking target inside is moved out too
@@ -3814,6 +3814,14 @@ function skidStep(v,dt,st){
   R.wait=0;
   const sp=1.15*dt; if(d<=sp){ v.x=tg.x; v.y=tg.y; R.i++; } else { v.x+=dx/d*sp; v.y+=dy/d*sp; }
 }
+// nobody on the crews ever walks out past the fence: anyone (or any walking target) outside is put back just inside
+function keepInside(st){ const B=st.BND; if(!B||B.length<3) return; const P=B.map(p=>[p.x,p.y]), M=0.3;
+  let cx=0, cy=0; B.forEach(p=>{ cx+=p.x/B.length; cy+=p.y/B.length; });
+  const ok=(x,y)=>inPolyS([x,y],P)&&inPolyS([x+M,y],P)&&inPolyS([x-M,y],P)&&inPolyS([x,y+M],P)&&inPolyS([x,y-M],P);
+  const fix=(o,kx,ky)=>{ if(ok(o[kx],o[ky])) return; let bx=o[kx], by=o[ky], bd=1e9;
+    for(let i=0;i<B.length;i++){ const a=B[i], b=B[(i+1)%B.length], ex=b.x-a.x, ey=b.y-a.y, L2=ex*ex+ey*ey||1, u=Math.max(0,Math.min(1,((o[kx]-a.x)*ex+(o[ky]-a.y)*ey)/L2)), px=a.x+ex*u, py=a.y+ey*u, d=Math.hypot(o[kx]-px,o[ky]-py); if(d<bd){ bd=d; bx=px; by=py; } }
+    const dx=cx-bx, dy=cy-by, dl=Math.hypot(dx,dy)||1; for(let k=0.35;k<6;k+=0.25){ const x=bx+dx/dl*k, y=by+dy/dl*k; if(ok(x,y)){ o[kx]=x; o[ky]=y; return; } } o[kx]=cx; o[ky]=cy; };
+  st.workers.forEach(w=>{ fix(w,'x','y'); if(w.tx!=null) fix(w,'tx','ty'); }); }
 function keepClear(st){ const Z=machZones(st); if(!Z.length) return;
   const first=!st._clear; st._clear=true;   // on the first frame people are simply placed outside, so nobody is seen being pushed
   const push=(o,kx,ky,ease)=>{ Z.forEach(z=>{ const dx=o[kx]-z.x, dy=o[ky]-z.y, d=Math.hypot(dx,dy); if(d>=z.r) return;
@@ -3886,37 +3894,14 @@ function simDraw(){
   c.setTransform(SIM.dpr,0,0,SIM.dpr,0,0);
   const G3=!!(SIM.gl&&SIM.gl.ok&&SIM.gl.canvas.parentElement===SIM.cv.parentElement);   // the 3D renderer draws the world; this canvas keeps only labels, weather and the 編輯 marks
   if(G3){ c.clearRect(0,0,SIM.W,SIM.H); st.zones.forEach(z=>{ z.poly=z.pts? z.pts.map(p=>SP(p.x,p.y)) : [SP(z.x,z.y),SP(z.x+z.w,z.y),SP(z.x+z.w,z.y+z.h),SP(z.x,z.y+z.h)]; }); } else {
-  c.fillStyle=N?mixHex(SC.water,'#1A2740',N):SC.water; c.fillRect(0,0,SIM.W,SIM.H);
-  // ripples
-  c.strokeStyle=SC.ripple; c.lineWidth=1;
-  const cc=SP(GW/2,GH/2,0);
-  { const g=c.createRadialGradient(cc[0],cc[1],SIM.S*4,cc[0],cc[1],Math.max(SIM.W,SIM.H)); const wxw=wxOf(st.weather); g.addColorStop(0,mixHex(wxw.rain?'#AFC6CF':wxw.dull?'#BCD4DC':'#BFE6F2','#2B3C5E',N)); g.addColorStop(1,mixHex(wxw.rain?'#7F9DAA':wxw.dull?'#8FB5C4':'#8FCBE0','#141F36',N)); c.fillStyle=g; c.fillRect(0,0,SIM.W,SIM.H); }
-  for(let i=0;i<3;i++){ const k=((t*0.08)+i/3)%1; c.globalAlpha=1-k; c.beginPath(); c.ellipse(cc[0],cc[1],SIM.S*(10+k*5),SIM.S*(5+k*2.5),0,0,Math.PI*2); c.stroke(); } c.globalAlpha=1;
-  if(st.decor&&st.decor.spark){ c.strokeStyle='rgba(255,255,255,.9)'; c.lineWidth=1.2; c.lineCap='round'; st.decor.spark.forEach(q=>{ const k=Math.sin(t*1.3+q.ph*3); if(k<0.55) return; const a=(k-0.55)/0.45, p=SP(q.x,q.y,-0.9), r=SIM.S*0.11*a; if(p[0]<-10||p[0]>SIM.W+10||p[1]<-10||p[1]>SIM.H+10) return;
-      c.globalAlpha=a*(1-N*0.6); c.beginPath(); c.moveTo(p[0]-r,p[1]); c.lineTo(p[0]+r,p[1]); c.moveTo(p[0],p[1]-r*0.6); c.lineTo(p[0],p[1]+r*0.6); c.stroke(); }); c.globalAlpha=1; }
-  { const m=1.4, I=[[-m,-m],[GW+m,-m],[GW+m,GH+m],[-m,GH+m]], ISN=[[0,-1],[1,0],[0,1],[-1,0]];
-    const segs=[0,1,2,3].filter(i=>facing(ISN[i][0],ISN[i][1])>1e-6).map(i=>[SP(I[i][0],I[i][1],-0.9),SP(I[(i+1)%4][0],I[(i+1)%4][1],-0.9)]);
-    const path=dy=>{ c.beginPath(); segs.forEach(([a,b])=>{ c.moveTo(a[0],a[1]+dy); c.lineTo(b[0],b[1]+dy); }); };
-    c.save(); c.lineCap='round';
-    c.strokeStyle='rgba(255,255,255,.35)'; c.lineWidth=Math.max(3,SIM.S*0.16); path(SIM.S*0.05); c.stroke();
-    c.strokeStyle='rgba(255,255,255,.6)'; c.lineWidth=Math.max(1.5,SIM.S*0.06); c.setLineDash([SIM.S*0.9,SIM.S*0.5]); c.lineDashOffset=-t*SIM.S*0.3;
-    path(SIM.S*0.09); c.stroke(); c.restore(); }
+  // the site sits on open ground that runs off every edge of the view (no sea, no island)
+  { const wxw=wxOf(st.weather), cc=SP(GW/2,GH/2,0), g=c.createRadialGradient(cc[0],cc[1],SIM.S*3,cc[0],cc[1],Math.max(SIM.W,SIM.H)*0.9);
+    g.addColorStop(0,mixHex(wxw.rain?'#9DBA86':'#AED493','#2E3D33',N)); g.addColorStop(1,mixHex(wxw.rain?'#86A472':'#97C27C','#1F2B25',N)); c.fillStyle=g; c.fillRect(0,0,SIM.W,SIM.H); }
   // static ground layer (island, site ground, zones, shadows) cached until the view changes
   const bgKey=[SIM.ox,SIM.oy,SIM.S,SIM.W,SIM.H,SIM.dpr,SIM.selZone,ROT.a].join('|');
   if(SIM.bgKey!==bgKey||SIM.bgSt!==st||!SIM.bg){ SIM.bgKey=bgKey; SIM.bgSt=st;
     const cv=SIM.bg||(SIM.bg=document.createElement('canvas')); cv.width=Math.round(SIM.W*SIM.dpr); cv.height=Math.round(SIM.H*SIM.dpr);
     const c=cv.getContext('2d'); c.setTransform(SIM.dpr,0,0,SIM.dpr,0,0); c.clearRect(0,0,SIM.W,SIM.H);
-  // island (grass margin) with cliff
-  const m=1.4, I=[[-m,-m],[GW+m,-m],[GW+m,GH+m],[-m,GH+m]];
-  const top=I.map(([x,y])=>SP(x,y,0)), bot=I.map(([x,y])=>SP(x,y,-0.9));
-  const mid=I.map(([x,y])=>SP(x,y,-0.2));
-  const ISN=[[0,-1],[1,0],[0,1],[-1,0]];   // outward normal of side i (corner i → i+1)
-  const vis=[0,1,2,3].filter(i=>facing(ISN[i][0],ISN[i][1])>1e-6);
-  { const dn=SIM.S*0.35; c.fillStyle='rgba(40,110,140,.16)'; vis.forEach(i=>{ const j=(i+1)%4; sPoly(c,[bot[i],bot[j],[bot[j][0]+SIM.S*0.25,bot[j][1]+dn],[bot[i][0]+SIM.S*0.25,bot[i][1]+dn]]); c.fill(); }); }
-  vis.forEach(i=>{ const j=(i+1)%4; c.fillStyle=faceShade(ISN[i][0],ISN[i][1])<0.79?SC.cliff:SC.cliff2; sPoly(c,[top[i],top[j],bot[j],bot[i]]); c.fill(); });
-  c.strokeStyle='rgba(90,60,30,.18)'; c.lineWidth=1.2; c.beginPath(); [0.45,0.68].forEach(z=>vis.forEach(i=>{ const j=(i+1)%4, a=SP(I[i][0],I[i][1],-z), b=SP(I[j][0],I[j][1],-z); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); })); c.stroke();
-  c.fillStyle=SC.lip; vis.forEach(i=>{ const j=(i+1)%4; sPoly(c,[top[i],top[j],mid[j],mid[i]]); c.fill(); });
-  c.fillStyle=SC.grass; sPoly(c,top); c.fill();
   (st.decor?st.decor.dots:[]).forEach(q=>{ const p=SP(q.x,q.y,0), r=SIM.S;
     if(q.c==='tuft'){ c.strokeStyle='#7FB067'; c.lineWidth=1.2; c.beginPath(); c.moveTo(p[0]-r*0.08,p[1]); c.lineTo(p[0]-r*0.12,p[1]-r*0.14); c.moveTo(p[0],p[1]); c.lineTo(p[0],p[1]-r*0.18); c.moveTo(p[0]+r*0.08,p[1]); c.lineTo(p[0]+r*0.13,p[1]-r*0.13); c.stroke(); }
     else { c.fillStyle=q.c; for(let i=0;i<5;i++){ const a=i/5*Math.PI*2; c.beginPath(); c.arc(p[0]+Math.cos(a)*r*0.05,p[1]-r*0.06+Math.sin(a)*r*0.035,r*0.04,0,Math.PI*2); c.fill(); } c.fillStyle='#F2B630'; c.beginPath(); c.arc(p[0],p[1]-r*0.06,r*0.03,0,Math.PI*2); c.fill(); } });
@@ -3932,7 +3917,7 @@ function simDraw(){
   // road outside the gate, plus the apron through it
   { const G=st.GT, E0=st.BND[G.edge], E1=st.BND[(G.edge+1)%st.BND.length];
     const ext=GW+GH, q=(p,k,e)=>SP(p.x+G.n.x*k+G.t.x*e, p.y+G.n.y*k+G.t.y*e);
-    c.save(); const m2=1.4; sPoly(c,[SP(-m2,-m2),SP(GW+m2,-m2),SP(GW+m2,GH+m2),SP(-m2,GH+m2)]); c.clip();
+    c.save(); const m2=60; sPoly(c,[SP(-m2,-m2),SP(GW+m2,-m2),SP(GW+m2,GH+m2),SP(-m2,GH+m2)]); c.clip();
     c.fillStyle='rgba(70,72,74,.30)'; sPoly(c,[q(E0,0.35,-ext),q(E1,0.35,ext),q(E1,1.45,ext),q(E0,1.45,-ext)]); c.fill(); c.restore();
     const g=G.G, h=G.half, ap=(k,e)=>SP(g.x+G.n.x*k+G.t.x*e, g.y+G.n.y*k+G.t.y*e);
     c.fillStyle='rgba(70,72,74,.24)'; sPoly(c,[ap(-1.2,-h),ap(-1.2,h),ap(0.4,h),ap(0.4,-h)]); c.fill(); }
@@ -3956,7 +3941,7 @@ function simDraw(){
   }
   c.drawImage(SIM.bg,0,0,SIM.W,SIM.H);
   // cloud shadows sliding over the ground on a bright day
-  { const wx0=wxOf(st.weather); if(N<0.4&&!wx0.rain&&!wx0.dull){ const m=1.4; c.save(); sPoly(c,[SP(-m,-m),SP(GW+m,-m),SP(GW+m,GH+m),SP(-m,GH+m)]); c.clip();
+  { const wx0=wxOf(st.weather); if(N<0.4&&!wx0.rain&&!wx0.dull){ const m=20; c.save(); sPoly(c,[SP(-m,-m),SP(GW+m,-m),SP(GW+m,GH+m),SP(-m,GH+m)]); c.clip();
       for(let i=0;i<2;i++){ const span=GW+GH+16, k=((t*0.35*(wx0.wind?2.5:1)+i*span/2)%span)-8, q=SP(k-GH*0.3+i*3,GH*(0.25+i*0.5)+k*0.15,0), R=SIM.S*(3.2+i);
         const g=c.createRadialGradient(q[0],q[1],R*0.2,q[0],q[1],R); g.addColorStop(0,`rgba(40,60,80,${0.10*(1-N*2.5)})`); g.addColorStop(1,'rgba(40,60,80,0)'); c.fillStyle=g; c.beginPath(); c.ellipse(q[0],q[1],R,R*0.55,0,0,Math.PI*2); c.fill(); }
       c.restore(); } }
