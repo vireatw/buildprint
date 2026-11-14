@@ -633,6 +633,15 @@ body.isl-land #islTop .isl-half,body.isl-land #islTop .isl-off{top:calc(12px + e
 .mi{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .stepper.m .nm{display:flex;align-items:center;gap:6px}
 .addmach{display:flex;gap:8px}
+.addmach select{flex:1;min-width:0}
+.wxi{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.pldate2 .plwx{display:flex;align-items:center;gap:5px;padding:0 13px 0 11px;font-size:12.5px;font-weight:700;border-left:1px solid rgba(255,255,255,.22)}
+@media (max-width:460px){ .pldate2 .pltd ~ .plwx{padding:0 11px 0 9px;gap:4px} .pldate2 .pltd ~ .plwx .wxt{display:none} .pldate2 .pltd ~ .pldate{padding:0 10px} }   /* phone, with 回到今天 showing: icon and temperature only */
+.wxtbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.wxtbl th{text-align:left;white-space:nowrap;font-weight:600;color:var(--muted,#6B7680);font-size:12px;padding:4px 6px 6px 0;border-bottom:1px solid var(--line)}
+.wxtbl td{padding:7px 6px 7px 0;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
+.wxtbl td.wxd{white-space:normal;color:var(--muted,#6B7680);font-size:12.5px;line-height:1.5}
+.wxtbl tr:last-child td{border-bottom:0}
 .addmach input{flex:1}
 .stepper .nmv{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
 .stepper .vd{width:100%;max-width:170px;padding:4px 8px;font:500 13px/1.3 var(--body);text-align:left;border-radius:6px;border-style:dashed}
@@ -828,6 +837,59 @@ const WEATHER=['晴','多雲','陰','雨','大雨','颱風停工'];
 function wxHalf(r,h){ if(!r) return ''; if(r.wx&&r.wx[h]) return r.wx[h];
   const w=String(r.weather||''), m=w.match(h==='am'?/上午[：:]?\s*([^・\s　,，、]+)/:/下午[：:]?\s*([^・\s　,，、]+)/); return m?m[1]:w; }
 function wxLabel(r){ const a=wxHalf(r,'am'), b=wxHalf(r,'pm'); return a===b?a:`上午${a||'—'}・下午${b||'—'}`; }
+/* 天氣自動記錄: 設定裡選了工地地點 (SITE.loc={name,lat,lon}) 後，從 Open-Meteo（免費、免金鑰）抓那裡每天上午／下午的天氣、雨量和氣溫。
+   過去的日子存進 SITE.wxlog[date]={am,pm,mm,hi,lo}（只有可編輯的人會寫入），今天和明天用預報。
+   日報裡填的天氣永遠優先；沒有日報的日子，工地動畫和下雨統計用這份自動紀錄。 */
+const TW_CITIES=[['基隆市',25.13,121.74],['台北市',25.04,121.56],['新北市',25.01,121.46],['桃園市',24.99,121.31],['新竹市',24.80,120.97],['新竹縣',24.84,121.01],['苗栗縣',24.56,120.82],['台中市',24.15,120.67],['彰化縣',24.08,120.54],['南投縣',23.91,120.69],['雲林縣',23.71,120.54],['嘉義市',23.48,120.45],['嘉義縣',23.46,120.29],['台南市',23.00,120.21],['高雄市',22.63,120.30],['屏東縣',22.67,120.49],['宜蘭縣',24.76,121.75],['花蓮縣',23.98,121.60],['台東縣',22.76,121.14],['澎湖縣',23.57,119.58],['金門縣',24.43,118.32],['連江縣',26.16,119.95]];
+const WX={day:{},at:0,key:'',loading:false};
+// one half day (06–12 or 12–18): hourly WMO codes + rain in mm → the same words the 日報 uses
+function wxClass(codes,mm){ if(mm>=15||codes.some(c=>c>=95||c===65||c===82)) return '大雨'; if(mm>=0.6||codes.filter(c=>c>=51).length>=2) return '雨';
+  const n=codes.length||1, ov=codes.filter(c=>c===3||c===45||c===48).length, pc=codes.filter(c=>c===2).length; return ov/n>=0.5?'陰':(ov+pc)/n>=0.5?'多雲':'晴'; }
+function wxParse(j){ const out={}, H=j&&j.hourly, D=j&&j.daily; if(!H||!D||!H.time||!D.time) return out; const by={};
+  H.time.forEach((t,i)=>{ const d=t.slice(0,10), h=+t.slice(11,13), k=h>=6&&h<12?'am':h>=12&&h<18?'pm':null, c=H.weather_code[i]; if(!k||c==null) return; const o=by[d]||(by[d]={am:{c:[],p:0},pm:{c:[],p:0}}); o[k].c.push(c); o[k].p+=(+H.precipitation[i]||0); });
+  D.time.forEach((d,i)=>{ const o=by[d]; if(!o||o.am.c.length<4||o.pm.c.length<4) return; const hi=D.temperature_2m_max[i], lo=D.temperature_2m_min[i];
+    out[d]={am:wxClass(o.am.c,o.am.p),pm:wxClass(o.pm.c,o.pm.p),mm:+(+D.precipitation_sum[i]||0).toFixed(1)}; if(hi!=null) out[d].hi=Math.round(hi); if(lo!=null) out[d].lo=Math.round(lo); });
+  return out; }
+const wxAuto=d=>WX.day[d]||((SITE&&SITE.wxlog)||{})[d]||null;
+const wxText=a=>a?(a.am===a.pm?a.am:`上午${a.am}・下午${a.pm}`):'';
+// the weather that counts for a day: the 日報's if there is one, else the automatic record
+function wxDay(d){ const r=REPORTS[d]; if(r&&(r.weather||r.wx)) return {am:wxHalf(r,'am'),pm:wxHalf(r,'pm'),src:'report'}; const a=wxAuto(d); return a?{am:a.am,pm:a.pm,src:'auto'}:null; }
+async function wxLoad(force){ const L=SITE&&SITE.loc; if(!L||L.lat==null||L.lon==null||WX.loading) return; const key=CUR+'|'+L.lat+','+L.lon;
+  if(WX.key!==key){ WX.day={}; WX.at=0; WX.key=key; } if(!force&&Date.now()-WX.at<30*60e3) return; WX.loading=true; WX.at=Date.now();
+  const site=SITE, Q='hourly=weather_code,precipitation&daily=precipitation_sum,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTaipei', LL=`latitude=${L.lat}&longitude=${L.lon}`;
+  const get=async u=>{ const r=await fetch(u); if(!r.ok) throw new Error('wx '+r.status); const j=await r.json(); if(j.error) throw new Error(j.reason||'wx'); return wxParse(j); };
+  try{ const log=site.wxlog||{}, have=Object.keys(log).sort(), last=have[have.length-1], from0=site.start&&site.start<TODAY?site.start:addDays(TODAY,-30);
+    const since=last&&last>from0?last:from0, past=Math.max(2,Math.min(92,Math.round((parseKey(TODAY)-parseKey(since))/864e5)+1));
+    let got=await get(`https://api.open-meteo.com/v1/forecast?${LL}&${Q}&past_days=${past}&forecast_days=2`);
+    // further back than the forecast service keeps (92 days): fetch once from the archive, from 開工日
+    const cut=addDays(TODAY,-92); if(from0<cut&&site.wxlogBack!==from0){ try{ const old=await get(`https://archive-api.open-meteo.com/v1/archive?${LL}&${Q}&start_date=${from0}&end_date=${cut}`); got=Object.assign(old,got); site.wxlogBack=from0; site._wxDirty=true; }catch(e){} }
+    if(SITE!==site) return;
+    Object.assign(WX.day,got); let add=!!site._wxDirty; delete site._wxDirty; const nl=Object.assign({},log);
+    Object.keys(got).forEach(d=>{ if(d>=TODAY||d<from0) return; const a=got[d], b=nl[d]; if(!b||b.am!==a.am||b.pm!==a.pm||b.mm!==a.mm){ nl[d]=a; add=true; } });
+    if(add){ site.wxlog=nl; if(CAN_WRITE&&MODE!=='local') saveSite(); }
+    try{ localStorage.setItem('bpwx',JSON.stringify({key,day:{[TODAY]:got[TODAY],[addDays(TODAY,1)]:got[addDays(TODAY,1)]}})); }catch(e){}
+    SIM.key=''; if(page==='island'||page==='history'||page==='settings') renderAll(false);
+  }catch(e){ try{ const c=JSON.parse(localStorage.getItem('bpwx')||'null'); if(c&&c.key===key) Object.keys(c.day||{}).forEach(d=>{ if(c.day[d]&&!WX.day[d]) WX.day[d]=c.day[d]; }); }catch(_){} WX.at=Date.now()-25*60e3; }
+  finally{ WX.loading=false; } }
+const WXI={sun:'<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>',part:'<circle cx="8" cy="8" r="3"/><path d="M8 2.5v1M2.5 8h1M4.1 4.1l.7.7M11.9 4.1l-.7.7"/><path d="M9 19h8a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.3 1.3A3 3 0 0 0 9 19z"/>',cloud:'<path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.3 1.6A3.3 3.3 0 0 0 7 18z"/>',rain:'<path d="M7 14h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.3 1.6A3.3 3.3 0 0 0 7 14z"/><path d="M8 17l-1 3M12 17l-1 3M16 17l-1 3"/>'};
+const wxIcon=w=>`<svg viewBox="0 0 24 24" class="wxi" aria-hidden="true">${WXI[/雨|颱風/.test(w)?'rain':/陰/.test(w)?'cloud':/多雲/.test(w)?'part':'sun']}</svg>`;
+const isRain=w=>/雨|颱風/.test(w||''), isHeavy=w=>/大雨|颱風/.test(w||'');
+// 下雨天數: 開工日（or the first record）→ today, month by month
+function wxStats(){ const logs=Object.keys((SITE&&SITE.wxlog)||{}).concat(Object.keys(REPORTS||{}),Object.keys(WX.day)).filter(d=>d<=TODAY).sort(); let from=(SITE&&SITE.start&&SITE.start<=TODAY)?SITE.start:logs[0]; if(!from) return null; if(logs[0]&&logs[0]<from) from=logs[0];
+  const M={}, T={days:0,known:0,rain:0,heavy:0,mm:0}; for(let d=from;d<=TODAY;d=addDays(d,1)){ const w=wxDay(d), a=wxAuto(d), k=d.slice(0,7), m=M[k]||(M[k]={k,days:0,known:0,rain:0,heavy:0,mm:0,dates:[]}); m.days++; T.days++;
+    if(!w) continue; m.known++; T.known++; if(isRain(w.am)||isRain(w.pm)){ m.rain++; T.rain++; m.dates.push(d); if(isHeavy(w.am)||isHeavy(w.pm)){ m.heavy++; T.heavy++; } } if(a&&a.mm){ m.mm+=a.mm; T.mm+=a.mm; } }
+  return {from,T,months:Object.values(M).sort((a,b)=>a.k<b.k?1:-1)}; }
+function wxCardHTML(){ const L=SITE&&SITE.loc, S=wxStats();
+  if(!S||!S.T.known) return `<div class="card"><h2>天氣與下雨天數</h2><p class="note">${L?'正在取得「'+esc(L.name||'工地')+'」的天氣紀錄…':'到「設定 → 基本資料」選好工地地點，就會自動記錄每天的天氣，這裡會統計下雨了幾天。'}</p></div>`;
+  const cur=S.months.find(m=>m.k===TODAY.slice(0,7))||{rain:0,heavy:0,mm:0,dates:[]};
+  return `<div class="card"><h2>天氣與下雨天數</h2>
+    <div class="tiles" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:10px">
+      <div class="tile"><span class="k">本月下雨</span><span class="v num">${cur.rain}<small>天</small></span></div>
+      <div class="tile"><span class="k">${SITE.start&&SITE.start<=TODAY?'開工以來下雨':'累計下雨'}</span><span class="v num">${S.T.rain}<small>天</small></span></div>
+      <div class="tile"><span class="k">大雨／颱風</span><span class="v num">${S.T.heavy}<small>天</small></span></div>
+    </div>
+    <table class="wxtbl"><thead><tr><th>月份</th><th>下雨</th><th>大雨</th><th>雨量</th><th>下雨的日子</th></tr></thead><tbody>${S.months.slice(0,12).map(m=>`<tr><td>${+m.k.slice(0,4)}/${+m.k.slice(5)}</td><td class="num">${m.rain} 天</td><td class="num">${m.heavy||'—'}</td><td class="num">${m.mm?Math.round(m.mm)+' mm':'—'}</td><td class="wxd">${m.dates.length?m.dates.map(d=>+d.slice(8)).join('、'):'—'}</td></tr>`).join('')}</tbody></table>
+    <p class="note" style="margin-top:8px">${esc(fmtShort(S.from))} 起共 ${S.T.days} 天，其中 ${S.T.known} 天有天氣紀錄。上午或下午有下雨就算下雨天；有填日報的日子以日報的天氣為準${L?'，其他日子用「'+esc(L.name||'工地')+'」的自動紀錄（資料來源 Open-Meteo）':'。到「設定 → 基本資料」選工地地點，沒填日報的日子也會自動記錄'}。</p></div>`; }
 const STATUS={done:'完成',doing:'進行中',next:'明日預定'};
 const QUICK=['放樣','綁筋','模板組立','灌漿','養護','拆模','模板運出','查驗','清運','回填','整地','水電配管'];
 const STAGE_DEFAULT=['假設工程','連續壁／基樁','開挖擋土','基礎工程（筏基／地樑）','地下室結構','地上結構','外牆／防水','機電工程','室內裝修','驗收／使用執照'];
@@ -1316,6 +1378,7 @@ function renderAll(force){
   $('#siteAddr').textContent = SITE? (SITE.addr||'') : '';
   $('#siteCo').textContent = (SITE&&SITE.company)? SITE.company+' · 築跡' : '築跡 · 工地日報';
   if(page==='today') renderToday();
+  wxLoad();
   if(page==='island') renderIsland();
   if(page==='history') renderHistory();
   if(page==='settings' && (force||!settingsFocused())) renderSettings();
@@ -1469,7 +1532,8 @@ function islSetDay(d,force){ if(!d||d>TODAY) return; if(d===selDate&&!force) { i
   const cv=$('#sim'); if(cv) cv.setAttribute('aria-label','工地動畫：依'+fmtK(selDate)+'日報產生的工地動畫');
   try{ simMount(r); }catch(e){ console.error(e); } islLegend(); islNightGate(); islSync(); }
 function islCaption(r){ const today=selDate===TODAY;
-  return `${today&&!SIM.todayHalf?'':`<button type="button" class="pltd" id="islToday">${today?'回到現在':'回到今天'}</button>`}<label class="pldate${r?'':' nor'}" title="${r?'':'這天沒有日報'}"><b>${today?'今天 ':''}${esc(fmtShort(selDate))}（${WD[parseKey(selDate).getDay()]}）</b><input type="date" id="islDate" value="${selDate}" max="${TODAY}" aria-label="選擇日期，目前 ${esc(fmtK(selDate))}"></label>`; }
+  return `${today&&!SIM.todayHalf?'':`<button type="button" class="pltd" id="islToday">${today?'回到現在':'回到今天'}</button>`}<label class="pldate${r?'':' nor'}" title="${r?'':'這天沒有日報'}"><b>${today?'今天 ':''}${esc(fmtShort(selDate))}（${WD[parseKey(selDate).getDay()]}）</b><input type="date" id="islDate" value="${selDate}" max="${TODAY}" aria-label="選擇日期，目前 ${esc(fmtK(selDate))}"></label>${(()=>{ const w=wxDay(selDate), a=wxAuto(selDate); if(!w) return ''; const h=today?(SIM.todayHalf||nowHalf()):(SIM.half||'all'), t=h==='am'?w.am:(h==='pm'||h==='ng')?w.pm:(isRain(w.am)||isRain(w.pm)?(isHeavy(w.am)||isHeavy(w.pm)?'大雨':'雨'):w.am);
+    return `<span class="plwx" title="${esc(wxText(w))}${a&&a.hi!=null?'，'+a.lo+'–'+a.hi+'°C':''}${a&&a.mm?'，雨量 '+a.mm+' mm':''}">${wxIcon(t)}<span class="wxt">${esc(t.replace('停工',''))}</span>${a&&a.hi!=null?'<span>'+a.hi+'°</span>':''}</span>`; })()}`; }
 function islSync(){ const D=islDays(); const sc=$('#islScrub'); if(sc&&document.activeElement!==sc){ sc.max=D.n; sc.value=D.idx; }
     const c=$('#islCap'); if(c){ c.innerHTML=islCaption(REPORTS[selDate]||null); const di=$('#islDate'); if(di) di.onchange=e=>{ islStop(); islSetDay(e.target.value); }; const tb=$('#islToday'); if(tb) tb.onclick=()=>{ islStop(); SIM.todayHalf=null; islSetDay(TODAY,true); }; }
   const p=$('#islPlay'); if(p){ p.innerHTML=ISL.playing?'<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>':'<svg viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z"/></svg>'; p.setAttribute('aria-label',ISL.playing?'暫停':'播放工程進度'); }
@@ -1716,7 +1780,7 @@ function chartHTML(){
 /* ============ REPORT FORM ============ */
 
 function blankReport(date,auto){
-  const prev=prevReport(date), r={date,weather:'晴',wx:{am:'晴',pm:'晴'},workers:{},tasks:[],issues:'',photos:[]};
+  const prev=prevReport(date), a0=wxAuto(date), r={date,weather:a0?wxText(a0):'晴',wx:a0?{am:a0.am,pm:a0.pm}:{am:'晴',pm:'晴'},workers:{},tasks:[],issues:'',photos:[]};   // weather starts from the automatic record / forecast when the site has a location
   // 明天自動填寫: the previous report's 明日工作事項 become today's work, and their crews/machines come along with
   // yesterday's counts and vendors (all of yesterday's crews when 「延續今日工作」 was used)
   const nx=auto&&prev?(prev.tasks||[]).filter(t=>t.status==='next'&&String(t.text||'').trim()):[];
@@ -1763,7 +1827,7 @@ function renderReport(fresh){
       <div class="field"><label for="fDate">日期</label><input type="date" id="fDate" value="${draft.date}" max="${addDays(TODAY,1)}"></div>
       <div class="field"><span class="lbl">天氣</span>
         ${['am','pm'].map(h=>`<div class="wxrow"><span class="wxh">${h==='am'?'上午':'下午'}</span><div class="seg" id="fWx_${h}">${WEATHER.map(w=>`<button type="button" aria-pressed="${wxHalf(draft,h)===w}" data-w="${w}">${w}</button>`).join('')}</div></div>`).join('')}
-        <p class="note" style="margin:6px 0 0">選上午時，下午會跟著一樣；下午天氣變了再另外選。</p></div>
+        <p class="note" style="margin:6px 0 0">選上午時，下午會跟著一樣；下午天氣變了再另外選。${(()=>{ const a=wxAuto(draft.date); return a?`<br>${draft.date>=TODAY?'天氣預報':'自動紀錄'}：${esc(wxText(a))}${a.hi!=null?'，'+a.lo+'–'+a.hi+'°C':''}${a.mm?'，雨量 '+a.mm+' mm':''}（新日報會自動帶入，可以改）`:''; })()}</p></div>
     </div>
     ${exists?`<p class="note">這天已經有日報，修改後按「儲存」會更新它。</p>`:''}`)}
   ${fold('crew','出工與工作',`
@@ -2077,13 +2141,14 @@ function assetErr(e){
 function renderHistory(){
   const el=$('#p-history');
   const ds=sortedDates().reverse();
-  if(!ds.length){ el.innerHTML='<div class="card"><h2>歷史紀錄</h2><p class="muted">還沒有日報。</p></div>'; return; }
+  if(!ds.length){ el.innerHTML='<div class="card"><h2>歷史紀錄</h2><p class="muted">還沒有日報。</p></div>'+wxCardHTML(); return; }
   const sum=ds.reduce((s,d)=>s+total(REPORTS[d]),0);
   el.innerHTML=`<div class="tiles" style="grid-template-columns:repeat(3,minmax(0,1fr))">
      <div class="tile"><span class="k">日報份數</span><span class="v num">${ds.length}<small>份</small></span></div>
      <div class="tile"><span class="k">累計出工</span><span class="v num">${fmtN(sum)}<small>人次</small></span></div>
      <div class="tile"><span class="k">平均每日</span><span class="v num">${fmtN(Math.round(sum/ds.length*10)/10)}<small>人</small></span></div>
    </div>
+   ${wxCardHTML()}
    <div class="card"><h2>每日日報</h2><ul class="hist">${ds.map(d=>{const r=REPORTS[d]; const main=mergeLabels(r.tasks.filter(t=>t.status!=='next')); return `<li><button data-d="${d}"><span class="d"><b>${fmtShort(d)}（${WD[parseKey(d).getDay()]}）</b><small>${esc(wxLabel(r)||'')}${r.photos&&r.photos.length?' · '+r.photos.length+' 張照片':''}</small></span><span class="sum">${esc(main.join('、')||'—')}</span><span class="w"><span class="num">${fmtN(total(r))}</span><small>人</small></span></button></li>`;}).join('')}</ul></div>`;
   el.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{ selDate=b.dataset.d; zoneSel=null; go('today'); });
 }
@@ -2111,6 +2176,9 @@ function _renderSettings(){
     <div class="field"><label for="sCo">營造公司</label><input type="text" id="sCo" value="${esc(SITE.company||'')}" placeholder="例如：綠建築建設股份有限公司" ${dis}></div>
     <div class="field"><label for="sName">工地名稱</label><input type="text" id="sName" value="${esc(SITE.name||'')}" ${dis}></div>
     <div class="field"><label for="sAddr">說明／地址</label><input type="text" id="sAddr" value="${esc(SITE.addr||'')}" placeholder="例如：地下 2 層、地上 12 層 · 台北市○○區" ${dis}></div>
+    <div class="field"><label for="sLoc">工地地點（自動記錄天氣用）</label>
+      <div class="addmach"><select id="sLoc" ${dis}><option value="">未設定</option>${(()=>{ const L=SITE.loc, hit=L&&TW_CITIES.find(c=>c[0]===L.name&&c[1]===L.lat&&c[2]===L.lon); return (L&&!hit?`<option value="keep" selected>${esc(L.name||'目前位置')}</option>`:'')+TW_CITIES.map((c,i)=>`<option value="${i}" ${hit===c?'selected':''}>${c[0]}</option>`).join(''); })()}</select>${ro?'':'<button type="button" class="btn" id="sLocGps">用目前位置</button>'}</div>
+      <span class="note" id="sLocNote">${(()=>{ const L=SITE.loc, a=wxAuto(TODAY); return !L?'選好之後，會自動記錄這裡每天上午、下午的天氣和雨量，工地動畫也會顯示當天天氣。人在工地時按「用目前位置」最準。':a?`今天預報：${esc(wxText(a))}${a.hi!=null?'，'+a.lo+'–'+a.hi+'°C':''}${a.mm?'，雨量 '+a.mm+' mm':''}`:'已設定。天氣資料取得後會顯示在這裡。'; })()}</span></div>
     <div class="srow">
       <div class="field"><label for="sStart">開工日</label><input type="date" id="sStart" value="${esc(SITE.start||'')}" ${dis}></div>
       <div class="field"><label for="sEnd">預定完工日</label><input type="date" id="sEnd" value="${esc(SITE.end||'')}" ${dis}></div>
@@ -2151,6 +2219,11 @@ function _renderSettings(){
   ${ro?'':`<div class="card dangerzone"><h2>刪除這個工地</h2><p class="note">刪除後工地會先移到工地清單裡的「最近刪除」，日報都還在，隨時可以復原。要完全清掉，再到「最近刪除」按「永久刪除」。</p><div class="actions"><button class="btn" id="sDelSite" type="button">刪除「${esc(SITE.name||'')}」</button></div></div>`}`;
   wireExport(); wireMove(); if(WEB) WEB.wireMembers();
   if(ro) return;
+  { const setLoc=L=>{ if(L) SITE.loc=L; else delete SITE.loc; WX.at=0; saveSite().then(()=>{ toast(L?'已設定工地地點：'+L.name:'已清除工地地點'); wxLoad(true); if(page==='settings') renderAll(false); }); };
+    $('#sLoc').onchange=e=>{ const v=e.target.value; if(v==='keep') return; if(v===''){ setLoc(null); return; } const c=TW_CITIES[+v]; setLoc({name:c[0],lat:c[1],lon:c[2]}); };
+    $('#sLocGps').onclick=()=>{ if(!navigator.geolocation){ toast('這台裝置沒有定位功能，請從選單選縣市'); return; } const b=$('#sLocGps'); b.disabled=true; b.textContent='定位中…';
+      navigator.geolocation.getCurrentPosition(p=>{ const la=+p.coords.latitude.toFixed(3), lo=+p.coords.longitude.toFixed(3), near=TW_CITIES.slice().sort((x,y)=>Math.hypot(x[1]-la,x[2]-lo)-Math.hypot(y[1]-la,y[2]-lo))[0]; setLoc({name:near[0]+'（目前位置）',lat:la,lon:lo}); },
+        ()=>{ b.disabled=false; b.textContent='用目前位置'; toast('拿不到定位，請允許定位權限，或從選單選縣市'); },{enableHighAccuracy:false,timeout:12000,maximumAge:600000}); }; }
   $('#sSave').onclick=()=>{
     SITE.company=$('#sCo').value.trim(); SITE.name=$('#sName').value.trim()||SITE.name; SITE.addr=$('#sAddr').value.trim(); SITE.start=$('#sStart').value; SITE.end=$('#sEnd').value;
     const mt=$('#sMach').value.split(/[,，、]/).map(s=>s.trim()).filter(Boolean); if(mt.length) SITE.machines=[...new Set(mt)];
@@ -3058,7 +3131,7 @@ function simBuild(r){
   const pourLater=!todayView&&SIM.half==='am'&&Object.keys(machinesOf(r)).some(k=>{ if(!/押送|泵浦|幫浦|預拌/.test(k)) return false; const x=splitOf(r,k,true); return !x.f&&!x.am&&x.pm>0; });   // morning of an afternoon pour: forms still empty
   props.forEach(o=>{ if(o.fill==='dyn'&&(!pumpV||pumpV.parked||pumpV.zone!==o.zn)){ if(pourLater){ o.fill='empty'; o.filled=false; } else { o.fill='full'; o.filled=true; } } });
   const toG=(x,y)=>({x:MX(x),y:MY(y)}), toN=(gx,gy)=>({x:+(bx0+gx/GW*bw).toFixed(4),y:+(by0+gy/GH*bh).toFixed(4)});
-  const stOut={dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
+  const stOut={dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
 }
 let z_loadPt=null, st_pipePt=null;
 function inZone(z,x,y){ if(z.pts) return inPolyS([x,y],z.pts.map(p=>[p.x,p.y])); return x>=z.x-0.05&&x<=z.x+z.w+0.05&&y>=z.y-0.05&&y<=z.y+z.h+0.05; }
@@ -4251,7 +4324,7 @@ function setSimBtns(){ const zb=document.getElementById('simZoom'), pb=document.
   if(pb){ pb.innerHTML=SIM.paused?ICO.play:ICO.pause; pb.setAttribute('aria-label',SIM.paused?'播放動畫':'暫停動畫'); } }
 function simMount(r){
   const cv=document.getElementById('sim'); if(!cv) return;
-  const key=CUR+"|"+(SIM.half||'all')+"|"+(SIM.todayHalf||'')+"|"+gateState()+"|"+todayPunches().map(p=>p.id+(p.out?'o':'i')).join(',')+"|"+(r?punchesOn(r.date).map(p=>p.id+(p.out||'')).join(',')+'|':'')+(r?r.date+'|'+(r.at||'')+'|'+JSON.stringify(r.workers)+'|'+r.tasks.length:'none')+'|'+JSON.stringify(SITE.zones||[])+JSON.stringify(SITE.beams||[])+JSON.stringify(SITE.gate||{})+JSON.stringify(SITE.boundary||{})+JSON.stringify(SITE.office||{})+((SITE.drawing&&SITE.drawing.id)||'');
+  const key=CUR+"|"+JSON.stringify(wxAuto(r?r.date:selDate)||0)+"|"+(SIM.half||'all')+"|"+(SIM.todayHalf||'')+"|"+gateState()+"|"+todayPunches().map(p=>p.id+(p.out?'o':'i')).join(',')+"|"+(r?punchesOn(r.date).map(p=>p.id+(p.out||'')).join(',')+'|':'')+(r?r.date+'|'+(r.at||'')+'|'+JSON.stringify(r.workers)+'|'+r.tasks.length:'none')+'|'+JSON.stringify(SITE.zones||[])+JSON.stringify(SITE.beams||[])+JSON.stringify(SITE.gate||{})+JSON.stringify(SITE.boundary||{})+JSON.stringify(SITE.office||{})+((SITE.drawing&&SITE.drawing.id)||'');
   if(key!==SIM.key){ SIM.st=simBuild(r); SIM.key=key; SIM.selZone=null; } else { soilProps(SIM.st); fillsBuild(SIM.st); }
   rotCentre(SIM.st); setRot(SIM.rot||0); rotBtn();
   SIM.cv=cv; SIM.ctx=cv.getContext('2d'); g3Mount();
