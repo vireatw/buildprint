@@ -326,7 +326,8 @@ export function create(){
     const H=B.H.map(p=>({x:p[0],y:p[1]})), E=B.edges;
     // the outline pushed out by d (convex): each corner moves along the two edge normals
     const out=d=>H.map((p,i)=>{ const e1=E[(i-1+E.length)%E.length], e2=E[i]; let nx=e1.nx+e2.nx, ny=e1.ny+e2.ny; const L=Math.hypot(nx,ny)||1; nx/=L; ny/=L; const c=Math.max(0.3,nx*e2.nx+ny*e2.ny); return {x:p.x+nx*d/c,y:p.y+ny*d/c}; });
-    const prism=(pts,z0,h,mat)=>{ const m=mesh(new T.ExtrudeGeometry(shapeOf(pts),{depth:h,bevelEnabled:false}),typeof mat==='string'?M(mat):mat); m.rotation.x=-Math.PI/2; m.position.y=z0; bldM.add(m); return m; };
+    const prism=(pts,z0,h,mat,holes)=>{ const sh=shapeOf(pts); (holes||[]).forEach(P=>{ const hp=new T.Path(); P.forEach((p,i)=>i?hp.lineTo(p[0],-p[1]):hp.moveTo(p[0],-p[1])); hp.closePath(); sh.holes.push(hp); });
+      const m=mesh(new T.ExtrudeGeometry(sh,{depth:h,bevelEnabled:false}),typeof mat==='string'?M(mat):mat); m.rotation.x=-Math.PI/2; m.position.y=z0; bldM.add(m); return m; };
     // steel: one instanced mesh per colour
     const inst=new Map(), _m=new T.Matrix4(), _p=new T.Vector3(), _s=new T.Vector3(), _d=new T.Vector3();
     const put=(col,mx)=>{ let L=inst.get(col); if(!L) inst.set(col,L=[]); L.push(mx.clone()); };
@@ -345,7 +346,7 @@ export function create(){
     let shellTop=0;
     S.F.forEach((f,i)=>{ const nxt=S.F[i+1], h=f.z1-f.z0;
       if(f.state==='cut'){   // 剖開看: this floor's slab and its walls cut at about 1.2 m, nothing above
-        const C=S.cut, z0=(C?C.z0:f.z0)+0.03; prism(out(0.02),z0-0.09,0.09,'#B9B3A8'); const s=C&&C.s; if(!s) return;   // slab top sits clear of the floor below's roof, or the two flicker when turning
+        const C=S.cut, z0=(C?C.z0:f.z0)+0.03; prism(out(0.02),z0-0.09,0.09,'#B9B3A8',C&&C.v); const s=C&&C.s; if(!s) return;   // slab top sits clear of the floor below's roof, or the two flicker when turning
         const wh=C.h, th=0.03;
         for(let k=0;k+3<s.length;k+=4){ const ax=s[k], ay=s[k+1], bx=s[k+2], by=s[k+3], dx=bx-ax, dy=by-ay, L=Math.hypot(dx,dy); if(L<1e-3) continue;
           _p.set((ax+bx)/2,z0+wh/2,(ay+by)/2); _q.setFromAxisAngle(UPY,Math.atan2(-dy,dx)); _s.set(L+th*0.5,wh,th); _m.compose(_p,_q,_s); put('#FBF8F2',_m); }
@@ -363,10 +364,11 @@ export function create(){
         prism(out(0.07),f.z0-0.06,0.05,'#6E7C88'); return; }
       if(f.state==='doing'){ frame(f,'#B4573E'); return; }
       if(!S.clad){ frame(f,'#66737E'); deck(f.z1); return; }
+      const vd=nxt&&nxt.state==='cut'&&S.cut&&S.cut.v&&S.cut.v.length?S.cut.v:null; if(vd) prism(H,f.z0,0.03,'#CFCAC0');   // 挑空 above: this floor is hollow under the voids, with its own slab at the bottom
       if(S.fac){ shellTop=Math.max(shellTop,f.z1);
         if(i===0&&S.fac.open1F){ prism(out(-0.12),f.z0,h,'#6B737A'); B.cols.forEach(p=>post('#CDD2D6',p.x,p.y,f.z0,f.z1,0.09)); }   // open ground floor (parking): set-back dark wall behind the columns
-        else prism(H,f.z0,h,'#DCE2E7'); }
-      else { prism(H,f.z0,h,'#DCE2E7');
+        else prism(H,f.z0,h,'#DCE2E7',vd); }
+      else { prism(H,f.z0,h,'#DCE2E7',vd);
         const wm=M('#8FB4CC',{emissive:'#FFD27A',emissiveIntensity:0}).clone(); wm.userData.cached=false; bWin.push(wm);
         prism(out(0.015),f.z0+h*0.5,h*0.28,wm); }
       prism(out(0.02),f.z0,0.045,'#9AA5AE');
