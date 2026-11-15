@@ -344,7 +344,7 @@ export function create(){
     const ridge=p=>{ const r=B.ridge([p.x!=null?p.x:p[0],p.y!=null?p.y:p[1]]); return r; };
     S.F.forEach((f,i)=>{ const nxt=S.F[i+1], h=f.z1-f.z0;
       if(f.state==='cut'){   // 剖開看: this floor's slab and its walls cut at about 1.2 m, nothing above
-        const C=S.cut, z0=C?C.z0:f.z0; prism(out(0.02),z0-0.06,0.06,'#B9B3A8'); const s=C&&C.s; if(!s) return;
+        const C=S.cut, z0=(C?C.z0:f.z0)+0.03; prism(out(0.02),z0-0.09,0.09,'#B9B3A8'); const s=C&&C.s; if(!s) return;   // slab top sits clear of the floor below's roof, or the two flicker when turning
         const wh=C.h, th=0.03;
         for(let k=0;k+3<s.length;k+=4){ const ax=s[k], ay=s[k+1], bx=s[k+2], by=s[k+3], dx=bx-ax, dy=by-ay, L=Math.hypot(dx,dy); if(L<1e-3) continue;
           _p.set((ax+bx)/2,z0+wh/2,(ay+by)/2); _q.setFromAxisAngle(UPY,Math.atan2(-dy,dx)); _s.set(L+th*0.5,wh,th); _m.compose(_p,_q,_s); put('#FBF8F2',_m); }
@@ -353,7 +353,7 @@ export function create(){
         if(f.state==='doing'||!S.clad){ const col=f.state==='doing'?'#B4573E':'#66737E'; B.cols.forEach(p=>{ const r=ridge(p); bar(col,p.x,p.y,f.z0,r[0],r[1],f.z1,0.05); }); E.forEach(e=>bar(col,e.ax,e.ay,f.z0,e.bx,e.by,f.z0,0.06)); const r0=B.ridge([B.u0*B.ux,B.u0*B.uy]), r1=B.ridge([B.u1*B.ux,B.u1*B.uy]); bar(col,r0[0],r0[1],f.z1,r1[0],r1[1],f.z1,0.06); return; }
         const pos=[]; const O=out(0.06); O.forEach((a,k)=>{ const b=O[(k+1)%O.length], ra=ridge(H[k]), rb=ridge(H[(k+1)%H.length]); pos.push(a.x,f.z0,a.y, b.x,f.z0,b.y, rb[0],f.z1,rb[1], a.x,f.z0,a.y, rb[0],f.z1,rb[1], ra[0],f.z1,ra[1]); });
         const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(pos,3)); g.computeVertexNormals(); bldM.add(mesh(g,M('#8FA3B4',{side:T.DoubleSide})));
-        prism(out(0.07),f.z0-0.05,0.05,'#6E7C88'); return; }
+        prism(out(0.07),f.z0-0.06,0.05,'#6E7C88'); return; }
       if(f.state==='doing'){ frame(f,'#B4573E'); return; }
       if(!S.clad){ frame(f,'#66737E'); deck(f.z1); return; }
       prism(H,f.z0,h,'#DCE2E7');
