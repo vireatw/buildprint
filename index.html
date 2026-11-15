@@ -2845,7 +2845,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=11').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=12').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -2960,13 +2960,17 @@ function facadeFit(B,FA,f,inv){
     const alongX=Math.abs(ny)>=Math.abs(nx), side=alongX?(ny<0?'yn':'yp'):(nx>0?'xp':'xn'), ca=alongX?da[0]:da[1], cb2=alongX?db[0]:db[1], mp=alongX?mx:my, lo0=Math.min(ca,cb2), hi0=Math.max(ca,cb2), W=[];
     (FA.sides[side]||[]).forEach(w=>{ const lo=Math.max(mp(w[0]),lo0), hi=Math.min(mp(w[1]),hi0); if(hi-lo<25) return; let t0=(lo-ca)/(cb2-ca), t1=(hi-ca)/(cb2-ca); if(t0>t1){ const q=t0; t0=t1; t1=q; }
       W.push({t0,t1,z0:w[2],z1:w[3],type:w[4]||0,cm:hi-lo}); });
-    return W; });
+    W.side=side; W.len=Math.abs(cb2-ca); W.tOf=c=>(mp(c)-ca)/((cb2-ca)||1); return W; });
+  // pieces standing off a wall (piers, canopies, a stair wing) and signs go on the longest wall of their side, and may run past its ends
+  edges.forEach(W=>{ if(edges.some(o=>o!==W&&o.side===W.side&&o.len>W.len)) return;
+    W.X=((FA.extras||{})[W.side]||[]).map(x=>{ let t0=W.tOf(x[0]), t1=W.tOf(x[1]); if(t0>t1){ const q=t0; t0=t1; t1=q; } return {t0,t1,z0:x[2],z1:x[3],o0:x[4],o1:x[5],col:x[6]}; });
+    W.G=((FA.signs||{})[W.side]||[]).map(g=>({t:W.tOf(g[0]),z:g[1],r:g[2],text:g[3],col:g[4]})); });
   let roof=null; const R=FA.roof;
   if(R&&R.ridgeX!=null){ const rx=Math.max(fx0+1,Math.min(fx1-1,mx(R.ridgeX))), hOf=x=>x<=rx?(x-fx0)/(rx-fx0):(fx1-x)/(fx1-rx);
     const clip=(P,sg)=>{ const o=[]; P.forEach((p,i)=>{ const q=P[(i+1)%P.length], ip=sg*(p[0]-rx)<=0, iq=sg*(q[0]-rx)<=0; if(ip) o.push(p); if(ip!==iq){ const t=(rx-p[0])/(q[0]-p[0]); o.push([rx,p[1]+(q[1]-p[1])*t]); } }); return o; };
     const to=p=>{ const s=f(p[0],p[1]); return [s[0],s[1],Math.max(0,Math.min(1,hOf(p[0])))]; };
     roof={parts:[clip(Hd,1),clip(Hd,-1)].filter(P=>P.length>2).map(P=>P.map(to))}; }
-  return {edges,roof,open1F:!!FA.open1F}; }
+  return {edges,roof,open1F:!!FA.open1F,wall:FA.wall||null,roofCol:FA.roofCol||null,base:FA.base||null,ver:FA.extras?2:1}; }
 function bldgFront(B,x,y,z){ if(B.inH(x,y)) return (z||0)>0.6; return B.edges.some(e=>(x-e.ax)*e.nx+(y-e.ay)*e.ny>0&&facing(e.nx,e.ny)>1e-6); }
 function drawBuilding(c,B,S){
   const SS=SIM.S, lw=k=>Math.max(1,SS*k), N=SIM.night||0;
