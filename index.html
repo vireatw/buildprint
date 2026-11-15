@@ -464,6 +464,22 @@ textarea{min-height:84px;resize:vertical}
 
 /* settings */
 .srow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.flist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.flist li{display:grid;grid-template-columns:minmax(0,1fr) 78px 78px 36px;gap:6px;align-items:center}
+.flist li.fh{font-size:12px;color:var(--muted);font-weight:700}
+.flist li.fh span:not(:first-child){text-align:center}
+.flist input{min-width:0;width:100%}
+.flist input[type=number]{text-align:center;padding-left:4px;padding-right:4px}
+.sdates{display:flex;flex-wrap:wrap;gap:6px 12px;flex-basis:100%;font-size:13px;color:var(--muted);align-items:center}
+.sdates label{display:flex;align-items:center;gap:6px}
+.slist .sdates input{flex:0 0 auto;width:auto;padding:4px 8px;font-size:13px;min-height:32px}
+.dlist{list-style:none;margin:0 0 4px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.dlist li{position:relative}
+.dthumb{display:flex;flex-direction:column;gap:4px;width:100%;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--panel);text-align:left;font:inherit;font-size:13px;line-height:1.3;cursor:zoom-in;color:inherit}
+.dthumb img{width:100%;aspect-ratio:4/3;object-fit:contain;background:#fff;border-radius:6px}
+.dthumb span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
+.dlist .mini{position:absolute;top:2px;right:2px}
+.isl-bprev{position:absolute;left:12px;bottom:calc(var(--plH,96px) + 20px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border-radius:999px;border:0;background:rgba(16,26,36,.86);color:#F5B700;font:inherit;font-size:15px;font-weight:700;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:6}
 .zlist,.slist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .zlist li,.slist li{display:flex;gap:8px;align-items:center}
 .slist .seg button{padding:5px 10px;font-size:13px}
@@ -1208,6 +1224,7 @@ document.addEventListener('DOMContentLoaded',()=>{ const sh=$('#islCrewSheet'); 
 function go(p){
   if(p!=='island'&&FS.on) fsSet(false);
   if(page==='report' && p!=='report' && draftDirty){ /* keep draft, it is restored when coming back */ }
+  if(p!=='island') SIM.bPrev=null;
   page=p;
   document.body.classList.toggle('island-mode',p==='island');
   $$('[data-p]').forEach(b=>b.setAttribute('aria-selected',b.dataset.p===p));
@@ -1505,6 +1522,7 @@ function renderIsland(){
     <div class="isl-legend" id="islLegend" aria-label="工地上的工班" hidden></div>
     <div class="isl-hint" aria-hidden="true"><kbd>Shift</kbd>＋滑鼠左鍵左右拖曳：旋轉</div>
     <div class="isl-nonight" id="islNoNight" hidden><b></b><span>沒有夜間施工</span></div>
+    ${SIM.bPrev!=null?'<button type="button" class="isl-bprev" id="islBPrev">預覽蓋樓・結束 ✕</button>':''}
     <button type="button" class="isl-undo" id="islUndo" hidden aria-label="上一步"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>上一步</button>
     <div class="isl-player" id="islPlayer">
       <div class="plrow">
@@ -1514,6 +1532,7 @@ function renderIsland(){
       </div>
       <div class="pleditbar" id="islEditBar" hidden></div></div></div>`;
   $('#islBack').onclick=()=>go('today');
+  { const b=$('#islBPrev'); if(b) b.onclick=()=>{ SIM.bPrev=null; b.remove(); }; }
   $$('#p-island [data-iv]').forEach(b=>b.onclick=()=>{ islStop(); ISL.view=b.dataset.iv; renderIsland(); });
   islBindTop();
   $('#islPlay').onclick=()=>ISL.playing?islStop(true):islPlay();
@@ -2220,9 +2239,12 @@ function _renderSettings(){
     <p class="note">點狀態切換：完成／進行中／未開始。「進行中」的那一項會顯示為目前階段。</p>
     <ul class="slist">${SITE.stages.map((s,i)=>`<li><input type="text" value="${esc(s.name)}" data-sn="${s.id}" aria-label="階段名稱" ${dis}>
       <div class="seg">${[['done','完成'],['doing','進行中'],['upcoming','未開始']].map(([k,t])=>`<button type="button" data-ss="${s.id}" data-v="${k}" aria-pressed="${s.status===k}" ${dis}>${t}</button>`).join('')}</div>
+      ${s.status!=='upcoming'?`<div class="sdates"><label>開始 <input type="date" value="${esc(s.since||'')}" data-sdt="${s.id}" data-k="since" aria-label="${esc(s.name)} 開始日" ${dis}></label>${s.status==='done'?`<label>完成 <input type="date" value="${esc(s.doneOn||'')}" data-sdt="${s.id}" data-k="doneOn" aria-label="${esc(s.name)} 完成日" ${dis}></label>`:''}</div>`:''}
       ${ro?'':`<button class="mini" data-sup="${i}" aria-label="上移" ${i===0?'disabled':''}>↑</button><button class="mini" data-sdown="${i}" aria-label="下移" ${i===SITE.stages.length-1?'disabled':''}>↓</button><button class="mini" data-sdel="${s.id}" aria-label="刪除階段">✕</button>`}</li>`).join('')}</ul>
     ${ro?'':'<div class="actions"><button class="btn" id="sAddStage">＋ 新增階段</button></div>'}
   </div>
+  ${floorsCardHTML(ro)}
+  ${drawingsCardHTML(ro)}
   ${visitsCardHTML()}
   ${WEB?WEB.membersCard():`<div class="card"><h2>分享給主管</h2>
     <p class="note">在 Claude 打開這個 app，按右上角「分享」，輸入同事的 Email 邀請（對方要用同一個 Email 註冊 Claude）：老闆、主管選「可以檢視」只看不改；工地主任、工程師要填日報、上傳照片，選「可以編輯」。平面圖 PDF 只有你自己能上傳，同事可以傳 JPG／PNG。</p>
@@ -2230,7 +2252,7 @@ function _renderSettings(){
   ${exportCardHTML()}
   ${moveCardHTML()}
   ${ro?'':`<div class="card dangerzone"><h2>刪除這個工地</h2><p class="note">刪除後工地會先移到工地清單裡的「最近刪除」，日報都還在，隨時可以復原。要完全清掉，再到「最近刪除」按「永久刪除」。</p><div class="actions"><button class="btn" id="sDelSite" type="button">刪除「${esc(SITE.name||'')}」</button></div></div>`}`;
-  wireExport(); wireMove(); if(WEB) WEB.wireMembers();
+  wireExport(); wireMove(); if(WEB) WEB.wireMembers(); wireFloorsDrawings(ro);
   if(ro) return;
   { const setLoc=L=>{ if(L) SITE.loc=L; else delete SITE.loc; WX.at=0; const n=$('#sLocNote'); if(n) n.textContent=L?'已設定：'+L.name+'。正在取得天氣…':wxNoteText(); saveSite().then(()=>{ toast(L?'已設定工地地點：'+L.name:'已清除工地地點'); wxLoad(true); }); };
     const fillT=city=>{ const t=$('#sLocT'); t.disabled=!city; t.innerHTML=`<option value="">${city?'全'+city.slice(-1)+'（不分區）':'先選縣市'}</option>`+twTowns(city).map(x=>`<option value="${x[0]}">${x[0]}</option>`).join(''); };
@@ -2251,7 +2273,11 @@ function _renderSettings(){
   el.querySelectorAll('[data-zn]').forEach(i=>i.onchange=()=>{ const z=SITE.zones.find(z=>z.id===i.dataset.zn); if(z){ z.name=i.value.trim()||z.name; saveSite(); } });
   el.querySelectorAll('[data-zdel]').forEach(b=>b.onclick=()=>{ SITE.zones=SITE.zones.filter(z=>z.id!==b.dataset.zdel); saveSite(); renderSettings(); });
   el.querySelectorAll('[data-sn]').forEach(i=>i.onchange=()=>{ const s=SITE.stages.find(s=>s.id===i.dataset.sn); if(s){ s.name=i.value.trim()||s.name; saveSite(); } });
-  el.querySelectorAll('[data-ss]').forEach(b=>b.onclick=()=>{ const s=SITE.stages.find(s=>s.id===b.dataset.ss); if(!s) return; s.status=b.dataset.v; saveSite(); renderSettings(); });
+  el.querySelectorAll('[data-ss]').forEach(b=>b.onclick=()=>{ const s=SITE.stages.find(s=>s.id===b.dataset.ss); if(!s) return; const v=b.dataset.v; if(s.status===v) return;
+    // remember when each stage started and finished, so past days in 工地動畫 show the building as it was
+    if(v==='upcoming'){ delete s.since; delete s.doneOn; } else { if(!s.since) s.since=TODAY; if(v==='done') s.doneOn=TODAY; else delete s.doneOn; }
+    s.status=v; saveSite(); renderSettings(); });
+  el.querySelectorAll('[data-sdt]').forEach(i=>i.onchange=()=>{ const s=SITE.stages.find(s=>s.id===i.dataset.sdt); if(!s) return; if(i.value) s[i.dataset.k]=i.value; else delete s[i.dataset.k]; saveSite(); });
   el.querySelectorAll('[data-sup]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.sup; if(i<1) return; const a=SITE.stages; [a[i-1],a[i]]=[a[i],a[i-1]]; saveSite(); renderSettings(); });
   el.querySelectorAll('[data-sdown]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.sdown, a=SITE.stages; if(i>=a.length-1) return; [a[i],a[i+1]]=[a[i+1],a[i]]; saveSite(); renderSettings(); });
   el.querySelectorAll('[data-sdel]').forEach(b=>b.onclick=()=>{ SITE.stages=SITE.stages.filter(s=>s.id!==b.dataset.sdel); saveSite(); renderSettings(); });
@@ -2277,6 +2303,60 @@ function wireZoneDraw(pe){
     SITE.zones.push(z); saveSite(); renderSettings(); const i=$(`[data-zn="${z.id}"]`); if(i){ i.focus(); i.select(); }
     toast('已新增「'+name+'」，可以在下方改名');
   };
+}
+let DSET='完成圖';
+const DSETS=['建照圖','完成圖','立面圖','其他'];
+function floorsCardHTML(ro){ const dis=ro?'disabled':'', fl=SITE.floors||[];
+  return `<div class="card form" id="floorCard"><h2>樓層（工地動畫）</h2>
+    <p class="note">每層樓板和上緣的高程（cm，照立面圖）。樓層名稱和「工程階段」同名時，動畫跟著階段走：進行中＝鋼構架設中，完成＝蓋好；有「外牆」階段的話，要等它完成才包上外牆板。</p>
+    ${fl.length?`<ul class="flist"><li class="fh" aria-hidden="true"><span>樓層</span><span>樓板 cm</span><span>上緣 cm</span><span></span></li>${fl.map((f,i)=>`<li><input type="text" value="${esc(f.name)}" data-fn="${i}" aria-label="樓層名稱" ${dis}><input type="number" inputmode="numeric" value="${+f.base||0}" data-fb="${i}" aria-label="${esc(f.name)} 樓板高程（cm）" ${dis}><input type="number" inputmode="numeric" value="${+f.top||0}" data-ft="${i}" aria-label="${esc(f.name)} 上緣高程（cm）" ${dis}>${ro?'<span></span>':`<button class="mini" data-fdel="${i}" aria-label="刪除 ${esc(f.name)}">✕</button>`}</li>`).join('')}</ul>`:'<p class="muted">還沒有樓層。</p>'}
+    <div class="field"><label for="fLen">建物長邊（m）</label><input type="number" id="fLen" inputmode="decimal" value="${+SITE.bLen||50}" ${dis}></div>
+    <div class="actions">${ro?'':`<button class="btn" id="fAdd" type="button">＋ 新增樓層</button>${fl.length?'':'<button class="btn" id="fFromStages" type="button">依工程階段產生</button>'}`}${fl.length?'<button class="btn primary" id="fPrev" type="button">預覽蓋樓</button>':''}</div>
+  </div>`; }
+function drawingsCardHTML(ro){ const ds=SITE.drawings||[];
+  const grp=DSETS.map(k=>{ const L=ds.filter(d=>(DSETS.includes(d.set)?d.set:'其他')===k); if(!L.length) return '';
+    return `<span class="lbl">${k}</span><ul class="dlist">${L.map(d=>`<li><button type="button" class="dthumb" data-dview="${esc(d.id)}" aria-label="打開 ${esc(d.name)}"><img src="${esc(imgSrc(d))}" alt=""><span>${esc(d.name)}</span></button>${ro?'':`<button class="mini" data-ddel="${esc(d.id)}" aria-label="刪除 ${esc(d.name)}">✕</button>`}</li>`).join('')}</ul>`; }).join('');
+  const can=!ro&&(ASSETS||MODE==='local');
+  return `<div class="card form" id="drawCard"><h2>圖說</h2>${grp||'<p class="muted">還沒有圖說。</p>'}
+    ${can?`<span class="lbl">上傳到</span><div class="seg" id="dSet">${DSETS.map(k=>`<button type="button" data-dset="${k}" aria-pressed="${DSET===k}">${k}</button>`).join('')}</div>
+    <div class="actions"><label class="btn primary"><input type="file" id="dIn" accept="image/*,application/pdf" multiple hidden>選擇圖檔</label><span class="note" id="dMsg"></span></div>
+    <p class="note">可以一次選多張 JPG、PNG、PDF（PDF 取第一頁），檔名就是圖名。圖存在築跡的資料庫，只有這個工地的成員看得到。</p>`:''}
+  </div>`; }
+function wireFloorsDrawings(ro){
+  const el=$('#p-settings'); if(!el) return;
+  el.querySelectorAll('[data-dview]').forEach(b=>b.onclick=()=>{ const d=(SITE.drawings||[]).find(d=>d.id===b.dataset.dview); if(d) openLightbox(imgSrc(d),d.name,true); });
+  const pv=$('#fPrev'); if(pv) pv.onclick=()=>{ selDate=TODAY; ISL.view='sim'; go('island'); SIM.bPrev=-1; renderIsland(); toast('預覽：照樓層一層一層蓋起來'); };
+  if(ro) return;
+  const fl=()=>SITE.floors||(SITE.floors=[]);
+  el.querySelectorAll('[data-fn]').forEach(i=>i.onchange=()=>{ const f=fl()[+i.dataset.fn]; if(f){ f.name=i.value.trim()||f.name; saveSite(); } });
+  el.querySelectorAll('[data-fb],[data-ft]').forEach(i=>i.onchange=()=>{ const f=fl()[+(i.dataset.fb||i.dataset.ft)]; if(!f) return; f[i.dataset.fb!=null?'base':'top']=Math.round(+i.value||0); saveSite(); });
+  el.querySelectorAll('[data-fdel]').forEach(b=>b.onclick=()=>{ fl().splice(+b.dataset.fdel,1); saveSite(); renderSettings(); });
+  const fa=$('#fAdd'); if(fa) fa.onclick=()=>{ const L=fl(), p=L[L.length-1], b=p?(+p.top||0):0; L.push({name:'新樓層',base:b,top:b+350}); saveSite(); renderSettings(); };
+  const fs=$('#fFromStages'); if(fs) fs.onclick=()=>{ const ss=(SITE.stages||[]).filter(s=>/層|屋頂/.test(s.name)&&!/基礎|地坪|樓版|樓承板/.test(s.name)); if(!ss.length){ toast('工程階段裡沒有「○層」或「屋頂」'); return; }
+    let b=0; SITE.floors=ss.map(s=>{ const roof=/屋頂/.test(s.name), h=roof?200:350, f={name:roof?'屋頂':s.name,base:b,top:b+h,stage:s.id}; b+=h; return f; }); saveSite(); renderSettings(); toast('已產生 '+SITE.floors.length+' 層，高程請照立面圖改'); };
+  const ln=$('#fLen'); if(ln) ln.onchange=()=>{ const v=+ln.value; if(v>0){ SITE.bLen=v; saveSite(); } };
+  el.querySelectorAll('[data-dset]').forEach(b=>b.onclick=()=>{ DSET=b.dataset.dset; el.querySelectorAll('[data-dset]').forEach(x=>x.setAttribute('aria-pressed',x===b)); });
+  const di=$('#dIn'); if(di) di.onchange=e=>{ const fs=[...e.target.files]; e.target.value=''; if(fs.length) uploadDrawings(fs); };
+  el.querySelectorAll('[data-ddel]').forEach(b=>b.onclick=()=>{ if(!b.classList.contains('armed')){ b.classList.add('armed'); b.textContent='刪除？'; setTimeout(()=>{ if(b.isConnected){ b.classList.remove('armed'); b.textContent='✕'; } },4000); return; }
+    SITE.drawings=(SITE.drawings||[]).filter(d=>d.id!==b.dataset.ddel); saveSite(); renderSettings(); });
+}
+async function uploadDrawings(files){
+  const say=t=>{ const m=$('#dMsg'); if(m) m.innerHTML=t; };
+  files.sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant',{numeric:true}));
+  const set=DSET; let ok=0;
+  for(let i=0;i<files.length;i++){ const file=files[i];
+    say(`<span class="spin"></span> 上傳中 ${i+1}／${files.length}…`);
+    try{
+      let img=file, pdfId=null; const name=file.name.replace(/\.[^.]+$/,'').replace(/^\d+[-_．.\s]+/,'').trim()||file.name;
+      if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)){ img=await pdfToImage(file); if(MODE!=='local'){ try{ pdfId=(await ASSETS.upload(file,{type:'application/pdf'})).id; }catch(e){} } }
+      else if(file.size>4e6||!/png|jpe?g|webp/i.test(file.type)) img=await shrink(file,4000,0.9);
+      let aspect=null; try{ const bm=await createImageBitmap(img); aspect=+(bm.width/bm.height).toFixed(4); }catch(e){}
+      const d={name,set,aspect,at:TODAY}; if(pdfId) d.pdfId=pdfId;
+      if(MODE==='local'){ d.id='l'+uid(); d.src=URL.createObjectURL(img); } else d.id=(await ASSETS.upload(img,{type:img.type||'image/png'})).id;
+      (SITE.drawings||(SITE.drawings=[])).push(d); ok++;
+    }catch(e){ toast(e&&e.message==='pdf'?'PDF 轉換失敗：'+file.name:assetErr(e)); }
+  }
+  if(ok) await saveSite(); say(''); renderSettings(); if(ok) toast('已上傳 '+ok+' 張到「'+set+'」');
 }
 async function uploadPlan(file){
   const msg=$('#sPlanMsg'); const say=t=>{ if(msg) msg.innerHTML=t; };
@@ -2737,7 +2817,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=6').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=7').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -2765,6 +2845,102 @@ function engFill(r){ if(!r) return r; const ws=r.workers||{};
   names=[...new Set(had.concat(names))];
   return Object.assign({},r,{workers:Object.assign({},ws,{[et]:workOf(sp)}),split:Object.assign({},r.split||{},{[et]:sp}),vendors:Object.assign({},r.vendors||{},names.length?{[et]:names.join('，')}:{})}); }
 function engTradeName(){ return ((SITE&&SITE.trades)||[]).find(t=>/工程師|監工|主任/.test(t))||'工程師／監工'; }
+// ---- the building, floor by floor: SITE.floors (heights in cm) + each floor's 工程階段 and its dates ----
+function stageOn(s,D){ if(!s) return 'upcoming'; D=D||TODAY;
+  if(s.status==='done'){ if(s.doneOn&&D<s.doneOn) return (s.since&&D>=s.since)?'doing':'upcoming'; return 'done'; }
+  if(s.status==='doing') return (s.since&&D<s.since)?'upcoming':'doing';
+  return 'upcoming'; }
+function floorStage(f){ const ss=(SITE&&SITE.stages)||[]; return (f.stage&&ss.find(s=>s.id===f.stage))||ss.find(s=>s.name===f.name)||ss.find(s=>f.name&&s.name.includes(f.name))||null; }
+function buildingGeo(work){
+  const fl=(SITE&&SITE.floors)||[]; if(!fl.length||!work.length) return null;
+  const ar=z=>{ const P=z.pts||[{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}]; let a=0; P.forEach((p,i)=>{ const q=P[(i+1)%P.length]; a+=p.x*q.y-q.x*p.y; }); return Math.abs(a)/2; };
+  const tot=work.reduce((s,z)=>s+ar(z),0)||1, P=[];
+  work.filter(z=>ar(z)>tot*0.05).forEach(z=>{ if(z.pts) z.pts.forEach(p=>P.push([p.x,p.y])); else P.push([z.x,z.y],[z.x+z.w,z.y],[z.x+z.w,z.y+z.h],[z.x,z.y+z.h]); });
+  const H=hull2(P); if(H.length<3) return null;
+  const cx=H.reduce((s,p)=>s+p[0],0)/H.length, cy=H.reduce((s,p)=>s+p[1],0)/H.length;
+  let best=0,ux=1,uy=0; H.forEach((p,i)=>{ const q=H[(i+1)%H.length], L=Math.hypot(q[0]-p[0],q[1]-p[1]); if(L>best){ best=L; ux=(q[0]-p[0])/L; uy=(q[1]-p[1])/L; } });
+  const U=p=>p[0]*ux+p[1]*uy, V=p=>-p[0]*uy+p[1]*ux, us=H.map(U), vs=H.map(V);
+  const u0=Math.min(...us), u1=Math.max(...us), v0=Math.min(...vs), v1=Math.max(...vs), len=u1-u0, wid=v1-v0;
+  const mPer=Math.max(0.5,(+SITE.bLen||50)/len);
+  const edges=H.map((p,i)=>{ const q=H[(i+1)%H.length], L=Math.hypot(q[0]-p[0],q[1]-p[1])||1; let nx=(q[1]-p[1])/L, ny=-(q[0]-p[0])/L; const mx=(p[0]+q[0])/2, my=(p[1]+q[1])/2; if((mx-cx)*nx+(my-cy)*ny<0){ nx=-nx; ny=-ny; } return {ax:p[0],ay:p[1],bx:q[0],by:q[1],nx,ny,L}; });
+  const sp=Math.max(0.55,6.5/mPer), cols=[], inner=[];
+  edges.forEach(e=>{ const n=Math.max(1,Math.round(e.L/sp)); for(let i=0;i<n;i++){ const k=i/n; cols.push({x:e.ax+(e.bx-e.ax)*k,y:e.ay+(e.by-e.ay)*k}); } });
+  const inH=(x,y,m)=>edges.every(e=>(x-e.ax)*e.nx+(y-e.ay)*e.ny< -m);
+  const nu=Math.max(1,Math.round(len/sp)), nv=Math.max(1,Math.round(wid/sp));
+  for(let i=1;i<nu;i++) for(let j=1;j<nv;j++){ const u=u0+len*i/nu, v=v0+wid*j/nv, x=u*ux-v*uy, y=u*uy+v*ux; if(inH(x,y,sp*0.3)) inner.push({x,y}); }
+  // ridge for the roof: along the long axis, through the middle
+  const vm=(v0+v1)/2, ra=Math.min(u0+wid/2,(u0+u1)/2), rb=Math.max(u1-wid/2,(u0+u1)/2);
+  const ridge=p=>{ const u=U(p), uc=Math.max(ra,Math.min(rb,u)); return [uc*ux-vm*uy,uc*uy+vm*ux]; };
+  return {H,cx,cy,ux,uy,U,V,u0,u1,v0,v1,nu,nv,mPer,edges,cols,inner,ridge,inH:(x,y)=>inH(x,y,0)};
+}
+function bldgState(st){
+  const B=st&&st.bldg, fl=(SITE&&SITE.floors)||[]; if(!B||!fl.length) return null;
+  let states, clad;
+  if(SIM.bPrev!=null){ if(SIM.bPrev<0) SIM.bPrev=SIM.clock; const n=fl.length, k=(SIM.clock-SIM.bPrev)/1.5; if(k>n+5){ SIM.bPrev=SIM.clock; } const i0=Math.floor(k);
+    states=fl.map((f,i)=>i<i0?'done':i===i0?'doing':'upcoming'); clad=k>=n+0.8; }
+  else { states=fl.map(f=>stageOn(floorStage(f),st.date)); const ws=((SITE&&SITE.stages)||[]).find(s=>/外牆/.test(s.name)); clad=!ws||stageOn(ws,st.date)==='done'; }
+  let last=-1; states.forEach((s,i)=>{ if(s!=='upcoming') last=i; }); if(last<0) return null;
+  const base=+fl[0].base||0, Z=cm=>Math.max(0,((+cm||0)-base)/100/B.mPer);
+  const F=fl.slice(0,last+1).map((f,i)=>({name:f.name,z0:Z(f.base),z1:Math.max(Z(f.base)+0.15,Z(f.top)),state:states[i]==='upcoming'?'done':states[i],roof:/屋頂|屋面|RF/i.test(f.name||'')}));
+  const doing=F.find(f=>f.state==='doing'), top=F[F.length-1];
+  const zA=doing?doing.z0:(clad?null:top.z1);
+  return {F,clad,zA,top:top.z1};
+}
+function bldgFront(B,x,y,z){ if(B.inH(x,y)) return (z||0)>0.6; return B.edges.some(e=>(x-e.ax)*e.nx+(y-e.ay)*e.ny>0&&facing(e.nx,e.ny)>1e-6); }
+function drawBuilding(c,B,S){
+  const SS=SIM.S, lw=k=>Math.max(1,SS*k), N=SIM.night||0;
+  const line=(a,b,col,w)=>{ c.strokeStyle=col; c.lineWidth=w; c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); };
+  const topPoly=z=>B.H.map(p=>SP(p[0],p[1],z));
+  const deck=(z,alpha)=>{ c.fillStyle=`rgba(196,199,194,${alpha})`; sPoly(c,topPoly(z)); c.fill(); c.strokeStyle='rgba(60,60,56,.35)'; c.lineWidth=0.8; c.stroke(); };
+  const front=B.edges.filter(e=>facing(e.nx,e.ny)>1e-6), back=B.edges.filter(e=>!(facing(e.nx,e.ny)>1e-6));
+  const frame=(f,doing)=>{
+    const col=doing?'#B4573E':'#66737E', z0=f.z0, z1=f.z1, cw=lw(doing?0.075:0.06);
+    // beam grid at the top (back half first), columns by depth, then the front perimeter beams and bracing
+    const bm=(a,b)=>line(SP(a[0],a[1],z1),SP(b[0],b[1],z1),col,lw(0.045));
+    back.forEach(e=>bm([e.ax,e.ay],[e.bx,e.by]));
+    c.globalAlpha=0.75;
+    for(let i=1;i<B.nu;i++){ const u=B.u0+(B.u1-B.u0)*i/B.nu, pts=[]; for(let k=0;k<=24;k++){ const v=B.v0+(B.v1-B.v0)*k/24, x=u*B.ux-v*B.uy, y=u*B.uy+v*B.ux; if(B.inH(x,y)) pts.push([x,y]); } if(pts.length>1) bm(pts[0],pts[pts.length-1]); }
+    for(let j=1;j<B.nv;j++){ const v=B.v0+(B.v1-B.v0)*j/B.nv, pts=[]; for(let k=0;k<=48;k++){ const u=B.u0+(B.u1-B.u0)*k/48, x=u*B.ux-v*B.uy, y=u*B.uy+v*B.ux; if(B.inH(x,y)) pts.push([x,y]); } if(pts.length>1) bm(pts[0],pts[pts.length-1]); }
+    c.globalAlpha=1;
+    B.inner.concat(B.cols).slice().sort((a,b)=>DEP(a.x,a.y)-DEP(b.x,b.y)).forEach(p=>{ const a=SP(p.x,p.y,z0), b=SP(p.x,p.y,z1); c.lineCap='butt'; line(a,b,'rgba(0,0,0,.25)',cw+1.2); line(a,b,col,cw); });
+    front.forEach(e=>bm([e.ax,e.ay],[e.bx,e.by]));
+    // X bracing in every other bay of the front walls
+    c.globalAlpha=0.8; front.forEach(e=>{ const n=Math.max(1,Math.round(e.L/Math.max(0.55,6.5/B.mPer))); for(let i=0;i<n;i+=2){ const k0=i/n, k1=(i+1)/n, P=(k,z)=>SP(e.ax+(e.bx-e.ax)*k,e.ay+(e.by-e.ay)*k,z); line(P(k0,z0),P(k1,z1),col,lw(0.02)); line(P(k1,z0),P(k0,z1),col,lw(0.02)); } }); c.globalAlpha=1;
+  };
+  const shell=(f,isTop)=>{
+    const z0=f.z0, z1=f.z1, h=z1-z0, base='#DCE2E7';
+    front.slice().sort((a,b)=>DEP((a.ax+a.bx)/2,(a.ay+a.by)/2)-DEP((b.ax+b.bx)/2,(b.ay+b.by)/2)).forEach(e=>{
+      const P=(k,z)=>SP(e.ax+(e.bx-e.ax)*k,e.ay+(e.by-e.ay)*k,z);
+      c.fillStyle=shadeC(base,faceShade(e.nx,e.ny)); sPoly(c,[P(0,z0),P(1,z0),P(1,z1),P(0,z1)]); c.fill();
+      // corrugated panel ribs
+      const nr=Math.max(4,Math.round(e.L/0.14)); c.strokeStyle='rgba(40,55,65,.10)'; c.lineWidth=1; c.beginPath(); for(let i=1;i<nr;i++){ const a=P(i/nr,z0), b=P(i/nr,z1); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); } c.stroke();
+      if(!f.roof){ // window band
+        const wa=z0+h*0.5, wb=z0+h*0.78, nw=Math.max(2,Math.round(e.L/0.55));
+        for(let i=0;i<nw;i++){ const k0=(i+0.12)/nw, k1=(i+0.88)/nw, q=[P(k0,wa),P(k1,wa),P(k1,wb),P(k0,wb)];
+          c.fillStyle=N>0.25?'#3C4E66':shadeC('#8FB4CC',faceShade(e.nx,e.ny)+0.08); sPoly(c,q); c.fill();
+          if(N>0.25&&SIM.lights&&((i*7+Math.round(z0*10))%3)) SIM.lights.push(q); } }
+      c.strokeStyle='rgba(40,50,60,.45)'; c.lineWidth=1; sPoly(c,[P(0,z0),P(1,z0),P(1,z1),P(0,z1)]); c.stroke();
+    });
+    if(isTop) deck(z1,1);
+  };
+  const roof=(f,open,col)=>{
+    const z0=f.z0, z1=f.z1;
+    if(open){ const pts=B.cols.slice().sort((a,b)=>DEP(a.x,a.y)-DEP(b.x,b.y)); pts.forEach(p=>{ const r=B.ridge([p.x,p.y]); line(SP(p.x,p.y,z0),SP(r[0],r[1],z1),col,lw(0.035)); }); B.edges.forEach(e=>line(SP(e.ax,e.ay,z0),SP(e.bx,e.by,z0),col,lw(0.045)));
+      const r0=B.ridge([B.u0*B.ux,B.u0*B.uy]), r1=B.ridge([B.u1*B.ux,B.u1*B.uy]); line(SP(r0[0],r0[1],z1),SP(r1[0],r1[1],z1),col,lw(0.05)); return; }
+    const faces=B.edges.map(e=>{ const ra=B.ridge([e.ax,e.ay]), rb=B.ridge([e.bx,e.by]); return {e,q:[SP(e.ax,e.ay,z0),SP(e.bx,e.by,z0),SP(rb[0],rb[1],z1),SP(ra[0],ra[1],z1)],d:DEP((e.ax+e.bx+ra[0]+rb[0])/4,(e.ay+e.by+ra[1]+rb[1])/4)}; }).sort((a,b)=>a.d-b.d);
+    faces.forEach(o=>{ c.fillStyle=shadeC('#8FA3B4',faceShade(o.e.nx,o.e.ny)+0.12); sPoly(c,o.q); c.fill(); c.strokeStyle='rgba(30,40,50,.4)'; c.lineWidth=1; c.stroke();
+      const nr=Math.max(4,Math.round(o.e.L/0.2)); c.strokeStyle='rgba(255,255,255,.14)'; c.beginPath(); for(let i=1;i<nr;i++){ const k=i/nr, a=[o.q[0][0]+(o.q[1][0]-o.q[0][0])*k,o.q[0][1]+(o.q[1][1]-o.q[0][1])*k], b=[o.q[3][0]+(o.q[2][0]-o.q[3][0])*k,o.q[3][1]+(o.q[2][1]-o.q[3][1])*k]; c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); } c.stroke(); });
+  };
+  // soft shadow on the ground first
+  if(S.clad||S.F.length>1){ const zt=S.top*0.55, sh=hull2(B.H.concat(B.H.map(p=>[p[0]+zt*0.6,p[1]-zt*0.25]))).map(p=>SP(p[0],p[1],0)); c.fillStyle=`rgba(20,30,40,${S.clad?0.16:0.07})`; sPoly(c,sh); c.fill(); }
+  S.F.forEach((f,i)=>{
+    const nxt=S.F[i+1], isTop=!nxt;
+    if(f.roof){ if(f.state==='doing'||!S.clad) roof(f,true,f.state==='doing'?'#B4573E':'#66737E'); else roof(f,false); return; }
+    if(f.state==='doing'){ frame(f,true); return; }
+    if(S.clad) shell(f,isTop||nxt.state==='doing');
+    else { frame(f,false); deck(f.z1,0.92); }
+  });
+}
 function simBuild(r){
   if(SITE&&(r?r.date:selDate)===TODAY&&todayPunches().length){   // today: engineers on site = whoever is clocked in
     const here=punchedIn(), et=engTradeName(), w0=Object.assign({},(r&&r.workers)||{});
@@ -3176,7 +3352,7 @@ function simBuild(r){
   const pourLater=!todayView&&SIM.half==='am'&&Object.keys(machinesOf(r)).some(k=>{ if(!/押送|泵浦|幫浦|預拌/.test(k)) return false; const x=splitOf(r,k,true); return !x.f&&!x.am&&x.pm>0; });   // morning of an afternoon pour: forms still empty
   props.forEach(o=>{ if(o.fill==='dyn'&&(!pumpV||pumpV.parked||pumpV.zone!==o.zn)){ if(pourLater){ o.fill='empty'; o.filled=false; } else { o.fill='full'; o.filled=true; } } });
   const toG=(x,y)=>({x:MX(x),y:MY(y)}), toN=(gx,gy)=>({x:+(bx0+gx/GW*bw).toFixed(4),y:+(by0+gy/GH*bh).toFixed(4)});
-  const stOut={machCount:MM,drop,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
+  const stOut={bldg:buildingGeo(work),machCount:MM,drop,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
 }
 let z_loadPt=null, st_pipePt=null;
 function inZone(z,x,y){ if(z.pts) return inPolyS([x,y],z.pts.map(p=>[p.x,p.y])); return x>=z.x-0.05&&x<=z.x+z.w+0.05&&y>=z.y-0.05&&y<=z.y+z.h+0.05; }
@@ -4178,7 +4354,7 @@ function simDraw(){
       if(fs>=6){ c.save(); c.transform(dx/Lp,dy/Lp,0,1,a[0],a[1]); c.fillStyle="#2E8B57"; c.textBaseline="middle"; c.textAlign="center"; c.fillText(txt,Lp/2,-zs*0.52); c.restore(); c.textAlign='left'; } } }
 
   // sortable objects
-  const items=[];
+  const items=[], BS=bldgState(st), BG=BS&&st.bldg, onB=(x,y)=>BG&&BS.zA!=null&&BG.inH(x,y);
   st.props.forEach(p=>items.push({d:p.beam?DEP((p.ax+p.bx)/2,(p.ay+p.by)/2)+0.15:p.soil?DEP(p.x,p.y)+p.r*1.3:p.mound?DEP(p.x,p.y):DEP(p.x+p.w*0.5,p.y+p.d*0.5)+Math.max(p.w,p.d)*0.35,f:()=>{ const q=p.strip&&p.stripped?Object.assign({},p,{col:SC.fresh,ply:false,form:false}):p; return q.beam?sPrism(c,q):q.mound?drawMound(c,q):sBox(c,q); }}));
 
   st.props.forEach(o=>{ if(!o.sign) return; const cs=[[o.x+0.12,o.y+0.12],[o.x+o.w-0.12,o.y+0.12],[o.x+o.w-0.12,o.y+o.d-0.12],[o.x+0.12,o.y+o.d-0.12]], q=cs.reduce((a,b)=>DEP(b[0],b[1])<DEP(a[0],a[1])?b:a), z0=(o.z0||0)+o.h;   // the company's flag on the office roof
@@ -4196,9 +4372,9 @@ function simDraw(){
   const above=(x,y,R,d)=>{ FD.forEach(o=>{ const P=o.f.poly; let cx=0,cy=0,rr=0; P.forEach(q=>{cx+=q.x/P.length; cy+=q.y/P.length;}); P.forEach(q=>{ rr=Math.max(rr,Math.hypot(q.x-cx,q.y-cy)); }); if(Math.hypot(x-cx,y-cy)<R+rr) d=Math.max(d,o.d+0.01); });
     LOW.forEach(o=>{ if(Math.hypot(x-o.x,y-o.y)<R+o.r) d=Math.max(d,o.d+0.01); }); return d; };
   FD.forEach(o=>items.push({d:o.d,f:()=>drawFill(c,o.f)}));
-  st.vehicles.filter(v=>!behind(v)).forEach(v=>{ let d=DEP(v.x,v.y)+0.6; { const on=fillUnder(v.x,v.y,0.6); ease(v,on?FILL_H:0); if(on) d=above(v.x,v.y,v.type==='digger'?2.6:1.8,Math.max(d,on.d+0.05)); } items.push({d,f:()=>{ if(ISL.edit&&v.key&&ISL.machSel===v.key){ c.save(); c.strokeStyle='#F5B700'; c.lineWidth=2.5; c.setLineDash([6,4]); c.beginPath(); for(let i=0;i<=24;i++){ const a=i/24*Math.PI*2, q=SP(v.x+Math.cos(a)*1.5,v.y+Math.sin(a)*1.5,v.z||0); i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]); } c.stroke(); c.restore(); } if(v.type!=='digger'&&v.z){ /* lift the whole machine onto the soil */ c.save(); c.translate(0,SP(v.x,v.y,v.z)[1]-SP(v.x,v.y,0)[1]); drawVehicle(c,v,t); c.restore(); } else drawVehicle(c,v,t); }}); });
+  st.vehicles.filter(v=>!behind(v)).forEach(v=>{ let d=DEP(v.x,v.y)+0.6; { const on=fillUnder(v.x,v.y,0.6); ease(v,on?FILL_H:0); if(on) d=above(v.x,v.y,v.type==='digger'?2.6:1.8,Math.max(d,on.d+0.05)); } items.push({x:v.x,y:v.y,z:0,d,f:()=>{ if(ISL.edit&&v.key&&ISL.machSel===v.key){ c.save(); c.strokeStyle='#F5B700'; c.lineWidth=2.5; c.setLineDash([6,4]); c.beginPath(); for(let i=0;i<=24;i++){ const a=i/24*Math.PI*2, q=SP(v.x+Math.cos(a)*1.5,v.y+Math.sin(a)*1.5,v.z||0); i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]); } c.stroke(); c.restore(); } if(v.type!=='digger'&&v.z){ /* lift the whole machine onto the soil */ c.save(); c.translate(0,SP(v.x,v.y,v.z)[1]-SP(v.x,v.y,0)[1]); drawVehicle(c,v,t); c.restore(); } else drawVehicle(c,v,t); }}); });
   st.workers.filter(w=>!behind(w)).forEach(w=>{ let d=DEP(w.x,w.y); const on=FD.find(o=>inPolyS([w.x,w.y],o.f.poly.map(p=>[p.x,p.y]))); if(on) d=Math.max(d,on.d+0.01);
-    /* stand on backfilled soil (and on the beam tops between filled cells), and climb over any 地樑 / column / low stack in the way, stepping up and down smoothly */ { let ct=climbTop(st,w.x,w.y); if(w.state==='walk'&&w.tx!=null){ const dx=w.tx-w.x, dy=w.ty-w.y, dl=Math.hypot(dx,dy); if(dl>0.05) ct=Math.max(ct,climbTop(st,w.x+dx/dl*Math.min(dl,0.22),w.y+dy/dl*Math.min(dl,0.22))); } ease(w,Math.max(fillUnder(w.x,w.y,0.42)?FILL_H:0,ct)); } /* stepping up just before the beam */ if(w.z>0.2) d=above(w.x,w.y,0.5,d); items.push({d,f:()=>drawPerson(c,w,t)}); });
+    /* stand on backfilled soil (and on the beam tops between filled cells), and climb over any 地樑 / column / low stack in the way, stepping up and down smoothly */ { let ct=climbTop(st,w.x,w.y); if(w.state==='walk'&&w.tx!=null){ const dx=w.tx-w.x, dy=w.ty-w.y, dl=Math.hypot(dx,dy); if(dl>0.05) ct=Math.max(ct,climbTop(st,w.x+dx/dl*Math.min(dl,0.22),w.y+dy/dl*Math.min(dl,0.22))); } ease(w,onB(w.x,w.y)?BS.zA:Math.max(fillUnder(w.x,w.y,0.42)?FILL_H:0,ct)); } /* stepping up just before the beam; on the building: stand on the floor being built */ if(w.z>0.2) d=above(w.x,w.y,0.5,d); if(BG&&BG.inH(w.x,w.y)) d=DEP(w.x,w.y)+w.z*0.01; items.push({x:w.x,y:w.y,z:w.z,d,f:()=>drawPerson(c,w,t)}); });
   (st.decor?st.decor.trees:[]).forEach(q=>items.push({d:DEP(q.x,q.y),f:()=>drawTree(c,q,t)}));
   if(st.dog&&!dogBack){ const dg=st.dog; items.push({d:DEP(dg.x,dg.y),f:()=>drawDog(c,dg,t)}); }
   (st.fx||[]).forEach(q=>items.push({d:DEP(q.x,q.y)-0.3,f:()=>{ const k=(t-q.t0)/q.life; if(k<0||k>1) return; const pp=SP(q.x,q.y,0.1+k*0.35); c.fillStyle=`rgba(196,178,146,${0.42*(1-k)})`; c.beginPath(); c.arc(pp[0],pp[1],SIM.S*(0.12+k*0.26),0,Math.PI*2); c.fill(); }}));
@@ -4206,10 +4382,12 @@ function simDraw(){
     items.push({d:DEP(cu.x,cu.y)-0.6,f:()=>{ c.fillStyle='rgba(140,142,138,.85)'; c.beginPath(); c.ellipse(g[0],g[1],S*0.3,S*0.13,0,0,Math.PI*2); c.fill(); c.fillStyle='rgba(255,255,255,.35)'; c.beginPath(); c.ellipse(g[0]-S*0.08,g[1]-S*0.03,S*0.1,S*0.04,0,0,Math.PI*2); c.fill(); }}); }
   // gate posts sort with trucks and people, so a truck in the gate passes between them
   [-1,1].forEach(k=>{ const px=G.G.x+G.t.x*G.half*k, py=G.G.y+G.t.y*G.half*k; items.push({d:DEP(px,py)+0.15,f:()=>sBox(c,{x:px-0.12,y:py-0.12,w:0.24,d:0.24,h:1.25,col:'#5B6770'})}); });
-  if(G3){ SIM.gl.render(st,{t,N,W:SIM.W,H:SIM.H,dpr:SIM.dpr,S:SIM.S,ox:SIM.ox,oy:SIM.oy,rot:ROT.a,cx:ROT.cx,cy:ROT.cy,GW,GH,FILL_H,wx:wxOf(st.weather),edit:!!ISL.edit,lunch:!!st.lunch,tv:st.lunch?(st.lunchT||0):t,machSel:ISL.machSel,soilSel:ISL.soilSel,inZone,company:SITE&&SITE.company,site:SITE&&SITE.name});
+  if(G3){ SIM.gl.render(st,{t,N,W:SIM.W,H:SIM.H,dpr:SIM.dpr,S:SIM.S,ox:SIM.ox,oy:SIM.oy,rot:ROT.a,cx:ROT.cx,cy:ROT.cy,GW,GH,FILL_H,wx:wxOf(st.weather),edit:!!ISL.edit,lunch:!!st.lunch,tv:st.lunch?(st.lunchT||0):t,machSel:ISL.machSel,soilSel:ISL.soilSel,inZone,company:SITE&&SITE.company,site:SITE&&SITE.name,bs:BS});
     st.workers.forEach(w=>{ if(w.inside){ w.sx=-9999; w.sy=-9999; return; } const q=SP(w.x,w.y,(w.z||0)+0.55); w.sx=q[0]; w.sy=q[1]; w.sr=SIM.S*0.4; }); if(st.dog){ const q=SP(st.dog.x,st.dog.y,0.25); st.dog.sx=q[0]; st.dog.sy=q[1];
       if(st.dog.state==='sleep'){ const s0=SIM.S*0.5; c.fillStyle=`rgba(255,255,255,${N>0.3?0.85:0.95})`; c.strokeStyle='rgba(22,34,44,.5)'; c.lineWidth=2.5; c.textAlign='left'; [0,1,2].forEach(i=>{ const k=((t*0.4)+i/3)%1; c.globalAlpha=1-k; c.font=`800 ${Math.max(9,s0*(0.28+k*0.2))}px sans-serif`; const x=q[0]+s0*(0.3+k*0.5), y=q[1]-s0*(0.4+k*1.1); c.strokeText('z',x,y); c.fillText('z',x,y); }); c.globalAlpha=1; } } }   // 小黃 asleep: a few z's drifting up
-  else items.sort((a,b)=>a.d-b.d).forEach(i=>i.f());
+  else { items.sort((a,b)=>a.d-b.d);
+    if(BG){ const post=[]; items.forEach(i=>{ if(i.x!=null&&bldgFront(BG,i.x,i.y,i.z)) post.push(i); else i.f(); }); drawBuilding(c,BG,BS); post.forEach(i=>i.f()); }   // building between what's behind it and what's in front / on top
+    else items.forEach(i=>i.f()); }
   if(!G3&&st.pumpV&&!st.pumpV.hidden) drawBoom(c,st.pumpV,t);
   // water sprays
   (G3?[]:st.sprays).forEach((s,si)=>{
@@ -4266,7 +4444,7 @@ function simDraw(){
   c.textBaseline='middle';
   st.zones.forEach(z=>{
     if(st.zones.some(o=>o!==z&&o.name===z.name&&o.w*o.h>z.w*z.h)) return;   // a zone drawn in pieces gets one label, on its biggest piece
-    const p=z.lab? SP(z.lab.x,z.lab.y,0.2) : z.isYard? SP(z.cx,z.cy+0.6,0.2) : z.pts? SP(z.cx,z.cy,1.6) : SP(z.cx,z.y+0.2,1.6);
+    const zb=(BG&&BG.inH(z.cx,z.cy))?BS.top+0.5:0, p=z.lab? SP(z.lab.x,z.lab.y,0.2+zb) : z.isYard? SP(z.cx,z.cy+0.6,0.2) : z.pts? SP(z.cx,z.cy,1.6+zb) : SP(z.cx,z.y+0.2,1.6+zb);
     c.font=`700 ${Math.max(10,Math.min(13,SIM.S*0.38))}px "Noto Sans TC",sans-serif`;
     const tw=c.measureText(z.name).width, w=tw+22, h=20;
     c.fillStyle='rgba(255,255,255,.95)'; c.strokeStyle=z.status==='doing'?'#E07800':z.status==='done'?'#2F8A57':'#9AA6AF'; c.lineWidth=1.2;

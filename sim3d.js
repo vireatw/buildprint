@@ -318,6 +318,45 @@ export function create(){
     for(let i=0;i<40;i++){ const d=S(0.2,'#C4B292',0,0,0,G.ico,{transparent:true,opacity:0.4,depthWrite:false}); d.material=d.material.clone(); d.castShadow=false; d.receiveShadow=false; d.visible=false; dyn.add(d); dust.push(d); }
     (st.sprays||[]).forEach(s=>{ const g=grp(S(0.08,'#3E8FC4',s.x,0.6,s.y)); const ds=[]; for(let i=0;i<14;i++){ const d=S(0.05,'#4BA3D9',0,0,0,G.ico,{transparent:true,opacity:0.75}); d.castShadow=false; g.add(d); ds.push(d); } dyn.add(g); sprayM.push({s,ds}); });
     selRing=mesh(new T.RingGeometry(1.1,1.25,40),new T.MeshBasicMaterial({color:'#F5B700',side:T.DoubleSide,transparent:true,opacity:0.95}),false); selRing.rotation.x=-Math.PI/2; selRing.visible=false; dyn.add(selRing); }
+  // --- the building, floor by floor (index.html works out the footprint and each floor's state; this draws it) ---
+  let bldM=null, bKey='', bSt=null, bWin=[];
+  function buildBldg(st,S){
+    if(bldM){ world.remove(bldM); bldM.traverse(m=>{ if(m.isInstancedMesh) m.dispose(); }); freeTree(bldM); bldM=null; } bWin=[];
+    const B=st.bldg; if(!B||!S) return; bldM=grp(); world.add(bldM);
+    const H=B.H.map(p=>({x:p[0],y:p[1]})), E=B.edges;
+    // the outline pushed out by d (convex): each corner moves along the two edge normals
+    const out=d=>H.map((p,i)=>{ const e1=E[(i-1+E.length)%E.length], e2=E[i]; let nx=e1.nx+e2.nx, ny=e1.ny+e2.ny; const L=Math.hypot(nx,ny)||1; nx/=L; ny/=L; const c=Math.max(0.3,nx*e2.nx+ny*e2.ny); return {x:p.x+nx*d/c,y:p.y+ny*d/c}; });
+    const prism=(pts,z0,h,mat)=>{ const m=mesh(new T.ExtrudeGeometry(shapeOf(pts),{depth:h,bevelEnabled:false}),typeof mat==='string'?M(mat):mat); m.rotation.x=-Math.PI/2; m.position.y=z0; bldM.add(m); return m; };
+    // steel: one instanced mesh per colour
+    const inst=new Map(), _m=new T.Matrix4(), _p=new T.Vector3(), _s=new T.Vector3(), _d=new T.Vector3();
+    const put=(col,mx)=>{ let L=inst.get(col); if(!L) inst.set(col,L=[]); L.push(mx.clone()); };
+    const post=(col,x,y,z0,z1,th)=>{ _p.set(x,(z0+z1)/2,y); _s.set(th,z1-z0,th); _m.compose(_p,_q.identity(),_s); put(col,_m); };
+    const bar=(col,ax,ay,az,bx,by,bz,th)=>{ _d.set(bx-ax,bz-az,by-ay); const L=_d.length()||1e-4; _p.set((ax+bx)/2,(az+bz)/2,(ay+by)/2); _q.setFromUnitVectors(UP,_d.multiplyScalar(1/L)); _s.set(th,L,th); _m.compose(_p,_q,_s); put(col,_m); };
+    const sp=Math.max(0.55,6.5/B.mPer);
+    const frame=(f,col)=>{ const z0=f.z0, z1=f.z1;
+      B.cols.concat(B.inner).forEach(p=>post(col,p.x,p.y,z0,z1,0.08));
+      E.forEach(e=>{ bar(col,e.ax,e.ay,z1,e.bx,e.by,z1,0.07); const n=Math.max(1,Math.round(e.L/sp)); for(let i=0;i<n;i+=2){ const k0=i/n, k1=(i+1)/n, P=k=>[e.ax+(e.bx-e.ax)*k,e.ay+(e.by-e.ay)*k]; const a=P(k0), b=P(k1); bar(col,a[0],a[1],z0,b[0],b[1],z1,0.025); bar(col,b[0],b[1],z0,a[0],a[1],z1,0.025); } });
+      const line=(fn,n)=>{ const pts=[]; for(let k=0;k<=n;k++){ const q=fn(k/n); if(B.inH(q[0],q[1])) pts.push(q); } if(pts.length>1) bar(col,pts[0][0],pts[0][1],z1,pts[pts.length-1][0],pts[pts.length-1][1],z1,0.05); };
+      const at=(u,v)=>[u*B.ux-v*B.uy,u*B.uy+v*B.ux];
+      for(let i=1;i<B.nu;i++){ const u=B.u0+(B.u1-B.u0)*i/B.nu; line(k=>at(u,B.v0+(B.v1-B.v0)*k),24); }
+      for(let j=1;j<B.nv;j++){ const v=B.v0+(B.v1-B.v0)*j/B.nv; line(k=>at(B.u0+(B.u1-B.u0)*k,v),48); } };
+    const deck=z=>prism(H,z-0.035,0.035,'#C4C7C2');
+    const ridge=p=>{ const r=B.ridge([p.x!=null?p.x:p[0],p.y!=null?p.y:p[1]]); return r; };
+    S.F.forEach((f,i)=>{ const nxt=S.F[i+1], h=f.z1-f.z0;
+      if(f.roof){
+        if(f.state==='doing'||!S.clad){ const col=f.state==='doing'?'#B4573E':'#66737E'; B.cols.forEach(p=>{ const r=ridge(p); bar(col,p.x,p.y,f.z0,r[0],r[1],f.z1,0.05); }); E.forEach(e=>bar(col,e.ax,e.ay,f.z0,e.bx,e.by,f.z0,0.06)); const r0=B.ridge([B.u0*B.ux,B.u0*B.uy]), r1=B.ridge([B.u1*B.ux,B.u1*B.uy]); bar(col,r0[0],r0[1],f.z1,r1[0],r1[1],f.z1,0.06); return; }
+        const pos=[]; const O=out(0.06); O.forEach((a,k)=>{ const b=O[(k+1)%O.length], ra=ridge(H[k]), rb=ridge(H[(k+1)%H.length]); pos.push(a.x,f.z0,a.y, b.x,f.z0,b.y, rb[0],f.z1,rb[1], a.x,f.z0,a.y, rb[0],f.z1,rb[1], ra[0],f.z1,ra[1]); });
+        const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(pos,3)); g.computeVertexNormals(); bldM.add(mesh(g,M('#8FA3B4',{side:T.DoubleSide})));
+        prism(out(0.07),f.z0-0.05,0.05,'#6E7C88'); return; }
+      if(f.state==='doing'){ frame(f,'#B4573E'); return; }
+      if(!S.clad){ frame(f,'#66737E'); deck(f.z1); return; }
+      prism(H,f.z0,h,'#DCE2E7');
+      const wm=M('#8FB4CC',{emissive:'#FFD27A',emissiveIntensity:0}).clone(); wm.userData.cached=false; bWin.push(wm);
+      prism(out(0.015),f.z0+h*0.5,h*0.28,wm); prism(out(0.02),f.z0,0.045,'#9AA5AE');
+      if(!nxt||nxt.state==='doing') deck(f.z1+0.035);
+    });
+    inst.forEach((L,col)=>{ const im=new T.InstancedMesh(G.box,M(col),L.length); L.forEach((mx,i)=>im.setMatrixAt(i,mx)); im.instanceMatrix.needsUpdate=true; im.castShadow=true; im.receiveShadow=true; bldM.add(im); });
+  }
   function resize(W,H,dpr){ R.setPixelRatio(dpr); R.setSize(W,H,false); canvas.style.width=W+'px'; canvas.style.height=H+'px'; }
   let size={W:0,H:0,dpr:0};
   function render(st,v){ if(!st) return; const t=v.t, dt=Math.min(0.1,Math.max(0,t-lastT)); lastT=t;
@@ -325,6 +364,7 @@ export function create(){
     if(built.GW!==v.GW||built.GH!==v.GH||!water) buildBackdrop(v.GW,v.GH);
     const zk=st.zones.map(z=>z.status).join();
     if(built.st!==st||built.props!==st.props||built.fills!==st.fills||built.zk!==zk){ const fresh=built.st!==st; buildStatic(st,v); if(fresh) buildDynamic(st); }
+    { const S=v.bs||null, k=S?JSON.stringify([S.F.map(f=>[f.state,+f.z0.toFixed(2),+f.z1.toFixed(2),f.roof]),S.clad]):''; if(bSt!==st.bldg||bKey!==k){ bSt=st.bldg; bKey=k; buildBldg(st,S); } }
     // camera = SP(): right ∝ (x−y), up-screen ∝ −(x+y), k px per unit in the view plane
     const k=v.S/Math.SQRT2; cam.left=-v.ox/k; cam.right=(v.W-v.ox)/k; cam.top=v.oy/k; cam.bottom=-(v.H-v.oy)/k; cam.position.copy(CAMDIR).multiplyScalar(260); cam.up.set(0,1,0); cam.lookAt(0,0,0); cam.updateProjectionMatrix();
     // turning the site: the world turns about its centre, the light, sea and far shore stay put
@@ -335,7 +375,7 @@ export function create(){
     scene.background=new T.Color(N>0.5?'#24331F':wx.rain?'#8FAE7C':'#A6CF8B'); water.material.color.set(N>0.5?'#3C5236':wx.rain?'#93B57F':'#A6CF8B');
     const work=N>0.25&&!st.gateClosed&&(st.workers.length>0||st.vehicles.some(q=>!q.hidden&&q.type!=='truck'));   // someone is working after dark: the whole site is floodlit
     flood.forEach(f=>{ f.L.intensity=work?0.55*N:0; f.lm.emissiveIntensity=work?3:0; }); if(work){ hemi.intensity+=0.9*N; hemi.color.set('#C9D3EA'); sun.intensity+=0.6*N; sun.color.set('#FFF3DC'); }
-    winMats.forEach(m=>{ m.emissiveIntensity=N>0.25&&!st.gateClosed?1.6:0; }); gatePts.forEach(p=>{ p.m.material.emissiveIntensity=0.4+N*3; }); nightL.forEach(l=>{ l.intensity=N>0.25?l.userData.k*N:0; });
+    winMats.forEach(m=>{ m.emissiveIntensity=N>0.25&&!st.gateClosed?1.6:0; }); bWin.forEach(m=>{ m.emissiveIntensity=N>0.25&&!st.gateClosed?1.1:0; }); gatePts.forEach(p=>{ p.m.material.emissiveIntensity=0.4+N*3; }); nightL.forEach(l=>{ l.intensity=N>0.25?l.userData.k*N:0; });
     // fence: full height at the back, a low rail at the front
     fences.forEach(f=>{ const r0=f.nx*ca-f.ny*sa, r1=f.nx*sa+f.ny*ca, isBack=(r0+r1)<0; f.g.visible=isBack; f.low.visible=!isBack; });
     lamps.forEach(l=>{ const on=Math.sin(t*3.2+l.ph)>0.2; l.m.material.emissiveIntensity=on?1+N*3:0.05; });
