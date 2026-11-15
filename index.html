@@ -481,6 +481,14 @@ textarea{min-height:84px;resize:vertical}
 .dlist .mini{position:absolute;top:2px;right:2px}
 #docSheet .seg{margin-bottom:12px}
 #docSheet .sheet-in{max-height:86vh}
+.isl-cut{position:absolute;left:12px;bottom:calc(var(--plH,96px) + 20px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:2px;min-height:44px;padding:0 4px;border-radius:999px;background:rgba(16,26,36,.86);color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:6}
+.isl-cut[hidden]{display:none}
+#p-island:has(.isl-cut:not([hidden])) .isl-hint,#p-island:has(.isl-bprev) .isl-hint{display:none}
+.isl-cut b{min-width:4.5em;text-align:center;font-size:15px;color:#F5B700;padding:0 4px}
+.isl-cut button{width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:#fff;display:grid;place-items:center}
+.isl-cut button:disabled{opacity:.3}
+.isl-cut svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.isl-btn[aria-pressed=true]{background:#F5B700;color:#16222C}
 .isl-bprev{position:absolute;left:12px;bottom:calc(var(--plH,96px) + 20px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border-radius:999px;border:0;background:rgba(16,26,36,.86);color:#F5B700;font:inherit;font-size:15px;font-weight:700;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:6}
 .zlist,.slist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .zlist li,.slist li{display:flex;gap:8px;align-items:center}
@@ -1235,7 +1243,7 @@ document.addEventListener('DOMContentLoaded',()=>{ const sh=$('#islCrewSheet'), 
 function go(p){
   if(p!=='island'&&FS.on) fsSet(false);
   if(page==='report' && p!=='report' && draftDirty){ /* keep draft, it is restored when coming back */ }
-  if(p!=='island') SIM.bPrev=null;
+  if(p!=='island'){ SIM.bPrev=null; SIM.cut=null; }
   page=p;
   document.body.classList.toggle('island-mode',p==='island');
   $$('[data-p]').forEach(b=>b.setAttribute('aria-selected',b.dataset.p===p));
@@ -1527,13 +1535,14 @@ function renderIsland(){
   el.innerHTML=`<div class="isl-full"><canvas id="sim" role="img" aria-label="工地動畫：依${esc(fmtK(selDate))}日報產生的工地動畫"></canvas><div class="simtip" id="simtip" hidden></div>
     <button class="isl-btn isl-back" id="islBack" aria-label="離開全螢幕，回到今日進度"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
     ${views}
-    <div class="isl-ctl"><button class="isl-btn" id="simPause"></button><button class="isl-btn" id="simFs" aria-label="全螢幕"></button><button class="isl-btn" id="simFsRot" aria-label="切換直向或橫向" hidden><svg viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="13" rx="1.5"/><path d="M4 14v3a3 3 0 0 0 3 3h4"/><path d="M9 18l2 2-2 2"/></svg></button><button class="isl-btn isl-rot" id="simRot" aria-label="轉回正面" title="轉回正面" hidden><svg viewBox="0 0 24 24"><path d="M12 3l4 9h-8z" fill="#FF6B5B" stroke="#FF6B5B"/><path d="M12 21l-4-9h8z" fill="#fff" stroke="#fff"/></svg></button>${(SITE.drawings||[]).length?'<button class="isl-btn" id="simDocs" aria-label="圖說" title="圖說"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></button>':''}</div>
+    <div class="isl-ctl"><button class="isl-btn" id="simPause"></button><button class="isl-btn" id="simFs" aria-label="全螢幕"></button><button class="isl-btn" id="simFsRot" aria-label="切換直向或橫向" hidden><svg viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="13" rx="1.5"/><path d="M4 14v3a3 3 0 0 0 3 3h4"/><path d="M9 18l2 2-2 2"/></svg></button><button class="isl-btn isl-rot" id="simRot" aria-label="轉回正面" title="轉回正面" hidden><svg viewBox="0 0 24 24"><path d="M12 3l4 9h-8z" fill="#FF6B5B" stroke="#FF6B5B"/><path d="M12 21l-4-9h8z" fill="#fff" stroke="#fff"/></svg></button>${(SITE.floors||[]).length?'<button class="isl-btn" id="simCut" aria-label="剖開看各層" title="剖開看各層"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>':''}${(SITE.drawings||[]).length?'<button class="isl-btn" id="simDocs" aria-label="圖說" title="圖說"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></button>':''}</div>
     <div class="isl-date2"><div class="pldate2" id="islCap"></div></div>
     <div id="islTop">${islTopHTML(r)}</div>
     <div class="isl-legend" id="islLegend" aria-label="工地上的工班" hidden></div>
     <div class="isl-hint" aria-hidden="true"><kbd>Shift</kbd>＋滑鼠左鍵左右拖曳：旋轉</div>
     <div class="isl-nonight" id="islNoNight" hidden><b></b><span>沒有夜間施工</span></div>
     ${SIM.bPrev!=null?'<button type="button" class="isl-bprev" id="islBPrev">預覽蓋樓・結束 ✕</button>':''}
+    <div class="isl-cut" id="islCut" ${SIM.cut!=null?'':'hidden'} role="group" aria-label="剖開看各層"><button type="button" data-cut="-1" aria-label="往下一層"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button><b id="islCutName" aria-live="polite"></b><button type="button" data-cut="1" aria-label="往上一層"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button><button type="button" data-cut="x" aria-label="結束剖開看"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <button type="button" class="isl-undo" id="islUndo" hidden aria-label="上一步"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>上一步</button>
     <div class="isl-player" id="islPlayer">
       <div class="plrow">
@@ -1545,6 +1554,7 @@ function renderIsland(){
   $('#islBack').onclick=()=>go('today');
   { const b=$('#islBPrev'); if(b) b.onclick=()=>{ SIM.bPrev=null; b.remove(); }; }
   { const b=$('#simDocs'); if(b) b.onclick=()=>openDocs(); }
+  { const b=$('#simCut'); if(b) b.onclick=()=>cutSet(SIM.cut!=null?null:(SIM.cutLast||0)); cutShow(); $$('#islCut [data-cut]').forEach(x=>x.onclick=()=>{ const d=x.dataset.cut; cutSet(d==='x'?null:Math.max(0,Math.min((SITE.floors||[]).length-1,(SIM.cut||0)+(+d)))); }); }
   $$('#p-island [data-iv]').forEach(b=>b.onclick=()=>{ islStop(); ISL.view=b.dataset.iv; renderIsland(); });
   islBindTop();
   $('#islPlay').onclick=()=>ISL.playing?islStop(true):islPlay();
@@ -2322,6 +2332,7 @@ function floorsCardHTML(ro){ const dis=ro?'disabled':'', fl=SITE.floors||[];
   return `<div class="card form" id="floorCard"><h2>樓層（工地動畫）</h2>
     <p class="note">每層樓板和上緣的高程（cm，照立面圖）。樓層名稱和「工程階段」同名時，動畫跟著階段走：進行中＝鋼構架設中，完成＝蓋好；有「外牆」階段的話，要等它完成才包上外牆板。</p>
     ${fl.length?`<ul class="flist"><li class="fh" aria-hidden="true"><span>樓層</span><span>樓板 cm</span><span>上緣 cm</span><span></span></li>${fl.map((f,i)=>`<li><input type="text" value="${esc(f.name)}" data-fn="${i}" aria-label="樓層名稱" ${dis}><input type="number" inputmode="numeric" value="${+f.base||0}" data-fb="${i}" aria-label="${esc(f.name)} 樓板高程（cm）" ${dis}><input type="number" inputmode="numeric" value="${+f.top||0}" data-ft="${i}" aria-label="${esc(f.name)} 上緣高程（cm）" ${dis}>${ro?'<span></span>':`<button class="mini" data-fdel="${i}" aria-label="刪除 ${esc(f.name)}">✕</button>`}</li>`).join('')}</ul>`:'<p class="muted">還沒有樓層。</p>'}
+    <div class="field"><span class="lbl">平面配置（剖開看各層用）</span><div class="actions">${SITE.layout?`<span class="note">已匯入：${esc((SITE.layout.floors||[]).join('、'))}</span>`:'<span class="note">還沒匯入。由完成圖 DXF 轉出的 .json 檔。</span>'}${ro?'':`<label class="btn"><input type="file" id="fLayIn" accept=".json,application/json" hidden>${SITE.layout?'重新匯入':'匯入平面配置'}</label>`}</div></div>
     <div class="field"><label for="fLen">建物長邊（m）</label><input type="number" id="fLen" inputmode="decimal" value="${+SITE.bLen||50}" ${dis}></div>
     <div class="actions">${ro?'':`<button class="btn" id="fAdd" type="button">＋ 新增樓層</button>${fl.length?'':'<button class="btn" id="fFromStages" type="button">依工程階段產生</button>'}`}${fl.length?'<button class="btn primary" id="fPrev" type="button">預覽蓋樓</button>':''}</div>
   </div>`; }
@@ -2337,7 +2348,7 @@ function drawingsCardHTML(ro){ const ds=SITE.drawings||[];
 function wireFloorsDrawings(ro){
   const el=$('#p-settings'); if(!el) return;
   el.querySelectorAll('[data-dview]').forEach(b=>b.onclick=()=>{ const d=(SITE.drawings||[]).find(d=>d.id===b.dataset.dview); if(d) openLightbox(imgSrc(d),d.name,true); });
-  const pv=$('#fPrev'); if(pv) pv.onclick=()=>{ selDate=TODAY; ISL.view='sim'; go('island'); SIM.bPrev=-1; renderIsland(); toast('預覽：照樓層一層一層蓋起來'); };
+  const pv=$('#fPrev'); if(pv) pv.onclick=()=>{ SIM.cut=null; selDate=TODAY; ISL.view='sim'; go('island'); SIM.bPrev=-1; renderIsland(); toast('預覽：照樓層一層一層蓋起來'); };
   if(ro) return;
   const fl=()=>SITE.floors||(SITE.floors=[]);
   el.querySelectorAll('[data-fn]').forEach(i=>i.onchange=()=>{ const f=fl()[+i.dataset.fn]; if(f){ f.name=i.value.trim()||f.name; saveSite(); } });
@@ -2346,6 +2357,11 @@ function wireFloorsDrawings(ro){
   const fa=$('#fAdd'); if(fa) fa.onclick=()=>{ const L=fl(), p=L[L.length-1], b=p?(+p.top||0):0; L.push({name:'新樓層',base:b,top:b+350}); saveSite(); renderSettings(); };
   const fs=$('#fFromStages'); if(fs) fs.onclick=()=>{ const ss=(SITE.stages||[]).filter(s=>/層|屋頂/.test(s.name)&&!/基礎|地坪|樓版|樓承板/.test(s.name)); if(!ss.length){ toast('工程階段裡沒有「○層」或「屋頂」'); return; }
     let b=0; SITE.floors=ss.map(s=>{ const roof=/屋頂/.test(s.name), h=roof?200:350, f={name:roof?'屋頂':s.name,base:b,top:b+h,stage:s.id}; b+=h; return f; }); saveSite(); renderSettings(); toast('已產生 '+SITE.floors.length+' 層，高程請照立面圖改'); };
+  const li=$('#fLayIn'); if(li) li.onchange=async e=>{ const file=e.target.files[0]; e.target.value=''; if(!file) return;
+    try{ const txt=await file.text(), d=JSON.parse(txt); if(!d||!d.floors||!Object.keys(d.floors).length) throw new Error('fmt');
+      let id; if(MODE==='local') id='l'+uid(); else id=(await ASSETS.upload(new Blob([txt],{type:'application/json'}),{type:'application/json'})).id;
+      LAYOUT={id,data:d}; SITE.layout={id,floors:Object.keys(d.floors),at:TODAY}; await saveSite(); renderSettings(); toast('已匯入 '+Object.keys(d.floors).length+' 層的平面配置');
+    }catch(err){ toast(err&&err.message==='fmt'?'這個檔案不是平面配置':assetErr(err)); } };
   const ln=$('#fLen'); if(ln) ln.onchange=()=>{ const v=+ln.value; if(v>0){ SITE.bLen=v; saveSite(); } };
   el.querySelectorAll('[data-dset]').forEach(b=>b.onclick=()=>{ DSET=b.dataset.dset; el.querySelectorAll('[data-dset]').forEach(x=>x.setAttribute('aria-pressed',x===b)); });
   const di=$('#dIn'); if(di) di.onchange=e=>{ const fs=[...e.target.files]; e.target.value=''; if(fs.length) uploadDrawings(fs); };
@@ -2829,7 +2845,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=7').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=8').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -2888,7 +2904,8 @@ function buildingGeo(work){
 function bldgState(st){
   const B=st&&st.bldg, fl=(SITE&&SITE.floors)||[]; if(!B||!fl.length) return null;
   let states, clad;
-  if(SIM.bPrev!=null){ if(SIM.bPrev<0) SIM.bPrev=SIM.clock; const n=fl.length, k=(SIM.clock-SIM.bPrev)/1.5; if(k>n+5){ SIM.bPrev=SIM.clock; } const i0=Math.floor(k);
+  if(SIM.cut!=null){ const ci=Math.max(0,Math.min(SIM.cut,fl.length-1)); states=fl.map((f,i)=>i<ci?'done':i===ci?'cut':'upcoming'); clad=true; }
+  else if(SIM.bPrev!=null){ if(SIM.bPrev<0) SIM.bPrev=SIM.clock; const n=fl.length, k=(SIM.clock-SIM.bPrev)/1.5; if(k>n+5){ SIM.bPrev=SIM.clock; } const i0=Math.floor(k);
     states=fl.map((f,i)=>i<i0?'done':i===i0?'doing':'upcoming'); clad=k>=n+0.8; }
   else { states=fl.map(f=>stageOn(floorStage(f),st.date)); const ws=((SITE&&SITE.stages)||[]).find(s=>/外牆/.test(s.name)); clad=!ws||stageOn(ws,st.date)==='done'; }
   let last=-1; states.forEach((s,i)=>{ if(s!=='upcoming') last=i; }); if(last<0) return null;
@@ -2896,8 +2913,36 @@ function bldgState(st){
   const F=fl.slice(0,last+1).map((f,i)=>({name:f.name,z0:Z(f.base),z1:Math.max(Z(f.base)+0.15,Z(f.top)),state:states[i]==='upcoming'?'done':states[i],roof:/屋頂|屋面|RF/i.test(f.name||'')}));
   const doing=F.find(f=>f.state==='doing'), top=F[F.length-1];
   const zA=doing?doing.z0:(clad?null:top.z1);
-  return {F,clad,zA,top:top.z1};
+  const cf=F.find(f=>f.state==='cut'); let cut=null;
+  if(cf){ const D=layoutData(), L=D&&layoutFit(B,D).fl[cf.name]; cut={name:cf.name,z0:Math.max(cf.z0,0.5),h:Math.min(cf.z1-cf.z0,1.2/B.mPer),s:L?L.s:null,t:L?L.t:[],key:(SITE.layout&&SITE.layout.id||'')+':'+cf.name+':'+(L?1:0)}; }
+  return {F,clad,zA,top:cf?cut.z0+cut.h:top.z1,cut};
 }
+// ---- 平面配置 (walls of each floor from the 完成圖 DXF, cm along A→H): loaded once, fitted onto the building footprint ----
+let LAYOUT=null, LAYOUT_LOADING=null;
+function layoutData(){ const L=SITE&&SITE.layout; if(!L) return null; if(L.inline) return L.inline; if(LAYOUT&&LAYOUT.id===L.id) return LAYOUT.data;
+  if(!LAYOUT_LOADING||LAYOUT_LOADING.id!==L.id){ const id=L.id; LAYOUT_LOADING={id};
+    (async()=>{ try{ let u=imgSrc({id}); for(let i=0;i<80&&WEB&&WEB.isPending(u);i++){ await new Promise(r=>setTimeout(r,300)); u=WEB.blobSrc(id); }
+      const d=await (await fetch(u)).json(); if(d&&d.floors) LAYOUT={id,data:d}; }catch(e){ console.warn('layout',e); } })(); }
+  return null; }
+function layoutFit(B,D){ if(B._fit&&B._fit.D===D) return B._fit;
+  const fit={D,fl:{}}; B._fit=fit; const P=[];
+  Object.values(D.floors).forEach(f=>{ const s=f.s||[]; for(let i=0;i+1<s.length;i+=2) P.push([s[i],-s[i+1]]); });   // drawing y is up, site plan y is down: mirror once
+  const Hd=hull2(P); if(Hd.length<3) return fit;
+  const cen=Q=>{ let A=0,x=0,y=0; Q.forEach((p,i)=>{ const q=Q[(i+1)%Q.length], c=p[0]*q[1]-q[0]*p[1]; A+=c; x+=(p[0]+q[0])*c; y+=(p[1]+q[1])*c; }); return {A:Math.abs(A/2),x:x/(3*A),y:y/(3*A)}; };
+  const cd=cen(Hd), cb=cen(B.H), k=Math.sqrt(cb.A/(cd.A||1));   // same area as the footprint
+  const mk=th=>{ const c=Math.cos(th), s=Math.sin(th); return (x,y)=>{ const X=(x-cd.x)*k, Y=(-y-cd.y)*k; return [cb.x+X*c-Y*s, cb.y+X*s+Y*c]; }; };
+  const inPoly=(Q,x,y)=>{ let sg=0; for(let i=0;i<Q.length;i++){ const p=Q[i], q=Q[(i+1)%Q.length], c=(q[0]-p[0])*(y-p[1])-(q[1]-p[1])*(x-p[0]); if(c!==0){ if(sg&&Math.sign(c)!==sg) return false; sg=Math.sign(c); } } return true; };
+  const score=th=>{ const g=mk(th), Q=Hd.map(p=>g(p[0],-p[1])), xs=B.H.map(p=>p[0]).concat(Q.map(p=>p[0])), ys=B.H.map(p=>p[1]).concat(Q.map(p=>p[1]));
+    const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys); let both=0, any=0;
+    for(let i=0;i<=28;i++) for(let j=0;j<=28;j++){ const x=x0+(x1-x0)*i/28, y=y0+(y1-y0)*j/28, a1=B.inH(x,y), a2=inPoly(Q,x,y); if(a1&&a2) both++; if(a1||a2) any++; }
+    return both/(any||1); };
+  // turn the drawing until it covers the footprint best (coarse, then fine)
+  let th=0, bs=-1; for(let d=0;d<360;d+=3){ const r=d*Math.PI/180, sc=score(r); if(sc>bs){ bs=sc; th=r; } }
+  for(let d=-3;d<=3;d+=0.5){ const r=th+d*Math.PI/180, sc=score(r); if(sc>bs){ bs=sc; th=r; } }
+  const f=mk(th); fit.score=bs;
+  Object.entries(D.floors).forEach(([nm,F])=>{ const s=F.s||[], o=new Float32Array(s.length); for(let i=0;i+3<s.length;i+=4){ const a=f(s[i],s[i+1]), b=f(s[i+2],s[i+3]); o[i]=a[0]; o[i+1]=a[1]; o[i+2]=b[0]; o[i+3]=b[1]; }
+    fit.fl[nm]={s:o,t:(F.t||[]).map(t=>{ const p=f(t[1],t[2]); return {n:t[0],x:p[0],y:p[1]}; })}; });
+  return fit; }
 function bldgFront(B,x,y,z){ if(B.inH(x,y)) return (z||0)>0.6; return B.edges.some(e=>(x-e.ax)*e.nx+(y-e.ay)*e.ny>0&&facing(e.nx,e.ny)>1e-6); }
 function drawBuilding(c,B,S){
   const SS=SIM.S, lw=k=>Math.max(1,SS*k), N=SIM.night||0;
@@ -2947,6 +2992,10 @@ function drawBuilding(c,B,S){
   if(S.clad||S.F.length>1){ const zt=S.top*0.55, sh=hull2(B.H.concat(B.H.map(p=>[p[0]+zt*0.6,p[1]-zt*0.25]))).map(p=>SP(p[0],p[1],0)); c.fillStyle=`rgba(20,30,40,${S.clad?0.16:0.07})`; sPoly(c,sh); c.fill(); }
   S.F.forEach((f,i)=>{
     const nxt=S.F[i+1], isTop=!nxt;
+    if(f.state==='cut'){ const z0=S.cut?S.cut.z0:f.z0; deck(z0,1); const s=S.cut&&S.cut.s; if(!s) return; const zt=z0+S.cut.h, W=[];
+      for(let k=0;k+3<s.length;k+=4) W.push([s[k],s[k+1],s[k+2],s[k+3],DEP((s[k]+s[k+2])/2,(s[k+1]+s[k+3])/2)]);
+      W.sort((a,b)=>a[4]-b[4]).forEach(w=>{ const q=[SP(w[0],w[1],z0),SP(w[2],w[3],z0),SP(w[2],w[3],zt),SP(w[0],w[1],zt)]; c.fillStyle='#EDE8DF'; sPoly(c,q); c.fill(); c.strokeStyle='rgba(60,55,50,.5)'; c.lineWidth=0.6; c.stroke(); });
+      return; }
     if(f.roof){ if(f.state==='doing'||!S.clad) roof(f,true,f.state==='doing'?'#B4573E':'#66737E'); else roof(f,false); return; }
     if(f.state==='doing'){ frame(f,true); return; }
     if(S.clad) shell(f,isTop||nxt.state==='doing');
@@ -4454,8 +4503,14 @@ function simDraw(){
     c.fillStyle='rgba(22,34,44,.88)'; c.beginPath(); c.roundRect?c.roundRect(p[0]-w/2,p[1]-h/2,w,h,11):c.rect(p[0]-w/2,p[1]-h/2,w,h); c.fill(); c.fillStyle='#F5B700'; c.textBaseline='middle'; c.textAlign='center'; c.fillText(txt,p[0],p[1]+0.5); c.textAlign='left'; }
   // zone labels
   c.textBaseline='middle';
+  if(BS&&BS.cut&&BS.cut.t.length){ const zt=BS.cut.z0+BS.cut.h+0.05, fs=Math.max(9,Math.min(12,SIM.S*0.32)), boxes=[]; c.font=`700 ${fs}px "Noto Sans TC",sans-serif`; c.textAlign='center'; c.lineJoin='round';
+    // room names, longest first, skipping any that would sit on top of one already drawn
+    BS.cut.t.filter(r=>!/\d+\s*\*\s*\d+/.test(r.n)).slice().sort((a,b)=>b.n.length-a.n.length).forEach(r=>{ const p=SP(r.x,r.y,zt), w=c.measureText(r.n).width+6, h=fs+4, bx=[p[0]-w/2,p[1]-h/2,p[0]+w/2,p[1]+h/2];
+      if(boxes.some(q=>bx[0]<q[2]&&bx[2]>q[0]&&bx[1]<q[3]&&bx[3]>q[1])) return; boxes.push(bx);
+      c.lineWidth=3; c.strokeStyle='rgba(255,255,255,.92)'; c.strokeText(r.n,p[0],p[1]); c.fillStyle='#16222C'; c.fillText(r.n,p[0],p[1]); }); c.textAlign='left'; }
   st.zones.forEach(z=>{
     if(st.zones.some(o=>o!==z&&o.name===z.name&&o.w*o.h>z.w*z.h)) return;   // a zone drawn in pieces gets one label, on its biggest piece
+    if(BS&&BS.cut&&BG.inH(z.cx,z.cy)) return;   // 剖開看: the rooms are named instead
     const zb=(BG&&BG.inH(z.cx,z.cy))?BS.top+0.5:0, p=z.lab? SP(z.lab.x,z.lab.y,0.2+zb) : z.isYard? SP(z.cx,z.cy+0.6,0.2) : z.pts? SP(z.cx,z.cy,1.6+zb) : SP(z.cx,z.y+0.2,1.6+zb);
     c.font=`700 ${Math.max(10,Math.min(13,SIM.S*0.38))}px "Noto Sans TC",sans-serif`;
     const tw=c.measureText(z.name).width, w=tw+22, h=20;
@@ -4858,6 +4913,12 @@ async function buildPdf(kind,ds,from,to){
 
 /* ============ lightbox ============ */
 let DOCSET=null;
+function cutSet(i){ SIM.cut=i; if(i!=null){ SIM.cutLast=i; SIM.bPrev=null; const b=$('#islBPrev'); if(b) b.remove();
+    if(!SITE.layout) toast('還沒有平面配置，只看得到樓板：到「設定 → 樓層」匯入'); }
+  cutShow(); }
+function cutShow(){ const el=$('#islCut'); if(!el) return; el.hidden=SIM.cut==null; const sb=$('#simCut'); if(sb) sb.setAttribute('aria-pressed',SIM.cut!=null);
+  if(SIM.cut==null) return; const fl=SITE.floors||[], i=Math.min(SIM.cut,fl.length-1); $('#islCutName').textContent=(fl[i]&&fl[i].name)||'';
+  el.querySelector('[data-cut="-1"]').disabled=i<=0; el.querySelector('[data-cut="1"]').disabled=i>=fl.length-1; }
 function openDocs(set){
   const sh=$('#docSheet'), ds=SITE&&SITE.drawings||[]; if(!sh) return;
   const has=k=>ds.some(d=>(DSETS.includes(d.set)?d.set:'其他')===k), sets=DSETS.filter(has);

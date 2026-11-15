@@ -319,7 +319,7 @@ export function create(){
     (st.sprays||[]).forEach(s=>{ const g=grp(S(0.08,'#3E8FC4',s.x,0.6,s.y)); const ds=[]; for(let i=0;i<14;i++){ const d=S(0.05,'#4BA3D9',0,0,0,G.ico,{transparent:true,opacity:0.75}); d.castShadow=false; g.add(d); ds.push(d); } dyn.add(g); sprayM.push({s,ds}); });
     selRing=mesh(new T.RingGeometry(1.1,1.25,40),new T.MeshBasicMaterial({color:'#F5B700',side:T.DoubleSide,transparent:true,opacity:0.95}),false); selRing.rotation.x=-Math.PI/2; selRing.visible=false; dyn.add(selRing); }
   // --- the building, floor by floor (index.html works out the footprint and each floor's state; this draws it) ---
-  let bldM=null, bKey='', bSt=null, bWin=[];
+  let bldM=null, bKey='', bSt=null, bWin=[]; const UPY=new T.Vector3(0,1,0);
   function buildBldg(st,S){
     if(bldM){ world.remove(bldM); bldM.traverse(m=>{ if(m.isInstancedMesh) m.dispose(); }); freeTree(bldM); bldM=null; } bWin=[];
     const B=st.bldg; if(!B||!S) return; bldM=grp(); world.add(bldM);
@@ -343,6 +343,12 @@ export function create(){
     const deck=z=>prism(H,z-0.035,0.035,'#C4C7C2');
     const ridge=p=>{ const r=B.ridge([p.x!=null?p.x:p[0],p.y!=null?p.y:p[1]]); return r; };
     S.F.forEach((f,i)=>{ const nxt=S.F[i+1], h=f.z1-f.z0;
+      if(f.state==='cut'){   // 剖開看: this floor's slab and its walls cut at about 1.2 m, nothing above
+        const C=S.cut, z0=C?C.z0:f.z0; prism(out(0.02),z0-0.06,0.06,'#B9B3A8'); const s=C&&C.s; if(!s) return;
+        const wh=C.h, th=0.03;
+        for(let k=0;k+3<s.length;k+=4){ const ax=s[k], ay=s[k+1], bx=s[k+2], by=s[k+3], dx=bx-ax, dy=by-ay, L=Math.hypot(dx,dy); if(L<1e-3) continue;
+          _p.set((ax+bx)/2,z0+wh/2,(ay+by)/2); _q.setFromAxisAngle(UPY,Math.atan2(-dy,dx)); _s.set(L+th*0.5,wh,th); _m.compose(_p,_q,_s); put('#FBF8F2',_m); }
+        return; }
       if(f.roof){
         if(f.state==='doing'||!S.clad){ const col=f.state==='doing'?'#B4573E':'#66737E'; B.cols.forEach(p=>{ const r=ridge(p); bar(col,p.x,p.y,f.z0,r[0],r[1],f.z1,0.05); }); E.forEach(e=>bar(col,e.ax,e.ay,f.z0,e.bx,e.by,f.z0,0.06)); const r0=B.ridge([B.u0*B.ux,B.u0*B.uy]), r1=B.ridge([B.u1*B.ux,B.u1*B.uy]); bar(col,r0[0],r0[1],f.z1,r1[0],r1[1],f.z1,0.06); return; }
         const pos=[]; const O=out(0.06); O.forEach((a,k)=>{ const b=O[(k+1)%O.length], ra=ridge(H[k]), rb=ridge(H[(k+1)%H.length]); pos.push(a.x,f.z0,a.y, b.x,f.z0,b.y, rb[0],f.z1,rb[1], a.x,f.z0,a.y, rb[0],f.z1,rb[1], ra[0],f.z1,ra[1]); });
@@ -364,7 +370,7 @@ export function create(){
     if(built.GW!==v.GW||built.GH!==v.GH||!water) buildBackdrop(v.GW,v.GH);
     const zk=st.zones.map(z=>z.status).join();
     if(built.st!==st||built.props!==st.props||built.fills!==st.fills||built.zk!==zk){ const fresh=built.st!==st; buildStatic(st,v); if(fresh) buildDynamic(st); }
-    { const S=v.bs||null, k=S?JSON.stringify([S.F.map(f=>[f.state,+f.z0.toFixed(2),+f.z1.toFixed(2),f.roof]),S.clad]):''; if(bSt!==st.bldg||bKey!==k){ bSt=st.bldg; bKey=k; buildBldg(st,S); } }
+    { const S=v.bs||null, k=S?JSON.stringify([S.F.map(f=>[f.state,+f.z0.toFixed(2),+f.z1.toFixed(2),f.roof]),S.clad,S.cut&&S.cut.key]):''; if(bSt!==st.bldg||bKey!==k){ bSt=st.bldg; bKey=k; buildBldg(st,S); } }
     // camera = SP(): right ∝ (x−y), up-screen ∝ −(x+y), k px per unit in the view plane
     const k=v.S/Math.SQRT2; cam.left=-v.ox/k; cam.right=(v.W-v.ox)/k; cam.top=v.oy/k; cam.bottom=-(v.H-v.oy)/k; cam.position.copy(CAMDIR).multiplyScalar(260); cam.up.set(0,1,0); cam.lookAt(0,0,0); cam.updateProjectionMatrix();
     // turning the site: the world turns about its centre, the light, sea and far shore stay put
