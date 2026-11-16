@@ -42,3 +42,10 @@ A construction daily-report app (工地日報) for Taiwanese job sites. Crews an
 
 ## Testing
 No network on Claude's side is guaranteed, so test with a fake Firebase: serve the repo with `python3 -m http.server`, set `window.BP_FB_BASE = '/fakefb/'` before backend.js loads, and provide in-memory `firebase-app.js`, `firebase-auth.js`, `firebase-firestore.js` there. Check on a 390×844 viewport.
+
+## Foundation ↔ floor plans alignment (Nov 2026)
+- Every floor of the 平面配置 shares one grid (A=0, axis 1=714 cm; checked against the bubbles of A2.01–A2.06 and S1.01–S1.06).
+- `plan.at` in the 平面配置 = two grid points with their place on the plan drawing (0–1). `planFit` puts the building exactly there (`fit.exact`); it is ignored when the drawing's aspect differs or the drawn 地樑 no longer follow `beams`, and the old zone fit takes over.
+- `beams` = 地樑 centre lines of the structural drawing (cm). With an exact fit, `beamSnap` moves hand-drawn beams onto them (reach 150 cm) before `fenceClamp`. SITE.beams itself is never rewritten.
+- `margin` (cm) = how far outside the outline a line may lie and still belong to a floor (default 60). Site lines (boundary wall, ditches) are removed when the file is built.
+- The sim is rebuilt once when the 平面配置 finishes loading (simMount key), so the beams can settle.
