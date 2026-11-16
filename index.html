@@ -2845,7 +2845,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=13').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=14').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -2951,38 +2951,87 @@ function footprintGeo(H0,mPer,extra){
   return Object.assign({H,cx,cy,ux,uy,U,V,u0,u1,v0,v1,nu,nv,mPer,edges,cols,inner,ridge,convex,inH:inside},extra||{}); }
 // stretches of a line that lie inside the footprint: [[first point, last point], …]
 function insideRuns(B,fn,n){ const R=[]; let run=null; for(let k=0;k<=n;k++){ const q=fn(k/n); if(B.inH(q[0],q[1])){ if(run) run[1]=q; else run=[q,q]; } else if(run){ R.push(run); run=null; } } if(run) R.push(run); return R.filter(r=>r[0]!==r[1]); }
-// the building's own outline from the 完成圖 (cm, y up), turned, scaled and moved until it covers the zones best; its scale also sets metres per grid unit
+// signed distance to a polygon's outline, + inside
+function polySD(P,x,y){ let d=1e9; for(let i=0;i<P.length;i++){ const p=P[i], q=P[(i+1)%P.length]; d=Math.min(d,segDist(x,y,p[0],p[1],q[0],q[1])); } return inPolyS([x,y],P)?d:-d; }
+// the main direction of a set of lines [x1,y1,x2,y2], modulo 90°: the one with the most length within 3° of it (null when there are none)
+function domAngle(L){ const Q=Math.PI/2, tol=3*Math.PI/180, it=[];
+  L.forEach(s=>{ const dx=s[2]-s[0], dy=s[3]-s[1], l=Math.hypot(dx,dy); if(l>1e-6) it.push({a:((Math.atan2(dy,dx)%Q)+Q)%Q,l}); }); if(!it.length) return null;
+  const dd=(a,b)=>{ const d=a-b; return d-Q*Math.round(d/Q); }; let best=0, bw=-1;
+  it.forEach(c=>{ const w=it.reduce((s,o)=>s+(Math.abs(dd(o.a,c.a))<tol?o.l:0),0); if(w>bw){ bw=w; best=c.a; } });
+  let sw=0, sd=0; it.forEach(o=>{ const d=dd(o.a,best); if(Math.abs(d)<tol){ sw+=o.l; sd+=o.l*d; } }); return best+(sw?sd/sw:0); }
+// 地樑 drawn on the fence line (or just past it) come inside, so the foundation never pokes through the fence:
+// a beam running along a fence edge moves in as a whole until its sides and column heads clear the fence,
+// beams meeting it follow along their own line, and any end still too close slides back along its beam
+function fenceClamp(segs,BND){
+  if(!segs.length||!BND||BND.length<3) return segs;
+  const HB=0.23, CH=0.23, GAP=0.06, PAR=Math.sin(10*Math.PI/180), TOL=0.3;
+  let ar=0; BND.forEach((p,i)=>{ const q=BND[(i+1)%BND.length]; ar+=p.x*q.y-q.x*p.y; }); const sg=ar>=0?1:-1;
+  const E=BND.map((p,i)=>{ const q=BND[(i+1)%BND.length], L=Math.hypot(q.x-p.x,q.y-p.y)||1, ux=(q.x-p.x)/L, uy=(q.y-p.y)/L, nx=-uy*sg, ny=ux*sg;
+    return {ax:p.x,ay:p.y,ux,uy,nx,ny,L,need:Math.max(HB,CH*(Math.abs(nx)+Math.abs(ny)))+GAP}; });
+  const dE=(e,x,y)=>(x-e.ax)*e.nx+(y-e.ay)*e.ny, sE=(e,x,y)=>(x-e.ax)*e.ux+(y-e.ay)*e.uy;
+  const S=segs.map(g=>{ const vx=(g.x2-g.x1)/g.len, vy=(g.y2-g.y1)/g.len; let sx=0, sy=0;
+    E.forEach(e=>{ if(Math.abs(vx*e.uy-vy*e.ux)>PAR) return;
+      const s1=sE(e,g.x1,g.y1), s2=sE(e,g.x2,g.y2), lo=Math.max(Math.min(s1,s2),0), hi=Math.min(Math.max(s1,s2),e.L); if(hi-lo<0.3) return;
+      const at=s=>{ const t=(s-s1)/((s2-s1)||1e-9); return dE(e,g.x1+(g.x2-g.x1)*t,g.y1+(g.y2-g.y1)*t); }, d=Math.min(at(lo),at(hi));
+      if(d>=e.need||d<-1.5) return; const m=e.need-d; sx+=e.nx*m; sy+=e.ny*m; });
+    return {g,vx,vy,sx,sy,x1:g.x1,y1:g.y1,x2:g.x2,y2:g.y2}; });
+  if(!S.some(s=>s.sx||s.sy)&&!segs.some(g=>E.some(e=>[[g.x1,g.y1],[g.x2,g.y2]].some(([x,y])=>{ const s=sE(e,x,y); return s>-0.05&&s<e.L+0.05&&dE(e,x,y)<e.need&&dE(e,x,y)>-1.5; })))) return segs;
+  // ends where beams meet: the crossing of the two (moved) lines
+  const cross=(a,b)=>{ const px=a.x1+a.sx, py=a.y1+a.sy, qx=b.x1+b.sx, qy=b.y1+b.sy, den=a.vx*b.vy-a.vy*b.vx; if(Math.abs(den)<1e-9) return null; const t=((qx-px)*b.vy-(qy-py)*b.vx)/den; return [px+a.vx*t,py+a.vy*t]; };
+  S.forEach((a,i)=>{ [1,2].forEach(k=>{ const x=a['x'+k], y=a['y'+k]; let best=null, bm=-1;
+      S.forEach((b,j)=>{ if(j===i||Math.abs(a.vx*b.vy-a.vy*b.vx)<PAR) return; const L=b.g.len, ex=b.vx*TOL, ey=b.vy*TOL;
+        if(segDist(x,y,b.x1-ex,b.y1-ey,b.x2+ex,b.y2+ey)>TOL) return; const m=Math.hypot(b.sx,b.sy); if(m>bm){ bm=m; best=b; } });
+      let p=null; if(best&&(bm>0||a.sx||a.sy)) p=cross(a,best);
+      if(p&&Math.hypot(p[0]-x,p[1]-y)>1.5) p=null; if(!p) p=[x+a.sx,y+a.sy];
+      a['n'+k]=p; }); });
+  S.forEach(a=>{ a.g.x1=a.n1[0]; a.g.y1=a.n1[1]; a.g.x2=a.n2[0]; a.g.y2=a.n2[1]; });
+  // any end still too close to the fence slides back along its own beam
+  S.forEach(a=>{ const g=a.g; [1,2].forEach(k=>{ E.forEach(e=>{ const x=g['x'+k], y=g['y'+k], s=sE(e,x,y), d=dE(e,x,y); if(s<-0.05||s>e.L+0.05||d>=e.need||d<-1.5) return;
+      const o=k===1?2:1, L=Math.hypot(g['x'+o]-x,g['y'+o]-y)||1e-9, wx=(g['x'+o]-x)/L, wy=(g['y'+o]-y)/L, c=wx*e.nx+wy*e.ny; if(c<0.2) return;
+      const t=Math.min((e.need-d)/c,L-0.3); if(t>0){ g['x'+k]=x+wx*t; g['y'+k]=y+wy*t; } }); }); });
+  segs.forEach(g=>{ g.len=Math.hypot(g.x2-g.x1,g.y2-g.y1); });
+  return segs.filter(g=>g.len>0.1); }
+// the building's own outline from the 完成圖 (cm, y up), turned, scaled and moved until it covers the zones best; its scale also sets metres per grid unit.
+// It turns with the site's own lines (beams, zone edges) and stays inside the fence.
 const _olCache=new Map();
 function outlineGeo(B,D){
   const O=(D.outline||[]).map(p=>[+p[0],+p[1]]); if(O.length<3||!B||!B.zones) return null;
   const Om=O.map(p=>[p[0],-p[1]]), cO=polyC(Om), aO=Math.abs(polyA(Om)), aZ=Math.abs(polyA(B.H)); if(!(aO>0&&aZ>0)) return null;
   const mk=q=>{ const c=Math.cos(q.th), s=Math.sin(q.th); return (x,y)=>{ const X=(x-cO[0])*q.k, Y=(-y-cO[1])*q.k; return [q.tx+X*c-Y*s, q.ty+X*s+Y*c]; }; };
-  const key=JSON.stringify([O,B.zones.map(P=>P.map(p=>[+p[0].toFixed(3),+p[1].toFixed(3)]))]);
+  const fence=(B.fence&&B.fence.length>2)?B.fence:null, ori=(B.ori!=null&&isFinite(B.ori))?B.ori:null;
+  const key=JSON.stringify([O,B.zones.map(P=>P.map(p=>[+p[0].toFixed(3),+p[1].toFixed(3)])),fence&&fence.map(p=>[+p[0].toFixed(3),+p[1].toFixed(3)]),ori==null?null:+ori.toFixed(4)]);
   let q=_olCache.get(key);
   if(!q){
-    const inZ=(x,y)=>B.zones.some(P=>inPolyS([x,y],P)), xs0=B.H.map(p=>p[0]), ys0=B.H.map(p=>p[1]);
-    const score=t=>{ const g=mk(t), Q=O.map(p=>g(p[0],p[1])), xs=xs0.concat(Q.map(p=>p[0])), ys=ys0.concat(Q.map(p=>p[1]));
+    const inZ=(x,y)=>B.zones.some(P=>inPolyS([x,y],P)), xs0=B.H.map(p=>p[0]), ys0=B.H.map(p=>p[1]), FM=0.08, NS=8;
+    const iouOf=Q=>{ const xs=xs0.concat(Q.map(p=>p[0])), ys=ys0.concat(Q.map(p=>p[1]));
       const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys), n=30; let both=0, any=0;
       for(let i=0;i<n;i++) for(let j=0;j<n;j++){ const x=x0+(x1-x0)*(i+0.5)/n, y=y0+(y1-y0)*(j+0.5)/n, a=inZ(x,y), b=inPolyS([x,y],Q); if(a&&b) both++; if(a||b) any++; }
       return both/(any||1); };
-    let bs=-1; const k0=Math.sqrt(aZ/aO);
-    for(let d=0;d<360;d+=4){ const t={th:d*Math.PI/180,k:k0,tx:B.cx,ty:B.cy}, s=score(t); if(s>bs){ bs=s; q=t; } }
-    const step={th:2*Math.PI/180,k:k0*0.04,tx:0.25,ty:0.25};
-    for(let lv=0;lv<6;lv++){ for(let rep=0;rep<4;rep++){ let moved=false;
-        for(const key2 of ['th','k','tx','ty']) for(const sg of [1,-1]){ const t=Object.assign({},q,{[key2]:q[key2]+sg*step[key2]}), s=score(t); if(s>bs+1e-9){ bs=s; q=t; moved=true; } }
+    // how far the walls reach past the fence (less a small gap)
+    const outOf=Q=>{ if(!fence) return 0; let v=0; Q.forEach((a,i)=>{ const b=Q[(i+1)%Q.length]; for(let k=0;k<NS;k++){ const t=k/NS, d=FM-polySD(fence,a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t); if(d>v) v=d; } }); return v; };
+    const score=t=>{ const g=mk(t), Q=O.map(p=>g(p[0],p[1])), iou=iouOf(Q), out=outOf(Q); return {s:iou-4*out,iou,out}; };
+    let bs={s:-1e9}; const k0=Math.sqrt(aZ/aO);
+    const oO=domAngle(Om.map((p,i)=>{ const r=Om[(i+1)%Om.length]; return [p[0],p[1],r[0],r[1]]; })), fixed=ori!=null&&oO!=null;
+    const ths=[]; if(fixed) for(let m=0;m<4;m++) ths.push(ori-oO+m*Math.PI/2); else for(let d=0;d<360;d+=4) ths.push(d*Math.PI/180);
+    ths.forEach(th=>{ const t={th,k:k0,tx:B.cx,ty:B.cy}, s=score(t); if(s.s>bs.s){ bs=s; q=t; } });
+    const keys=fixed?['k','tx','ty']:['th','k','tx','ty'], step={th:2*Math.PI/180,k:k0*0.04,tx:0.25,ty:0.25};
+    for(let lv=0;lv<7;lv++){ for(let rep=0;rep<8;rep++){ let moved=false;
+        for(const key2 of keys) for(const sg of [1,-1]){ const t=Object.assign({},q,{[key2]:q[key2]+sg*step[key2]}), s=score(t); if(s.s>bs.s+1e-9){ bs=s; q=t; moved=true; } }
         if(!moved) break; }
       for(const key2 in step) step[key2]/=2; }
-    q=Object.assign({},q,{score:bs}); _olCache.set(key,q); }
+    q=Object.assign({},q,{score:bs.iou,out:bs.out}); _olCache.set(key,q); }
   if(q.score<0.5) return null;   // the drawing doesn't sit on these zones: keep the zones
   const f=mk(q), c=Math.cos(q.th), s=Math.sin(q.th);
   const inv=(x,y)=>{ const X=x-q.tx, Y=y-q.ty, Xr=X*c+Y*s, Yr=-X*s+Y*c; return [Xr/q.k+cO[0], -(Yr/q.k+cO[1])]; };
-  return footprintGeo(O.map(p=>f(p[0],p[1])),1/(100*q.k),{zones:B.zones,fit:{f,inv,th:q.th,k:q.k,score:q.score}}); }
-function buildingGeo(work){
+  return footprintGeo(O.map(p=>f(p[0],p[1])),1/(100*q.k),{zones:B.zones,fit:{f,inv,th:q.th,k:q.k,score:q.score,out:q.out}}); }
+function buildingGeo(work,fence,lines){
   const fl=(SITE&&SITE.floors)||[]; if(!fl.length||!work.length) return null;
   const polys=work.map(z=>z.pts?z.pts.map(p=>[p.x,p.y]):[[z.x,z.y],[z.x+z.w,z.y],[z.x+z.w,z.y+z.h],[z.x,z.y+z.h]]), ar=polys.map(P=>Math.abs(polyA(P))), tot=ar.reduce((s,v)=>s+v,0)||1;
   const Z=polys.filter((P,i)=>ar[i]>tot*0.05); if(!Z.length) return null;
-  // the building stands on the work zones as drawn, notches and all (not on their convex hull)
-  const B=footprintGeo(zonesOutline(Z)||hull2([].concat(...Z)),0,{zones:Z}); if(!B) return null;
+  // the site's own lines (the beams, else the zone edges) say which way the building's walls run
+  const ori=domAngle(lines&&lines.length?lines:[].concat(...Z.map(P=>P.map((p,i)=>{ const q=P[(i+1)%P.length]; return [p[0],p[1],q[0],q[1]]; }))));
+  // the building stands on the work zones as drawn, notches and all (not on their convex hull), inside the fence
+  const B=footprintGeo(zonesOutline(Z)||hull2([].concat(...Z)),0,{zones:Z,fence:fence&&fence.length>2?fence.map(p=>[p.x,p.y]):null,ori}); if(!B) return null;
   const LD=layoutData(); return (LD&&LD.outline&&outlineGeo(B,LD))||B; }
 function bldgState(st){
   let B=st&&st.bldg; const fl=(SITE&&SITE.floors)||[]; if(!B||!fl.length) return null;
@@ -3244,6 +3293,7 @@ function simBuild(r){
     if(/養護|灑水/.test(z.doing)) sprays.push({x:z.cx,y:z.cy,r:Math.min(z.w,z.h)*0.45});
     if(!offNow && !(r&&r.machines&&Object.keys(r.machines).length) && /(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing) && !vehicles.some(v=>v.type==='mixer')) vehicles.push({type:'mixer',x:yard?park.x:park.x+GT.t.x*2.4,y:yard?park.y:park.y+GT.t.y*2.4,dir:Math.atan2(GT.t.y,GT.t.x)});
   });
+  let beamLines=null;
   if(realBeams){
     const wz=zones.filter(z=>!z.isGate&&!z.isStore&&!z.isYard);
     const zoneAt=(x,y)=>wz.find(z=>inZone(z,x,y));
@@ -3262,7 +3312,8 @@ function simBuild(r){
       else if(m==='form'){ const st0=modeOf(zn)==='strip'; props.push({beam:true,ax,ay,bx,by,wd:TH+0.12,h:0.56,col:SC.ply,ply:true,form:true,fill:fl,filled:fl==='full',zn,strip:st0,stripped:st0&&rng()<0.3}); }   // 拆模: boards come off one by one (stripStep)
       else props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.46,col:m==='fresh'?SC.fresh:SC.concrete});
     };
-    const segs=SITE.beams.map(b=>({x1:MX(+b.x1),y1:MY(+b.y1),x2:MX(+b.x2),y2:MY(+b.y2)})).map(g=>Object.assign(g,{len:Math.hypot(g.x2-g.x1,g.y2-g.y1)})).filter(g=>g.len>0.1);
+    const segs=fenceClamp(SITE.beams.map(b=>({x1:MX(+b.x1),y1:MY(+b.y1),x2:MX(+b.x2),y2:MY(+b.y2)})).map(g=>Object.assign(g,{len:Math.hypot(g.x2-g.x1,g.y2-g.y1)})).filter(g=>g.len>0.1),BND);   // never through the fence
+    beamLines=segs.map(g=>[g.x1,g.y1,g.x2,g.y2]);
     const cross=(A,B)=>{ const dx1=A.x2-A.x1, dy1=A.y2-A.y1, dx2=B.x2-B.x1, dy2=B.y2-B.y1, den=dx1*dy2-dy1*dx2; if(Math.abs(den)<1e-9) return null;
       const t=((B.x1-A.x1)*dy2-(B.y1-A.y1)*dx2)/den, u=((B.x1-A.x1)*dy1-(B.y1-A.y1)*dx1)/den, ta=0.25/A.len, tb=0.25/B.len;
       if(t<-ta||t>1+ta||u<-tb||u>1+tb) return null; const tc=Math.max(0,Math.min(1,t)); return {t:tc,x:A.x1+dx1*tc,y:A.y1+dy1*tc}; };
@@ -3531,7 +3582,7 @@ function simBuild(r){
   const pourLater=!todayView&&SIM.half==='am'&&Object.keys(machinesOf(r)).some(k=>{ if(!/押送|泵浦|幫浦|預拌/.test(k)) return false; const x=splitOf(r,k,true); return !x.f&&!x.am&&x.pm>0; });   // morning of an afternoon pour: forms still empty
   props.forEach(o=>{ if(o.fill==='dyn'&&(!pumpV||pumpV.parked||pumpV.zone!==o.zn)){ if(pourLater){ o.fill='empty'; o.filled=false; } else { o.fill='full'; o.filled=true; } } });
   const toG=(x,y)=>({x:MX(x),y:MY(y)}), toN=(gx,gy)=>({x:+(bx0+gx/GW*bw).toFixed(4),y:+(by0+gy/GH*bh).toFixed(4)});
-  const stOut={bldg:buildingGeo(work),machCount:MM,drop,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
+  const stOut={bldg:buildingGeo(work,BND,beamLines),machCount:MM,drop,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
 }
 let z_loadPt=null, st_pipePt=null;
 function inZone(z,x,y){ if(z.pts) return inPolyS([x,y],z.pts.map(p=>[p.x,p.y])); return x>=z.x-0.05&&x<=z.x+z.w+0.05&&y>=z.y-0.05&&y<=z.y+z.h+0.05; }
