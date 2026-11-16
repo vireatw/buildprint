@@ -324,7 +324,7 @@ export function create(){
     if(bldM){ world.remove(bldM); bldM.traverse(m=>{ if(m.isInstancedMesh) m.dispose(); }); freeTree(bldM); bldM=null; } bWin=[];
     const B=st.bldg; if(!B||!S) return; bldM=grp(); world.add(bldM);
     const H=B.H.map(p=>({x:p[0],y:p[1]})), E=B.edges;
-    // the outline pushed out by d (convex): each corner moves along the two edge normals
+    // the outline pushed out by d: each corner moves along the two edge normals (inward at a notch)
     const out=d=>H.map((p,i)=>{ const e1=E[(i-1+E.length)%E.length], e2=E[i]; let nx=e1.nx+e2.nx, ny=e1.ny+e2.ny; const L=Math.hypot(nx,ny)||1; nx/=L; ny/=L; const c=Math.max(0.3,nx*e2.nx+ny*e2.ny); return {x:p.x+nx*d/c,y:p.y+ny*d/c}; });
     const prism=(pts,z0,h,mat,holes)=>{ const sh=shapeOf(pts); (holes||[]).forEach(P=>{ const hp=new T.Path(); P.forEach((p,i)=>i?hp.lineTo(p[0],-p[1]):hp.moveTo(p[0],-p[1])); hp.closePath(); sh.holes.push(hp); });
       const m=mesh(new T.ExtrudeGeometry(sh,{depth:h,bevelEnabled:false}),typeof mat==='string'?M(mat):mat); m.rotation.x=-Math.PI/2; m.position.y=z0; bldM.add(m); return m; };
@@ -334,10 +334,12 @@ export function create(){
     const post=(col,x,y,z0,z1,th)=>{ _p.set(x,(z0+z1)/2,y); _s.set(th,z1-z0,th); _m.compose(_p,_q.identity(),_s); put(col,_m); };
     const bar=(col,ax,ay,az,bx,by,bz,th)=>{ _d.set(bx-ax,bz-az,by-ay); const L=_d.length()||1e-4; _p.set((ax+bx)/2,(az+bz)/2,(ay+by)/2); _q.setFromUnitVectors(UP,_d.multiplyScalar(1/L)); _s.set(th,L,th); _m.compose(_p,_q,_s); put(col,_m); };
     const sp=Math.max(0.55,6.5/B.mPer);
+    // stretches of a line that lie over the floor
+    const runs=(fn,n)=>{ const R=[]; let r=null; for(let k=0;k<=n;k++){ const q=fn(k/n); if(B.inH(q[0],q[1])){ if(r) r[1]=q; else r=[q,q]; } else if(r){ R.push(r); r=null; } } if(r) R.push(r); return R.filter(x=>x[0]!==x[1]); };
     const frame=(f,col)=>{ const z0=f.z0, z1=f.z1;
       B.cols.concat(B.inner).forEach(p=>post(col,p.x,p.y,z0,z1,0.08));
       E.forEach(e=>{ bar(col,e.ax,e.ay,z1,e.bx,e.by,z1,0.07); const n=Math.max(1,Math.round(e.L/sp)); for(let i=0;i<n;i+=2){ const k0=i/n, k1=(i+1)/n, P=k=>[e.ax+(e.bx-e.ax)*k,e.ay+(e.by-e.ay)*k]; const a=P(k0), b=P(k1); bar(col,a[0],a[1],z0,b[0],b[1],z1,0.025); bar(col,b[0],b[1],z0,a[0],a[1],z1,0.025); } });
-      const line=(fn,n)=>{ const pts=[]; for(let k=0;k<=n;k++){ const q=fn(k/n); if(B.inH(q[0],q[1])) pts.push(q); } if(pts.length>1) bar(col,pts[0][0],pts[0][1],z1,pts[pts.length-1][0],pts[pts.length-1][1],z1,0.05); };
+      const line=(fn,n)=>runs(fn,n).forEach(r=>bar(col,r[0][0],r[0][1],z1,r[1][0],r[1][1],z1,0.05));
       const at=(u,v)=>[u*B.ux-v*B.uy,u*B.uy+v*B.ux];
       for(let i=1;i<B.nu;i++){ const u=B.u0+(B.u1-B.u0)*i/B.nu; line(k=>at(u,B.v0+(B.v1-B.v0)*k),24); }
       for(let j=1;j<B.nv;j++){ const v=B.v0+(B.v1-B.v0)*j/B.nv; line(k=>at(B.u0+(B.u1-B.u0)*k,v),48); } };
@@ -352,13 +354,24 @@ export function create(){
           _p.set((ax+bx)/2,z0+wh/2,(ay+by)/2); _q.setFromAxisAngle(UPY,Math.atan2(-dy,dx)); _s.set(L+th*0.5,wh,th); _m.compose(_p,_q,_s); put('#FBF8F2',_m); }
         return; }
       if(f.roof){
+        const RF=S.fac&&S.fac.roof;
+        if((f.state==='doing'||!S.clad)&&RF&&RF.hAt){ const col=f.state==='doing'?'#B4573E':'#66737E', dz=f.z1-f.z0, zt=(x,y)=>f.z0+RF.hAt(x,y)*dz;
+          B.cols.concat(B.inner).forEach(p=>post(col,p.x,p.y,f.z0,zt(p.x,p.y),0.07));
+          const along=(ax,ay,bx,by,th)=>{ const n=Math.max(1,Math.ceil(Math.hypot(bx-ax,by-ay)/(sp*0.5))); for(let i=0;i<n;i++){ const x0=ax+(bx-ax)*i/n, y0=ay+(by-ay)*i/n, x1=ax+(bx-ax)*(i+1)/n, y1=ay+(by-ay)*(i+1)/n; bar(col,x0,y0,zt(x0,y0),x1,y1,zt(x1,y1),th); } };
+          E.forEach(e=>{ bar(col,e.ax,e.ay,f.z0,e.bx,e.by,f.z0,0.06); along(e.ax,e.ay,e.bx,e.by,0.05); });
+          const at=(u,v)=>[u*B.ux-v*B.uy,u*B.uy+v*B.ux];
+          for(let i=1;i<B.nu;i++){ const u=B.u0+(B.u1-B.u0)*i/B.nu; runs(k=>at(u,B.v0+(B.v1-B.v0)*k),24).forEach(r=>along(r[0][0],r[0][1],r[1][0],r[1][1],0.045)); }
+          for(let j=1;j<B.nv;j++){ const v=B.v0+(B.v1-B.v0)*j/B.nv; runs(k=>at(B.u0+(B.u1-B.u0)*k,v),96).forEach(r=>along(r[0][0],r[0][1],r[1][0],r[1][1],0.045)); }
+          return; }
+        if((f.state==='doing'||!S.clad)&&!B.convex){ frame(f,f.state==='doing'?'#B4573E':'#66737E'); return; }
         if(f.state==='doing'||!S.clad){ const col=f.state==='doing'?'#B4573E':'#66737E'; B.cols.forEach(p=>{ const r=ridge(p); bar(col,p.x,p.y,f.z0,r[0],r[1],f.z1,0.05); }); E.forEach(e=>bar(col,e.ax,e.ay,f.z0,e.bx,e.by,f.z0,0.06)); const r0=B.ridge([B.u0*B.ux,B.u0*B.uy]), r1=B.ridge([B.u1*B.ux,B.u1*B.uy]); bar(col,r0[0],r0[1],f.z1,r1[0],r1[1],f.z1,0.06); return; }
         if(S.fac&&S.fac.roof){   // roof as drawn on the elevations: two slopes falling away from the ridge, gable walls under them
-          const dz=f.z1-f.z0, rp=[], wp=[]; S.fac.roof.parts.forEach(P=>{ for(let k=1;k+1<P.length;k++) [P[0],P[k],P[k+1]].forEach(p=>rp.push(p[0],f.z0+0.02+p[2]*dz,p[1]));
+          const dz=f.z1-f.z0, rp=[], wp=[]; S.fac.roof.parts.forEach(P=>{ T.ShapeUtils.triangulateShape(P.map(p=>new T.Vector2(p[0],p[1])),[]).forEach(t=>t.forEach(i=>{ const p=P[i]; rp.push(p[0],f.z0+0.02+p[2]*dz,p[1]); }));
             P.forEach((p,k)=>{ const q=P[(k+1)%P.length]; if(p[2]<1e-3&&q[2]<1e-3) return; if(p[2]>0.999&&q[2]>0.999) return; wp.push(p[0],f.z0,p[1], q[0],f.z0,q[1], q[0],f.z0+q[2]*dz,q[1], p[0],f.z0,p[1], q[0],f.z0+q[2]*dz,q[1], p[0],f.z0+p[2]*dz,p[1]); }); });
           const g1=new T.BufferGeometry(); g1.setAttribute('position',new T.Float32BufferAttribute(rp,3)); g1.computeVertexNormals(); bldM.add(mesh(g1,M(ROOF,{side:T.DoubleSide})));
           if(wp.length){ const g2=new T.BufferGeometry(); g2.setAttribute('position',new T.Float32BufferAttribute(wp,3)); g2.computeVertexNormals(); bldM.add(mesh(g2,M(WALL,{side:T.DoubleSide}))); }
           prism(out(0.07),f.z0-0.06,0.05,'#6E7C88'); return; }
+        if(!B.convex){ prism(out(0.03),f.z0,Math.min(0.12,f.z1-f.z0),ROOF); prism(out(0.07),f.z0-0.06,0.05,'#6E7C88'); return; }   // notched footprint, no roof drawn: flat roof
         const pos=[]; const O=out(0.06); O.forEach((a,k)=>{ const b=O[(k+1)%O.length], ra=ridge(H[k]), rb=ridge(H[(k+1)%H.length]); pos.push(a.x,f.z0,a.y, b.x,f.z0,b.y, rb[0],f.z1,rb[1], a.x,f.z0,a.y, rb[0],f.z1,rb[1], ra[0],f.z1,ra[1]); });
         const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(pos,3)); g.computeVertexNormals(); bldM.add(mesh(g,M('#8FA3B4',{side:T.DoubleSide})));
         prism(out(0.07),f.z0-0.06,0.05,'#6E7C88'); return; }
@@ -375,7 +388,7 @@ export function create(){
       if(!nxt||nxt.state==='doing') deck(f.z1+0.035);
     });
     if(S.fac&&shellTop>0){   // openings from the elevation drawings, on the walls built so far
-      const glass=[], g8=8*S.zk;
+      const glass=[], g8=8*S.zk, roofOn=S.clad&&S.F.some(f=>f.roof&&f.state==='done'), lim=roofOn?1e9:shellTop;
       E.forEach((e,k)=>{ const dx=e.bx-e.ax, dy=e.by-e.ay; _q.setFromAxisAngle(UPY,Math.atan2(-dy,dx));
         (S.fac.edges[k]||[]).forEach(w=>{ const z0=Math.max(0,(w.z0-S.zb)*S.zk), z1=Math.min(shellTop-0.01,(w.z1-S.zb)*S.zk); if(z1-z0<0.03) return;
           const len=e.L*(w.t1-w.t0), at=(t,o)=>_p.set(e.ax+dx*t+e.nx*o,(z0+z1)/2,e.ay+dy*t+e.ny*o);
@@ -383,9 +396,9 @@ export function create(){
           if(w.type){ const n=Math.max(2,Math.round((z1-z0)/(14*S.zk))); for(let j=0;j<n;j++){ _p.set(e.ax+dx*(w.t0+w.t1)/2+e.nx*0.012,z0+(z1-z0)*(j+0.5)/n,e.ay+dy*(w.t0+w.t1)/2+e.ny*0.012); _s.set(len-g8,(z1-z0)/n*0.45,0.02); _m.compose(_p,_q,_s); put('#B4BCC2',_m); } return; }
           const n=Math.max(1,Math.round(w.cm/170)); for(let j=0;j<n;j++){ at(w.t0+(w.t1-w.t0)*(j+0.5)/n,0.012); _s.set(Math.max(0.01,len/n-g8),Math.max(0.01,z1-z0-g8),0.02); _m.compose(_p,_q,_s); glass.push(_m.clone()); } }); });
       E.forEach((e,k)=>{ const W=S.fac.edges[k]||{}, dx=e.bx-e.ax, dy=e.by-e.ay; _q.setFromAxisAngle(UPY,Math.atan2(-dy,dx));
-        (W.X||[]).forEach(x=>{ const z0=Math.max(0,(x.z0-S.zb)*S.zk), z1=Math.min(shellTop,(x.z1-S.zb)*S.zk); if(z1-z0<0.005) return; const o0=x.o0*S.zk, o1=x.o1*S.zk, t=(x.t0+x.t1)/2, o=(o0+o1)/2;
+        (W.X||[]).forEach(x=>{ const z0=Math.max(0,(x.z0-S.zb)*S.zk), z1=Math.min(lim,(x.z1-S.zb)*S.zk); if(z1-z0<0.005) return; const o0=x.o0*S.zk, o1=x.o1*S.zk, t=(x.t0+x.t1)/2, o=(o0+o1)/2;
           _p.set(e.ax+dx*t+e.nx*o,(z0+z1)/2,e.ay+dy*t+e.ny*o); _s.set(Math.max(0.01,e.L*(x.t1-x.t0)),z1-z0,Math.max(0.01,o1-o0)); _m.compose(_p,_q,_s); put(x.col||'#F1F0EC',_m); });
-        (W.G||[]).forEach(g=>{ const z=(g.z-S.zb)*S.zk, r=g.r*S.zk; if(z+r>shellTop) return;
+        (W.G||[]).forEach(g=>{ const z=(g.z-S.zb)*S.zk, r=g.r*S.zk; if(z+r>lim) return;
           const cv=document.createElement('canvas'); cv.width=cv.height=128; const c=cv.getContext('2d'); c.fillStyle=g.col||'#D9534F'; c.beginPath(); c.arc(64,64,62,0,7); c.fill();
           c.fillStyle='#fff'; c.font='700 78px "Noto Sans TC",sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(g.text||'',64,70);
           const tx=new T.CanvasTexture(cv); if(T.SRGBColorSpace) tx.colorSpace=T.SRGBColorSpace; const m=new T.Mesh(new T.CircleGeometry(r,28),new T.MeshBasicMaterial({map:tx,transparent:true}));
