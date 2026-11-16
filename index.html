@@ -2845,7 +2845,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=14').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=16').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -3107,7 +3107,9 @@ function facadeFit(B,FA,f,inv,exact){
     const clip=(P,sg)=>{ const o=[]; P.forEach((p,i)=>{ const q=P[(i+1)%P.length], ip=sg*(p[0]-rx)<=0, iq=sg*(q[0]-rx)<=0; if(ip) o.push(p); if(ip!==iq){ const t=(rx-p[0])/(q[0]-p[0]); o.push([rx,p[1]+(q[1]-p[1])*t]); } }); return o; };
     const to=p=>{ const s=f(p[0],p[1]); return [s[0],s[1],Math.max(0,Math.min(1,hOf(p[0])))]; };
     roof={parts:[clip(Hd,1),clip(Hd,-1)].map(P=>cleanPoly(P)).filter(P=>P.length>2).map(P=>P.map(to)),hAt:(x,y)=>Math.max(0,Math.min(1,hOf(inv(x,y)[0])))}; }
-  return {edges,roof,open1F:!!FA.open1F,wall:FA.wall||null,roofCol:FA.roofCol||null,base:FA.base||null,ver:(exact?10:0)+(FA.extras?2:1)}; }
+  // 太陽能光電板 on the roof (cm rectangles from the roof plans A2.06/A7.03), as four corners in the site
+  const pv=(FA.pv||[]).map(r=>[f(+r[0],+r[1]),f(+r[2],+r[1]),f(+r[2],+r[3]),f(+r[0],+r[3])]);
+  return {edges,roof,pv,open1F:!!FA.open1F,wall:FA.wall||null,roofCol:FA.roofCol||null,base:FA.base||null,ver:(exact?10:0)+(FA.extras?2:1)+(pv.length?4:0)}; }
 function bldgFront(B,x,y,z){ if(B.inH(x,y)) return (z||0)>0.6; return B.edges.some(e=>(x-e.ax)*e.nx+(y-e.ay)*e.ny>0&&facing(e.nx,e.ny)>1e-6); }
 function drawBuilding(c,B,S){
   const SS=SIM.S, lw=k=>Math.max(1,SS*k), N=SIM.night||0;
@@ -3294,6 +3296,8 @@ function simBuild(r){
     if(!offNow && !(r&&r.machines&&Object.keys(r.machines).length) && /(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing) && !vehicles.some(v=>v.type==='mixer')) vehicles.push({type:'mixer',x:yard?park.x:park.x+GT.t.x*2.4,y:yard?park.y:park.y+GT.t.y*2.4,dir:Math.atan2(GT.t.y,GT.t.x)});
   });
   let beamLines=null;
+  // once the ground slab (地坪) is poured the 地樑 lie under it: the walls of the finished ground floor stand on it, nothing pokes through
+  const slabOn=(()=>{ const D=r?r.date:selDate, ss=(SITE.stages||[]), s=ss.find(x=>/地坪/.test(x.name||'')); if(s) return stageOn(s,D)==='done'; const f0=(SITE.floors||[])[0]; return !!(f0&&stageOn(floorStage(f0),D)==='done'); })();
   if(realBeams){
     const wz=zones.filter(z=>!z.isGate&&!z.isStore&&!z.isYard);
     const zoneAt=(x,y)=>wz.find(z=>inZone(z,x,y));
@@ -3307,7 +3311,7 @@ function simBuild(r){
     const TH=0.34, CH=0.23;   // beam width; half the column size (columns a little wider than the beams)
     const pick=mode=>{ let m=mode; if(m==='strip') m='form'; if(m==='rebar'&&rng()<0.3) m='form'; return m; };
     const fillOf=(z,md)=>{ if(!z) return 'empty'; if(md==='strip') return 'full'; if(/(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing+' '+z.txt)) return 'dyn'; return 'empty'; };
-    const beamPiece=(ax,ay,bx,by,m,fl,zn)=>{
+    const beamPiece=(ax,ay,bx,by,m,fl,zn)=>{ if(slabOn) return;
       if(m==='rebar') props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.42,col:SC.rebar,cage:true});
       else if(m==='form'){ const st0=modeOf(zn)==='strip'; props.push({beam:true,ax,ay,bx,by,wd:TH+0.12,h:0.56,col:SC.ply,ply:true,form:true,fill:fl,filled:fl==='full',zn,strip:st0,stripped:st0&&rng()<0.3}); }   // 拆模: boards come off one by one (stripStep)
       else props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.46,col:m==='fresh'?SC.fresh:SC.concrete});
@@ -3341,7 +3345,7 @@ function simBuild(r){
       const axTag=Math.abs(uy)<0.08?'h':Math.abs(ux)<0.08?'v':'d';
       for(let k=0.4;k<A.len;k+=0.7){ const px=A.x1+ux*k, py=A.y1+uy*k; const z=zoneAt(px+(axTag==='v'?0.4:0),py+(axTag==='v'?0:0.4))||zoneAt(px,py)||zoneNear(px,py,0.5); if(z){ (z.beamPts||(z.beamPts=[])).push({x:px,y:py,ax:axTag}); } }
     });
-    joints.forEach(j=>{ const z=zoneAt(j.x+0.3,j.y+0.3)||zoneAt(j.x-0.3,j.y-0.3)||zoneAt(j.x+0.3,j.y-0.3)||zoneAt(j.x-0.3,j.y+0.3); const m=modeOf(z);
+    if(!slabOn) joints.forEach(j=>{ const z=zoneAt(j.x+0.3,j.y+0.3)||zoneAt(j.x-0.3,j.y-0.3)||zoneAt(j.x+0.3,j.y-0.3)||zoneAt(j.x-0.3,j.y+0.3); const m=modeOf(z);
       const fl=fillOf(z,m); const mm=m==='strip'?'form':m;
       box(j.x-CH,j.y-CH,CH*2,CH*2,0.56,mm==='rebar'?SC.rebar:mm==='form'?SC.ply:SC.fresh,{cage:mm==='rebar',ply:mm==='form',form:mm==='form',fill:fl,filled:fl==='full',cx:j.x,cy:j.y,zn:z,strip:m==='strip',stripped:m==='strip'&&rng()<0.3}); });
   }
