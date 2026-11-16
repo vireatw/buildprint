@@ -2845,7 +2845,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=16').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=17').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -3109,7 +3109,9 @@ function facadeFit(B,FA,f,inv,exact){
     roof={parts:[clip(Hd,1),clip(Hd,-1)].map(P=>cleanPoly(P)).filter(P=>P.length>2).map(P=>P.map(to)),hAt:(x,y)=>Math.max(0,Math.min(1,hOf(inv(x,y)[0])))}; }
   // 太陽能光電板 on the roof (cm rectangles from the roof plans A2.06/A7.03), as four corners in the site
   const pv=(FA.pv||[]).map(r=>[f(+r[0],+r[1]),f(+r[2],+r[1]),f(+r[2],+r[3]),f(+r[0],+r[3])]);
-  return {edges,roof,pv,open1F:!!FA.open1F,wall:FA.wall||null,roofCol:FA.roofCol||null,base:FA.base||null,ver:(exact?10:0)+(FA.extras?2:1)+(pv.length?4:0)}; }
+  // 避雷針 masts on the roof (A7.04): [x, y, height above the roof, cm]
+  const rods=(FA.rods||[]).map(r=>{ const q=f(+r[0],+r[1]); return [q[0],q[1],+r[2]||500]; });
+  return {edges,roof,pv,rods,open1F:!!FA.open1F,wall:FA.wall||null,roofCol:FA.roofCol||null,base:FA.base||null,ver:(exact?10:0)+(FA.extras?2:1)+(pv.length?4:0)+(rods.length?8:0)}; }
 function bldgFront(B,x,y,z){ if(B.inH(x,y)) return (z||0)>0.6; return B.edges.some(e=>(x-e.ax)*e.nx+(y-e.ay)*e.ny>0&&facing(e.nx,e.ny)>1e-6); }
 function drawBuilding(c,B,S){
   const SS=SIM.S, lw=k=>Math.max(1,SS*k), N=SIM.night||0;

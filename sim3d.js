@@ -371,6 +371,8 @@ export function create(){
             S.fac.pv.forEach(P=>{ quad(fp,P,0.03,1); quad(pp,P,0.036,0.9); });
             [[fp,'#B9C3CC'],[pp,'#23395B']].forEach(([A,c])=>{ const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(A,3)); g.computeVertexNormals(); bldM.add(mesh(g,M(c,{side:T.DoubleSide}))); }); }
           if(wp.length){ const g2=new T.BufferGeometry(); g2.setAttribute('position',new T.Float32BufferAttribute(wp,3)); g2.computeVertexNormals(); bldM.add(mesh(g2,M(WALL,{side:T.DoubleSide}))); }
+          (S.fac.rods||[]).forEach(r=>{ if(!S.fac.roof.hAt) return; const z=f.z0+0.02+S.fac.roof.hAt(r[0],r[1])*dz, h=r[2]*S.zk;   // 避雷針: concrete base, stainless mast, ESE head on top
+            post('#9A9C98',r[0],r[1],z,z+0.05,0.16); post('#C9CED3',r[0],r[1],z+0.05,z+h,0.05); post('#B8BEC4',r[0],r[1],z+h,z+h+0.07,0.11); post('#5A6168',r[0],r[1],z+h+0.07,z+h+0.16,0.06); });
           prism(out(0.07),f.z0-0.06,0.05,'#6E7C88'); return; }
         if(!B.convex){ prism(out(0.03),f.z0,Math.min(0.12,f.z1-f.z0),ROOF); prism(out(0.07),f.z0-0.06,0.05,'#6E7C88'); return; }   // notched footprint, no roof drawn: flat roof
         const pos=[]; const O=out(0.06); O.forEach((a,k)=>{ const b=O[(k+1)%O.length], ra=ridge(H[k]), rb=ridge(H[(k+1)%H.length]); pos.push(a.x,f.z0,a.y, b.x,f.z0,b.y, rb[0],f.z1,rb[1], a.x,f.z0,a.y, rb[0],f.z1,rb[1], ra[0],f.z1,ra[1]); });
