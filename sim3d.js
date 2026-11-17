@@ -142,6 +142,9 @@ function animPerson(g,w,t,dt,st,inYard,view){ const u=g.userData, T0=t+w.ph, pos
     else if(a==='wire'){ fx.rotation.z=T0*3; } }
 }
 
+// 土方 is solid: how high the soil stands at a point (0 off the piles), so machines and people ride up over a pile instead of sinking into it
+function soilTop(st,x,y,foot){ let h=0; if(st._soilP!==st.props){ st._soilP=st.props; st._soil=st.props.filter(o=>o.mound); }
+  for(const o of st._soil){ const r=o.r||1, d=Math.max(0,Math.hypot(x-o.x,y-o.y)-(foot||0)*0.35); if(d>=r) continue; const k=d/r, t=o.soil?r*0.55*Math.sqrt(1-k*k):r*0.9*(1-k); if(t>h) h=t; } return h; }
 /* ---------------- machines ---------------- */
 const YEL='#F0B429', YEL2='#D49A1A', DARK='#3A4046', GLASS=M('#9FD0EA',{flatShading:false});
 function cab(len,h,wid,col,x,y){ const g=grp(B(len,h,wid,col,x,y+h/2,0)); g.add(B(0.02,h*0.42,wid*0.84,GLASS,x+len/2+0.005,y+h*0.68,0)); [-1,1].forEach(k=>{ g.add(B(len*0.6,h*0.42,0.02,GLASS,x+len*0.1,y+h*0.68,k*(wid/2+0.005))); g.add(B(0.03,0.08,0.12,'#FFE9A8',x+len/2+0.005,y+h*0.2,k*wid*0.33,{emissive:'#FFE9A8',emissiveIntensity:0.25})); }); g.add(B(0.02,h*0.2,wid*0.45,'#2B3238',x+len/2+0.006,y+h*0.22,0)); return g; }
@@ -190,7 +193,7 @@ function buildVehicle(v){ const g=grp(), u={}; g.userData=u; u.wheels=[]; u.beac
 function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv; const u=g.userData, T0=t+(v.ph||0), dig=v.type==='digger';
   let x=v.x, y=v.y; const dir=v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0);
   if(dig&&v.dig&&!view.edit&&!view.lunch){ const k=Math.sin(t*0.35+(v.ph||0))*0.7; x+=Math.cos(dir)*k; y+=Math.sin(dir)*k; }
-  g.visible=!v.hidden; if(v.hidden) return; g.position.set(x,(v.z||0)-(st.pitAt?st.pitAt(x,y):0),y);
+  g.visible=!v.hidden; if(v.hidden) return; { const sh=soilTop(st,x,y,v.type==='digger'?1.2:0.8); u.sh=u.sh==null?sh:u.sh+(sh-u.sh)*0.2; g.position.set(x,(v.z||0)+u.sh-(st.pitAt?st.pitAt(x,y):0),y); }
   u.hd=u.hd==null?dir:lerpAng(u.hd,dir,0.25); g.rotation.y=-u.hd;
   const moving=v.phase==='arrive'||v.phase==='leave'; if(moving) u.wheels.forEach(w=>{ w.rotation.z=-t*8; });
   u.beacons.forEach(b=>{ const on=Math.sin(T0*7)>0; b.material.emissiveIntensity=on?(1.2+view.N*3):0.1; });
@@ -451,7 +454,7 @@ export function create(){
     if(stat&&stat.userData.roof){ const pl=stat.userData.roof; pl.rotation.z=pl.userData.z0; pl.updateWorldMatrix(true,false); _v.set(1,0,0).transformDirection(pl.matrixWorld); if(_v.x-_v.z<0) pl.rotation.z=pl.userData.z0+Math.PI; }   // the name on the office roof always reads left to right
     // people, machines, dog
     const yard=st.yard, inY=w=>!!(yard&&v.inZone&&v.inZone(yard,w.x,w.y));
-    st.workers.forEach(w=>{ const g=people.get(w); if(!g) return; g.visible=!w.inside; if(w.inside) return; { const pd=st.pitAt?st.pitAt(w.x,w.y):0, u=g.userData; u.pd=u.pd==null?pd:u.pd+(pd-u.pd)*Math.min(1,dt*7); g.position.set(w.x,(w.z||0)-u.pd,w.y); } animPerson(g,w,t,dt,st,inY(w),v); });
+    st.workers.forEach(w=>{ const g=people.get(w); if(!g) return; g.visible=!w.inside; if(w.inside) return; { const pd=st.pitAt?st.pitAt(w.x,w.y):0, u=g.userData; u.pd=u.pd==null?pd:u.pd+(pd-u.pd)*Math.min(1,dt*7); const sh=soilTop(st,w.x,w.y,0); u.sh=u.sh==null?sh:u.sh+(sh-u.sh)*Math.min(1,dt*8); g.position.set(w.x,Math.max(w.z||0,u.sh)-u.pd,w.y); } animPerson(g,w,t,dt,st,inY(w),v); });
     st.vehicles.forEach(vh=>{ const g=machines.get(vh); if(g){ animVehicle(g,vh,t,st,v); const bl=g.userData.blob; if(bl){ const cu=vh.cur; bl.visible=!!(cu&&!vh.parked&&!vh.hidden); if(cu) bl.position.set(cu.x,0.48,cu.y); } } });
     if(dogM&&st.dog) animDog(dogM,st.dog,t,dt);
     const fx=st.fx||[]; dust.forEach((d,i)=>{ const q=fx[i]; if(!q){ d.visible=false; return; } const kk=(t-q.t0)/q.life; d.visible=kk>=0&&kk<1; d.position.set(q.x,0.12+kk*0.4,q.y); d.scale.setScalar(0.25+kk*0.55); d.material.opacity=0.42*(1-kk); });
