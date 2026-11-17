@@ -336,7 +336,7 @@ export function create(){
   let bldM=null, bKey='', bSt=null, bWin=[]; const UPY=new T.Vector3(0,1,0);
   function buildBldg(st,S){
     if(bldM){ world.remove(bldM); bldM.traverse(m=>{ if(m.isInstancedMesh) m.dispose(); }); freeTree(bldM); bldM=null; } bWin=[];
-    const B=st.bldg; if(!B||!S) return; bldM=grp(); world.add(bldM);
+    const B=st.bldg; if(!B||!S) return; bldM=grp(); world.add(bldM); bldM.position.y=S.lift||0;
     const H=B.H.map(p=>({x:p[0],y:p[1]})), E=B.edges;
     // the outline pushed out by d: each corner moves along the two edge normals (inward at a notch)
     const out=d=>H.map((p,i)=>{ const e1=E[(i-1+E.length)%E.length], e2=E[i]; let nx=e1.nx+e2.nx, ny=e1.ny+e2.ny; const L=Math.hypot(nx,ny)||1; nx/=L; ny/=L; const c=Math.max(0.3,nx*e2.nx+ny*e2.ny); return {x:p.x+nx*d/c,y:p.y+ny*d/c}; });
@@ -435,7 +435,7 @@ export function create(){
     if(built.GW!==v.GW||built.GH!==v.GH||!water) buildBackdrop(v.GW,v.GH);
     const zk=st.zones.map(z=>z.status).join();
     if(built.st!==st||built.props!==st.props||built.fills!==st.fills||built.zk!==zk){ const fresh=built.st!==st; buildStatic(st,v); if(fresh) buildDynamic(st); }
-    { const S=v.bs||null, k=S?JSON.stringify([S.F.map(f=>[f.state,+f.z0.toFixed(2),+f.z1.toFixed(2),f.roof]),S.clad,S.cut&&S.cut.key,S.fac?(S.fac.ver||1):0]):''; if(bSt!==st.bldg||bKey!==k){ bSt=st.bldg; bKey=k; buildBldg(st,S); } }
+    { const S=v.bs||null, k=S?JSON.stringify([S.F.map(f=>[f.state,+f.z0.toFixed(2),+f.z1.toFixed(2),f.roof]),S.clad,S.cut&&S.cut.key,S.fac?(S.fac.ver||1):0,S.lift||0]):''; if(bSt!==st.bldg||bKey!==k){ bSt=st.bldg; bKey=k; buildBldg(st,S); } }
     // camera = SP(): right ∝ (x−y), up-screen ∝ −(x+y), k px per unit in the view plane
     const k=v.S/Math.SQRT2; cam.left=-v.ox/k; cam.right=(v.W-v.ox)/k; cam.top=v.oy/k; cam.bottom=-(v.H-v.oy)/k; cam.position.copy(CAMDIR).multiplyScalar(260); cam.up.set(0,1,0); cam.lookAt(0,0,0); cam.updateProjectionMatrix();
     // turning the site: the world turns about its centre, the light, sea and far shore stay put

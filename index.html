@@ -2846,7 +2846,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=21').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=22').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -3088,10 +3088,13 @@ function bldgState(st){
   const F=fl.slice(0,last+1).map((f,i)=>({name:f.name,z0:Z(f.base),z1:Math.max(Z(f.base)+0.15,Z(f.top)),state:states[i]==='upcoming'?'done':states[i],roof:/屋頂|屋面|RF/i.test(f.name||'')}));
   const doing=F.find(f=>f.state==='doing'), top=F[F.length-1];
   const zA=doing?doing.z0:(clad?null:top.z1);
+  const onBeams=(SITE.beams||[]).length>0&&(st.zones||[]).some(z=>z.pit);   // 地樑 standing in the dug foundation: their tops lie a little under ground level
   const cf=F.find(f=>f.state==='cut'); let cut=null;
   const LD=layoutData(), fit=LD&&layoutFit(B,LD);
-  if(cf){ const L=fit&&fit.fl[cf.name]; cut={name:cf.name,z0:Math.max(cf.z0,0.5),h:Math.min(cf.z1-cf.z0,1.2/B.mPer),s:L?L.s:null,v:L?L.v:[],t:L?L.t:[],key:(SITE.layout&&SITE.layout.id||'')+':'+cf.name+':'+(L?1:0)}; }
-  return {F,clad,zA,top:cf?cut.z0+cut.h:top.z1,cut,fac:(fit&&fit.fac)||null,zk:1/100/B.mPer,zb:base};
+  if(cf){ const L=fit&&fit.fl[cf.name]; cut={name:cf.name,z0:(cf.z0<0.5&&onBeams)?0.07:Math.max(cf.z0,0.5),h:Math.min(cf.z1-cf.z0,1.2/B.mPer),s:L?L.s:null,v:L?L.v:[],t:L?L.t:[],key:(SITE.layout&&SITE.layout.id||'')+':'+cf.name+':'+(L?1:0)}; }
+  // where the foundation was dug, the 地樑 tops lie a little under ground level: the whole building sits down onto them, so the ground-floor slab rests on the beams
+  const lift=onBeams?FILL_H-PIT_D:0;
+  return {F,clad,zA,top:cf?cut.z0+cut.h:top.z1,cut,fac:(fit&&fit.fac)||null,zk:1/100/B.mPer,zb:base,lift};
 }
 // ---- 平面配置 (walls of each floor from the 完成圖 DXF, cm along A→H): loaded once, fitted onto the building footprint ----
 let LAYOUT=null, LAYOUT_LOADING=null;
@@ -4732,7 +4735,7 @@ function simDraw(){
     c.fillStyle='rgba(22,34,44,.88)'; c.beginPath(); c.roundRect?c.roundRect(p[0]-w/2,p[1]-h/2,w,h,11):c.rect(p[0]-w/2,p[1]-h/2,w,h); c.fill(); c.fillStyle='#F5B700'; c.textBaseline='middle'; c.textAlign='center'; c.fillText(txt,p[0],p[1]+0.5); c.textAlign='left'; }
   // zone labels
   c.textBaseline='middle';
-  if(BS&&BS.cut&&BS.cut.t.length){ const zt=BS.cut.z0+BS.cut.h+0.05, fs=Math.max(9,Math.min(12,SIM.S*0.32)), boxes=[]; c.font=`700 ${fs}px "Noto Sans TC",sans-serif`; c.textAlign='center'; c.lineJoin='round';
+  if(BS&&BS.cut&&BS.cut.t.length){ const zt=BS.cut.z0+BS.cut.h+0.05+(BS.lift||0), fs=Math.max(9,Math.min(12,SIM.S*0.32)), boxes=[]; c.font=`700 ${fs}px "Noto Sans TC",sans-serif`; c.textAlign='center'; c.lineJoin='round';
     // room names, longest first, skipping any that would sit on top of one already drawn
     BS.cut.t.filter(r=>!/\d+\s*\*\s*\d+/.test(r.n)).slice().sort((a,b)=>b.n.length-a.n.length).forEach(r=>{ const p=SP(r.x,r.y,zt), w=c.measureText(r.n).width+6, h=fs+4, bx=[p[0]-w/2,p[1]-h/2,p[0]+w/2,p[1]+h/2];
       if(boxes.some(q=>bx[0]<q[2]&&bx[2]>q[0]&&bx[1]<q[3]&&bx[3]>q[1])) return; boxes.push(bx);
