@@ -1172,6 +1172,7 @@ function imgSrc(o){ if(!o) return ''; if(o.src) return o.src; if(o.url) return o
 /* ============ derived ============ */
 const sortedDates=()=>Object.keys(REPORTS).sort();
 function prevReport(k){ const ds=sortedDates().filter(d=>d<k); return ds.length?REPORTS[ds[ds.length-1]]:null; }
+const PIT_D=0.72;   // how far the excavated zones sit below GL±0 in the 工地動畫 (beam and column tops stay just under ground level)
 const ZONE_ALL='all';   // 「全區」: the task covers every work zone (not 空地／大門／材料堆置)
 // a task's zone is '' (不指定), 'all' (全區), one zone id, or several zone ids joined by ','
 const zoneIds=v=>String(v||'').split(',').filter(Boolean);
@@ -2845,7 +2846,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=17').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=18').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -3395,6 +3396,8 @@ function simBuild(r){
       const axTag=Math.abs(uy)<0.08?'h':Math.abs(ux)<0.08?'v':'d';
       for(let k=0.4;k<A.len;k+=0.7){ const px=A.x1+ux*k, py=A.y1+uy*k; const z=zoneAt(px+(axTag==='v'?0.4:0),py+(axTag==='v'?0:0.4))||zoneAt(px,py)||zoneNear(px,py,0.5); if(z){ (z.beamPts||(z.beamPts=[])).push({x:px,y:py,ax:axTag}); } }
     });
+    // 開挖: a work zone whose 地樑 have been started is dug down, so the beams sit below ground level (GL±0)
+    zones.forEach(z=>{ if(z.beamPts&&z.beamPts.length&&started(z)&&!z.isYard&&!z.isStore&&!z.isGate) z.pit=PIT_D; });
     if(!slabOn) joints.forEach(j=>{ const z=zoneAt(j.x+0.3,j.y+0.3)||zoneAt(j.x-0.3,j.y-0.3)||zoneAt(j.x+0.3,j.y-0.3)||zoneAt(j.x-0.3,j.y+0.3); if(!started(z)) return; const m=modeOf(z);
       const fl=fillOf(z,m); const mm=m==='strip'?'form':m;
       box(j.x-CH,j.y-CH,CH*2,CH*2,0.56,mm==='rebar'?SC.rebar:mm==='form'?SC.ply:SC.fresh,{cage:mm==='rebar',ply:mm==='form',form:mm==='form',fill:fl,filled:fl==='full',cx:j.x,cy:j.y,zn:z,strip:m==='strip',stripped:m==='strip'&&rng()<0.3}); });
@@ -3636,7 +3639,8 @@ function simBuild(r){
   const pourLater=!todayView&&SIM.half==='am'&&Object.keys(machinesOf(r)).some(k=>{ if(!/押送|泵浦|幫浦|預拌/.test(k)) return false; const x=splitOf(r,k,true); return !x.f&&!x.am&&x.pm>0; });   // morning of an afternoon pour: forms still empty
   props.forEach(o=>{ if(o.fill==='dyn'&&(!pumpV||pumpV.parked||pumpV.zone!==o.zn)){ if(pourLater){ o.fill='empty'; o.filled=false; } else { o.fill='full'; o.filled=true; } } });
   const toG=(x,y)=>({x:MX(x),y:MY(y)}), toN=(gx,gy)=>({x:+(bx0+gx/GW*bw).toFixed(4),y:+(by0+gy/GH*bh).toFixed(4)});
-  const stOut={bldg,snapped:!!beamTL,machCount:MM,drop,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
+  const pitAt=(x,y)=>{ const z=zones.find(z=>z.pit&&inZone(z,x,y)); return z?z.pit:0; };
+  const stOut={pitAt,bldg,snapped:!!beamTL,machCount:MM,drop,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
 }
 let z_loadPt=null, st_pipePt=null;
 function inZone(z,x,y){ if(z.pts) return inPolyS([x,y],z.pts.map(p=>[p.x,p.y])); return x>=z.x-0.05&&x<=z.x+z.w+0.05&&y>=z.y-0.05&&y<=z.y+z.h+0.05; }
@@ -4667,7 +4671,7 @@ function simDraw(){
   // gate posts sort with trucks and people, so a truck in the gate passes between them
   [-1,1].forEach(k=>{ const px=G.G.x+G.t.x*G.half*k, py=G.G.y+G.t.y*G.half*k; items.push({d:DEP(px,py)+0.15,f:()=>sBox(c,{x:px-0.12,y:py-0.12,w:0.24,d:0.24,h:1.25,col:'#5B6770'})}); });
   if(G3){ SIM.gl.render(st,{t,N,W:SIM.W,H:SIM.H,dpr:SIM.dpr,S:SIM.S,ox:SIM.ox,oy:SIM.oy,rot:ROT.a,cx:ROT.cx,cy:ROT.cy,GW,GH,FILL_H,wx:wxOf(st.weather),edit:!!ISL.edit,lunch:!!st.lunch,tv:st.lunch?(st.lunchT||0):t,machSel:ISL.machSel,soilSel:ISL.soilSel,inZone,company:SITE&&SITE.company,site:SITE&&SITE.name,bs:BS});
-    st.workers.forEach(w=>{ if(w.inside){ w.sx=-9999; w.sy=-9999; return; } const q=SP(w.x,w.y,(w.z||0)+0.55); w.sx=q[0]; w.sy=q[1]; w.sr=SIM.S*0.4; }); if(st.dog){ const q=SP(st.dog.x,st.dog.y,0.25); st.dog.sx=q[0]; st.dog.sy=q[1];
+    st.workers.forEach(w=>{ if(w.inside){ w.sx=-9999; w.sy=-9999; return; } const q=SP(w.x,w.y,(w.z||0)+0.55-(st.pitAt?st.pitAt(w.x,w.y):0)); w.sx=q[0]; w.sy=q[1]; w.sr=SIM.S*0.4; }); if(st.dog){ const q=SP(st.dog.x,st.dog.y,0.25); st.dog.sx=q[0]; st.dog.sy=q[1];
       if(st.dog.state==='sleep'){ const s0=SIM.S*0.5; c.fillStyle=`rgba(255,255,255,${N>0.3?0.85:0.95})`; c.strokeStyle='rgba(22,34,44,.5)'; c.lineWidth=2.5; c.textAlign='left'; [0,1,2].forEach(i=>{ const k=((t*0.4)+i/3)%1; c.globalAlpha=1-k; c.font=`800 ${Math.max(9,s0*(0.28+k*0.2))}px sans-serif`; const x=q[0]+s0*(0.3+k*0.5), y=q[1]-s0*(0.4+k*1.1); c.strokeText('z',x,y); c.fillText('z',x,y); }); c.globalAlpha=1; } } }   // 小黃 asleep: a few z's drifting up
   else { items.sort((a,b)=>a.d-b.d);
     if(BG){ const post=[]; items.forEach(i=>{ if(i.x!=null&&bldgFront(BG,i.x,i.y,i.z)) post.push(i); else i.f(); }); drawBuilding(c,BG,BS); post.forEach(i=>i.f()); }   // building between what's behind it and what's in front / on top
