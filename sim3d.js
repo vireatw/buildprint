@@ -190,7 +190,7 @@ function buildVehicle(v){ const g=grp(), u={}; g.userData=u; u.wheels=[]; u.beac
 function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv; const u=g.userData, T0=t+(v.ph||0), dig=v.type==='digger';
   let x=v.x, y=v.y; const dir=v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0);
   if(dig&&v.dig&&!view.edit&&!view.lunch){ const k=Math.sin(t*0.35+(v.ph||0))*0.7; x+=Math.cos(dir)*k; y+=Math.sin(dir)*k; }
-  g.visible=!v.hidden; if(v.hidden) return; g.position.set(x,(v.z||0),y);
+  g.visible=!v.hidden; if(v.hidden) return; g.position.set(x,(v.z||0)-(st.pitAt?st.pitAt(x,y):0),y);
   u.hd=u.hd==null?dir:lerpAng(u.hd,dir,0.25); g.rotation.y=-u.hd;
   const moving=v.phase==='arrive'||v.phase==='leave'; if(moving) u.wheels.forEach(w=>{ w.rotation.z=-t*8; });
   u.beacons.forEach(b=>{ const on=Math.sin(T0*7)>0; b.material.emissiveIntensity=on?(1.2+view.N*3):0.1; });
@@ -265,7 +265,17 @@ export function create(){
     const lamp=(x,y,z,k,dist)=>{ const l=new T.PointLight('#FFD08A',0,dist,1.6); l.position.set(x,y,z); l.userData.k=k; stat.add(l); nightL.push(l); };
     const GW=v.GW, GH=v.GH, m=1.4;
     ((st.decor&&st.decor.dots)||[]).forEach(q=>{ for(let i=0;i<3;i++){ const b=mesh(G.cone4,M('#8CC070',{emissive:'#3E6B2E',emissiveIntensity:0.35}),false); b.scale.set(0.05,0.16+i*0.03,0.05); b.position.set(q.x+(i-1)*0.07,0.09,q.y+(i%2)*0.05); b.rotation.z=(i-1)*0.25; stat.add(b); } });
-    const BND=st.BND; stat.add(flat(BND,'#DCCFB2',0.012));
+    const BND=st.BND, pit=(x,y)=>st.pitAt?st.pitAt(x,y):0, zpts=z=>z.pts||[{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}];
+    // 開挖: the ground is cut away over the dug zones; each gets a floor at −depth and earth walls (none where it meets another dug zone)
+    { const pits=st.zones.filter(z=>z.pit), sh=shapeOf(BND), inP=(x,y)=>pits.some(z=>v.inZone(z,x,y));
+      pits.forEach(z=>{ const P=zpts(z); let cx=0, cy=0; P.forEach(q=>{ cx+=q.x/P.length; cy+=q.y/P.length; }); const h=new T.Path(); P.map(q=>({x:cx+(q.x-cx)*0.997,y:cy+(q.y-cy)*0.997})).forEach((q,i)=>i?h.lineTo(q.x,-q.y):h.moveTo(q.x,-q.y)); h.closePath(); sh.holes.push(h);
+        stat.add(flat(P,'#CDBD9A',-z.pit+0.004));
+        P.forEach((a,i)=>{ const b=P[(i+1)%P.length], ex=b.x-a.x, ey=b.y-a.y, L=Math.hypot(ex,ey)||1, mx=(a.x+b.x)/2, my=(a.y+b.y)/2, ox=ey/L*0.25, oy=-ex/L*0.25, inn=v.inZone(z,mx+ox,my+oy), outX=inn?mx-ox:mx+ox, outY=inn?my-oy:my+oy; if(inP(outX,outY)) return;
+          const w=mesh(new T.PlaneGeometry(L,z.pit),M('#B39A6E',{side:T.DoubleSide})); w.position.set(mx,-z.pit/2,my); w.rotation.y=-Math.atan2(ey,ex); stat.add(w); const lip=B(L,0.03,0.06,'#C7B48A',mx,0.0,my); lip.rotation.y=w.rotation.y; lip.castShadow=false; stat.add(lip); }); });
+      // the big grass plane would show through the holes: with any dug zone it drops out of the way and a grass sheet with the site cut out of it takes its place
+      if(water){ water.position.y=pits.length?-3:-0.004; if(pits.length){ const R0=300, cxg=v.GW/2, cyg=v.GH/2, gs=new T.Shape(); gs.moveTo(cxg-R0,-(cyg-R0)); gs.lineTo(cxg+R0,-(cyg-R0)); gs.lineTo(cxg+R0,-(cyg+R0)); gs.lineTo(cxg-R0,-(cyg+R0)); gs.closePath(); const bh=new T.Path(); BND.forEach((q,i)=>i?bh.lineTo(q.x,-q.y):bh.moveTo(q.x,-q.y)); bh.closePath(); gs.holes.push(bh);
+          const gr=new T.Mesh(new T.ShapeGeometry(gs),water.material); gr.rotation.x=-Math.PI/2; gr.position.y=-0.004; gr.receiveShadow=true; stat.add(gr); } }
+      const gm=mesh(new T.ShapeGeometry(sh),M('#DCCFB2',{flatShading:false}),false); gm.rotation.x=-Math.PI/2; gm.position.y=0.012; gm.receiveShadow=true; stat.add(gm); }
     { const pts=[]; for(let x=Math.ceil(-m);x<GW+m;x++) pts.push(x,0.016,-m,x,0.016,GH+m); for(let y=Math.ceil(-m);y<GH+m;y++) pts.push(-m,0.016,y,GW+m,0.016,y); const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(pts,3)); const ln=new T.LineSegments(g,new T.LineBasicMaterial({color:'#6E552D',transparent:true,opacity:0.07})); stat.add(ln); }
     // road outside the gate and the apron through it
     const GT=st.GT; if(GT){ const E0=BND[GT.edge], E1=BND[(GT.edge+1)%BND.length], q=(p,k,e)=>({x:p.x+GT.n.x*k+GT.t.x*e,y:p.y+GT.n.y*k+GT.t.y*e}); const R0=60, cl=p=>({x:Math.max(-R0,Math.min(GW+R0,p.x)),y:Math.max(-R0,Math.min(GH+R0,p.y))}), ext=GW+GH+R0;
@@ -274,8 +284,8 @@ export function create(){
       if(st.gateClosed){ const gp=B(h*2,0.98,0.06,'#D6DDE2',g.x,0.53,g.y); gp.rotation.y=-Math.atan2(GT.t.y,GT.t.x); stat.add(gp); const gs=B(h*2,0.12,0.07,'#2E8B57',g.x,0.56,g.y); gs.rotation.y=gp.rotation.y; stat.add(gs); } }
     // zones: a soft tint and a dashed outline
     st.zones.forEach(z=>{ const pts=z.pts||[{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}]; const col=z.isYard?'#6A6C6E':z.status==='doing'?'#E07800':z.status==='done'?'#2F8A57':'#16222C';
-      stat.add(flat(pts,col,0.024,{transparent:true,opacity:z.isYard?0.2:z.status==='doing'?0.16:z.status==='done'?0.14:0.05,depthWrite:false}));
-      const lp=[]; pts.forEach((p,i)=>{ const q=pts[(i+1)%pts.length]; lp.push(p.x,0.03,p.y,q.x,0.03,q.y); }); const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(lp,3)); const ln=new T.LineSegments(g,new T.LineDashedMaterial({color:z.status==='doing'?'#E07800':z.status==='done'?'#2F8A57':'#5B6770',dashSize:0.18,gapSize:0.14,transparent:true,opacity:0.8})); ln.computeLineDistances(); stat.add(ln); });
+      stat.add(flat(pts,col,0.024-(z.pit||0),{transparent:true,opacity:z.isYard?0.2:z.status==='doing'?0.16:z.status==='done'?0.14:0.05,depthWrite:false}));
+      const lp=[]; pts.forEach((p,i)=>{ const q=pts[(i+1)%pts.length]; lp.push(p.x,0.03-(z.pit||0),p.y,q.x,0.03-(z.pit||0),q.y); }); const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(lp,3)); const ln=new T.LineSegments(g,new T.LineDashedMaterial({color:z.status==='doing'?'#E07800':z.status==='done'?'#2F8A57':'#5B6770',dashSize:0.18,gapSize:0.14,transparent:true,opacity:0.8})); ln.computeLineDistances(); stat.add(ln); });
     // fence: one panel group per boundary edge (the gate edge in two parts); panels facing the viewer drop to a low rail each frame
     const company=[v.company,v.site].filter(Boolean).join('　');
     BND.forEach((p,i)=>{ const q=BND[(i+1)%BND.length], ex=q.x-p.x, ey=q.y-p.y, L=Math.hypot(ex,ey)||1, ux=ex/L, uy=ey/L, nx=ey/L, ny=-ex/L; let segs=[[0,L]];
@@ -288,9 +298,9 @@ export function create(){
       stat.add(g,low); fences.push({g,low,nx,ny}); });
     // props: beams, formwork, stacks, the office, soil
     st.props.forEach(o=>{
-      if(o.mound){ const r=o.r, mm=mesh(o.soil?G.ico1:G.cone,M(o.soil?'#A98B5E':'#B49A6E')); if(o.soil) mm.scale.set(r*2,r*1.1,r*2); else { mm.scale.set(r*2,r*0.9,r*2); mm.position.y=r*0.45; } mm.position.x=o.x; mm.position.z=o.y; if(o.soil){ mm.position.y=0; mm.rotation.y=(o.x*7+o.y*3)%3; soilM.push({o,m:mm}); } stat.add(mm); return; }
+      if(o.mound){ const r=o.r, mm=mesh(o.soil?G.ico1:G.cone,M(o.soil?'#A98B5E':'#B49A6E')); if(o.soil) mm.scale.set(r*2,r*1.1,r*2); else { mm.scale.set(r*2,r*0.9,r*2); mm.position.y=r*0.45; } mm.position.x=o.x; mm.position.z=o.y; if(o.soil){ mm.position.y=0; mm.rotation.y=(o.x*7+o.y*3)%3; soilM.push({o,m:mm}); } mm.position.y-=pit(o.x,o.y); stat.add(mm); return; }
       let w,d,h=o.h,cx,cy,ry=0; if(o.beam){ w=Math.hypot(o.bx-o.ax,o.by-o.ay); d=o.wd; cx=(o.ax+o.bx)/2; cy=(o.ay+o.by)/2; ry=-Math.atan2(o.by-o.ay,o.bx-o.ax); } else { w=o.w; d=o.d; cx=o.x+w/2; cy=o.y+d/2; }
-      const z0=o.z0||0, g=grp(); g.position.set(cx,z0,cy); g.rotation.y=ry; stat.add(g);
+      const z0=(o.z0||0)-(o.sign?0:pit(cx,cy)), g=grp(); g.position.set(cx,z0,cy); g.rotation.y=ry; stat.add(g);
       if(o.cage&&!o.form){ const n=Math.max(2,Math.round(w/0.22)); for(let i=0;i<=n;i++){ const x=-w/2+w*i/n; [[0,h,d,0.025],[0,0.02,d,0.025]].forEach(()=>{}); g.add(B(0.03,h,0.03,'#A0583A',x,h/2,-d/2+0.03),B(0.03,h,0.03,'#A0583A',x,h/2,d/2-0.03),B(0.03,0.03,d,'#A0583A',x,h-0.02,0)); } [[-1,0.06],[1,0.06],[-1,h-0.03],[1,h-0.03],[0,h-0.03]].forEach(([k,y])=>g.add(B(w,0.035,0.035,'#8E4A30',0,y,k*(d/2-0.03)))); return; }
       if(o.form){ const th=0.05; const pg=grp(B(w,h,th,'#C99555',0,h/2,-d/2+th/2),B(w,h,th,'#C99555',0,h/2,d/2-th/2)); if(!o.beam) pg.add(B(th,h,d,'#C99555',-w/2+th/2,h/2,0),B(th,h,d,'#C99555',w/2-th/2,h/2,0)); [0.33,0.66].forEach(k=>{ pg.add(B(w+0.004,0.012,th+0.01,'#8A5A28',0,h*k,-d/2+th/2),B(w+0.004,0.012,th+0.01,'#8A5A28',0,h*k,d/2-th/2)); }); g.add(pg); g.add(B(w,0.04,d-th*2,'#8C6A3F',0,0.02,0));
         const rb=grp(); const n=Math.max(2,Math.round(w/0.25)); for(let i=0;i<=n;i++) rb.add(B(0.025,0.025,d-th*2-0.04,'#A0583A',-w/2+w*i/n,h*0.72,0)); [-1,1].forEach(k=>rb.add(B(w,0.03,0.03,'#8E4A30',0,h*0.72,k*(d/2-th-0.05)))); g.add(rb);
@@ -302,7 +312,7 @@ export function create(){
       const bm=B(w,h,d,o.col||'#B6B5AF',0,h/2,0); g.add(bm); if(o.ply&&h>0.2){ const k=Math.round(h/0.1); for(let i=1;i<k;i++){ const s=B(w+0.006,0.008,d+0.006,'#8A5A28',0,h*i/k,0); s.castShadow=false; g.add(s); } }
       if(o.pipes){ bm.visible=false; const n=4; for(let i=0;i<n;i++){ const p=C(Math.min(h,d/n)*0.48,w,'#E6EBEF',0,h/2,-d/2+d*(i+0.5)/n,G.cyl,{flatShading:false}); p.rotation.z=Math.PI/2; g.add(p); } } });
     // backfilled cells
-    (st.fills||[]).forEach(f=>{ const geo=new T.ExtrudeGeometry(shapeOf(f.poly),{depth:v.FILL_H,bevelEnabled:false}); const mm=mesh(geo,M('#B49A6E')); mm.rotation.x=-Math.PI/2; stat.add(mm); });
+    (st.fills||[]).forEach(f=>{ const geo=new T.ExtrudeGeometry(shapeOf(f.poly),{depth:v.FILL_H,bevelEnabled:false}); const mm=mesh(geo,M('#B49A6E')); mm.rotation.x=-Math.PI/2; { let fx=0, fy=0; f.poly.forEach(q=>{ fx+=q.x/f.poly.length; fy+=q.y/f.poly.length; }); mm.position.y=-pit(fx,fy); } stat.add(mm); });
     // cones and the 安全第一 board
     (st.deco||[]).forEach(o=>{ if(o.k==='cone'){ const g=grp(B(0.28,0.03,0.28,'#2B3238',0,0.015,0)); const c1=mesh(G.cone,M('#F26A1B')); c1.scale.set(0.2,0.46,0.2); c1.position.y=0.26; g.add(c1); g.add(C(0.065,0.07,'#FFFFFF',0,0.25,0)); g.position.set(o.x,0,o.y); stat.add(g); }
       else if(o.k==='sign'){ const cv=document.createElement('canvas'); cv.width=256; cv.height=200; const c=cv.getContext('2d'); c.fillStyle='#fff'; c.fillRect(0,0,256,200); c.strokeStyle='#2E8B57'; c.lineWidth=14; c.strokeRect(7,7,242,186); c.fillStyle='#2E8B57'; c.fillRect(34,62,70,26); c.fillRect(56,36,26,80); c.font='800 46px "Noto Sans TC",sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('安全',180,58); c.fillText('第一',180,112); c.fillRect(30,150,196,14);
@@ -441,11 +451,11 @@ export function create(){
     if(stat&&stat.userData.roof){ const pl=stat.userData.roof; pl.rotation.z=pl.userData.z0; pl.updateWorldMatrix(true,false); _v.set(1,0,0).transformDirection(pl.matrixWorld); if(_v.x-_v.z<0) pl.rotation.z=pl.userData.z0+Math.PI; }   // the name on the office roof always reads left to right
     // people, machines, dog
     const yard=st.yard, inY=w=>!!(yard&&v.inZone&&v.inZone(yard,w.x,w.y));
-    st.workers.forEach(w=>{ const g=people.get(w); if(!g) return; g.visible=!w.inside; if(w.inside) return; g.position.set(w.x,(w.z||0),w.y); animPerson(g,w,t,dt,st,inY(w),v); });
+    st.workers.forEach(w=>{ const g=people.get(w); if(!g) return; g.visible=!w.inside; if(w.inside) return; { const pd=st.pitAt?st.pitAt(w.x,w.y):0, u=g.userData; u.pd=u.pd==null?pd:u.pd+(pd-u.pd)*Math.min(1,dt*7); g.position.set(w.x,(w.z||0)-u.pd,w.y); } animPerson(g,w,t,dt,st,inY(w),v); });
     st.vehicles.forEach(vh=>{ const g=machines.get(vh); if(g){ animVehicle(g,vh,t,st,v); const bl=g.userData.blob; if(bl){ const cu=vh.cur; bl.visible=!!(cu&&!vh.parked&&!vh.hidden); if(cu) bl.position.set(cu.x,0.48,cu.y); } } });
     if(dogM&&st.dog) animDog(dogM,st.dog,t,dt);
     const fx=st.fx||[]; dust.forEach((d,i)=>{ const q=fx[i]; if(!q){ d.visible=false; return; } const kk=(t-q.t0)/q.life; d.visible=kk>=0&&kk<1; d.position.set(q.x,0.12+kk*0.4,q.y); d.scale.setScalar(0.25+kk*0.55); d.material.opacity=0.42*(1-kk); });
-    sprayM.forEach(({s,ds},si)=>ds.forEach((d,i)=>{ const kk=((t*0.9)+i/14+si*0.3)%1, ang=i*2.39+si, rr=s.r*kk*0.6; d.position.set(s.x+Math.cos(ang)*rr,0.6+Math.sin(kk*Math.PI)*1.1,s.y+Math.sin(ang)*rr); d.material.opacity=0.75*(1-kk); }));
+    sprayM.forEach(({s,ds},si)=>ds.forEach((d,i)=>{ const kk=((t*0.9)+i/14+si*0.3)%1, ang=i*2.39+si, rr=s.r*kk*0.6; d.position.set(s.x+Math.cos(ang)*rr,0.6+Math.sin(kk*Math.PI)*1.1-(st.pitAt?st.pitAt(s.x,s.y):0),s.y+Math.sin(ang)*rr); d.material.opacity=0.75*(1-kk); }));
     // 編輯: a ring under the machine or soil pile that is picked up
     selRing.visible=false; if(v.edit){ const mv=v.machSel&&st.vehicles.find(q=>q.key===v.machSel), so=v.soilSel&&st.props.find(o=>o.soil&&o.id===v.soilSel); const tg=mv||so; if(tg){ selRing.visible=true; selRing.position.set(tg.x,0.05,tg.y); selRing.scale.setScalar(mv?(mv.type==='digger'?1.5:1.1):Math.max(0.7,(so.r||1)*1.0)); } }
     R.render(scene,cam); }
