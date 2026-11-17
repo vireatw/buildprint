@@ -243,13 +243,13 @@ function animDog(g,d,t,dt){ const u=g.userData, T0=t+d.ph, walk=d.state==='walk'
 /* ---------------- the renderer ---------------- */
 export function create(){
   const canvas=document.createElement('canvas'); canvas.id='sim3d';
-  const R=new T.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'}); R.shadowMap.enabled=true; R.shadowMap.type=T.PCFSoftShadowMap; R.outputColorSpace=T.SRGBColorSpace;
+  const R=new T.WebGLRenderer({canvas,antialias:true,alpha:false,stencil:true,powerPreference:'high-performance'}); R.shadowMap.enabled=true; R.shadowMap.type=T.PCFSoftShadowMap; R.outputColorSpace=T.SRGBColorSpace;
   const scene=new T.Scene(), cam=new T.OrthographicCamera(-1,1,1,-1,1,600);
   const hemi=new T.HemisphereLight('#EAF6FF','#C9B48A',1.5), sun=new T.DirectionalLight('#FFF1D6',2.4); scene.add(hemi,sun,sun.target);
   sun.castShadow=true; sun.shadow.mapSize.set(2048,2048); sun.shadow.bias=-0.0006; sun.shadow.normalBias=0.03; const sc=sun.shadow.camera; sc.left=-22; sc.right=22; sc.top=22; sc.bottom=-22; sc.near=1; sc.far=140;
   const world=grp(); world.scale.y=YS; scene.add(world);
   const back=grp(); back.scale.y=YS; scene.add(back);
-  let stat=null, dyn=null, built={st:null,props:null,fills:null,GW:0,GH:0}, people=new Map(), machines=new Map(), dogM=null, fences=[], lamps=[], soilM=[], formM=[], flagM=null, selRing=null, water=null, ripples=[], boats=[], clouds=[], dust=[], sprayM=[], gatePts=[], winMats=[], nightL=[], flood=[], pileM=[], lastT=0;
+  let stat=null, dyn=null, built={st:null,props:null,fills:null,GW:0,GH:0}, people=new Map(), machines=new Map(), dogM=null, fences=[], lamps=[], soilM=[], formM=[], flagM=null, selRing=null, water=null, ripples=[], boats=[], clouds=[], dust=[], sprayM=[], gatePts=[], winMats=[], nightL=[], flood=[], pileM=[], grassM=null, lastT=0;
   // --- the ground round the site: always at the back of the view ---
   function buildBackdrop(GW,GH){ back.clear(); ripples=[]; boats=[]; clouds=[];
     // open ground running off every edge of the view (no sea, no island, no hills)
@@ -269,16 +269,20 @@ export function create(){
     const GW=v.GW, GH=v.GH, m=1.4;
     ((st.decor&&st.decor.dots)||[]).forEach(q=>{ for(let i=0;i<3;i++){ const b=mesh(G.cone4,M('#8CC070',{emissive:'#3E6B2E',emissiveIntensity:0.35}),false); b.scale.set(0.05,0.16+i*0.03,0.05); b.position.set(q.x+(i-1)*0.07,0.09,q.y+(i%2)*0.05); b.rotation.z=(i-1)*0.25; stat.add(b); } });
     const BND=st.BND, pit=(x,y)=>st.pitAt?st.pitAt(x,y):0, zpts=z=>z.pts||[{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}];
-    // 開挖: the ground is cut away over the dug zones; each gets a floor at −depth and earth walls (none where it meets another dug zone)
-    { const pits=st.zones.filter(z=>z.pit), sh=shapeOf(BND), inP=(x,y)=>pits.some(z=>v.inZone(z,x,y));
-      pits.forEach(z=>{ const P=zpts(z); let cx=0, cy=0; P.forEach(q=>{ cx+=q.x/P.length; cy+=q.y/P.length; }); const h=new T.Path(); P.map(q=>({x:cx+(q.x-cx)*0.997,y:cy+(q.y-cy)*0.997})).forEach((q,i)=>i?h.lineTo(q.x,-q.y):h.moveTo(q.x,-q.y)); h.closePath(); sh.holes.push(h);
+    // 開挖: the dug zones (a little wider than the zone, so the beams along its edge are inside) are cut out of the ground with a stencil mask —
+    // they may overlap each other and run past the fence line; each gets a floor at −depth and earth walls wherever it does not open into another dug zone
+    { const pits=st.zones.filter(z=>z.pit), PP=z=>z.pitPts||zpts(z), inPoly=(P,x,y)=>{ let c=false; for(let i=0,k=P.length-1;i<P.length;k=i++){ const a=P[i], b=P[k]; if(((a.y>y)!==(b.y>y))&&(x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)) c=!c; } return c; };
+      const cut=o=>Object.assign(o,{stencilWrite:true,stencilRef:1,stencilFunc:T.NotEqualStencilFunc});
+      pits.forEach(z=>{ const P=PP(z);
+        const mk=new T.Mesh(new T.ShapeGeometry(shapeOf(P)),new T.MeshBasicMaterial({colorWrite:false,depthWrite:false,stencilWrite:true,stencilRef:1,stencilFunc:T.AlwaysStencilFunc,stencilZPass:T.ReplaceStencilOp})); mk.rotation.x=-Math.PI/2; mk.position.y=0.012; mk.renderOrder=-10; stat.add(mk);
         stat.add(flat(P,'#CDBD9A',-z.pit+0.004));
-        P.forEach((a,i)=>{ const b=P[(i+1)%P.length], ex=b.x-a.x, ey=b.y-a.y, L=Math.hypot(ex,ey)||1, mx=(a.x+b.x)/2, my=(a.y+b.y)/2, ox=ey/L*0.25, oy=-ex/L*0.25, inn=v.inZone(z,mx+ox,my+oy), outX=inn?mx-ox:mx+ox, outY=inn?my-oy:my+oy; if(inP(outX,outY)) return;
-          const w=mesh(new T.PlaneGeometry(L,z.pit),M('#B39A6E',{side:T.DoubleSide})); w.position.set(mx,-z.pit/2,my); w.rotation.y=-Math.atan2(ey,ex); stat.add(w); const lip=B(L,0.03,0.06,'#C7B48A',mx,0.0,my); lip.rotation.y=w.rotation.y; lip.castShadow=false; stat.add(lip); }); });
-      // the big grass plane would show through the holes: with any dug zone it drops out of the way and a grass sheet with the site cut out of it takes its place
-      if(water){ water.position.y=pits.length?-3:-0.004; if(pits.length){ const R0=300, cxg=v.GW/2, cyg=v.GH/2, gs=new T.Shape(); gs.moveTo(cxg-R0,-(cyg-R0)); gs.lineTo(cxg+R0,-(cyg-R0)); gs.lineTo(cxg+R0,-(cyg+R0)); gs.lineTo(cxg-R0,-(cyg+R0)); gs.closePath(); const bh=new T.Path(); BND.forEach((q,i)=>i?bh.lineTo(q.x,-q.y):bh.moveTo(q.x,-q.y)); bh.closePath(); gs.holes.push(bh);
-          const gr=new T.Mesh(new T.ShapeGeometry(gs),water.material); gr.rotation.x=-Math.PI/2; gr.position.y=-0.004; gr.receiveShadow=true; stat.add(gr); } }
-      const gm=mesh(new T.ShapeGeometry(sh),M('#DCCFB2',{flatShading:false}),false); gm.rotation.x=-Math.PI/2; gm.position.y=0.012; gm.receiveShadow=true; stat.add(gm); }
+        P.forEach((a,i)=>{ const b=P[(i+1)%P.length], ex=b.x-a.x, ey=b.y-a.y, L=Math.hypot(ex,ey)||1, n=Math.max(1,Math.ceil(L/0.5)), ry=-Math.atan2(ey,ex);
+          for(let k=0;k<n;k++){ const mx=a.x+ex*(k+0.5)/n, my=a.y+ey*(k+0.5)/n; if(pits.some(o=>o!==z&&inPoly(PP(o),mx,my))) continue; const l=L/n+0.004;
+            const w=mesh(new T.PlaneGeometry(l,z.pit),M('#B39A6E',{side:T.DoubleSide})); w.position.set(mx,-z.pit/2,my); w.rotation.y=ry; stat.add(w); const lip=B(l,0.03,0.06,'#C7B48A',mx,0.0,my); lip.rotation.y=ry; lip.castShadow=false; stat.add(lip); } }); });
+      const gm=mesh(new T.ShapeGeometry(shapeOf(BND)),cut(new T.MeshLambertMaterial({color:'#DCCFB2'})),false); gm.rotation.x=-Math.PI/2; gm.position.y=0.012; gm.receiveShadow=true; stat.add(gm);
+      // the grass round the site: a sheet with the site cut out of it (and the dug zones masked), in place of the big plane, which would show through the holes
+      grassM=null; if(water){ water.position.y=pits.length?-3:-0.004; if(pits.length){ const R0=300, cxg=v.GW/2, cyg=v.GH/2, gs=new T.Shape(); gs.moveTo(cxg-R0,-(cyg-R0)); gs.lineTo(cxg+R0,-(cyg-R0)); gs.lineTo(cxg+R0,-(cyg+R0)); gs.lineTo(cxg-R0,-(cyg+R0)); gs.closePath(); const bh=new T.Path(); BND.forEach((q,i)=>i?bh.lineTo(q.x,-q.y):bh.moveTo(q.x,-q.y)); bh.closePath(); gs.holes.push(bh);
+          grassM=cut(water.material.clone()); const gr=new T.Mesh(new T.ShapeGeometry(gs),grassM); gr.rotation.x=-Math.PI/2; gr.position.y=-0.004; gr.receiveShadow=true; stat.add(gr); } } }
     { const pts=[]; for(let x=Math.ceil(-m);x<GW+m;x++) pts.push(x,0.016,-m,x,0.016,GH+m); for(let y=Math.ceil(-m);y<GH+m;y++) pts.push(-m,0.016,y,GW+m,0.016,y); const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(pts,3)); const ln=new T.LineSegments(g,new T.LineBasicMaterial({color:'#6E552D',transparent:true,opacity:0.07})); stat.add(ln); }
     // road outside the gate and the apron through it
     const GT=st.GT; if(GT){ const E0=BND[GT.edge], E1=BND[(GT.edge+1)%BND.length], q=(p,k,e)=>({x:p.x+GT.n.x*k+GT.t.x*e,y:p.y+GT.n.y*k+GT.t.y*e}); const R0=60, cl=p=>({x:Math.max(-R0,Math.min(GW+R0,p.x)),y:Math.max(-R0,Math.min(GH+R0,p.y))}), ext=GW+GH+R0;
@@ -439,7 +443,7 @@ export function create(){
     const N=v.N||0, wx=v.wx||{}, dull=wx.rain?0.55:wx.dull?0.75:1;
     sun.intensity=(2.5*(1-N)+0.9*N)*dull; sun.color.set(N>0.5?'#B9C8F2':wx.dull?'#F2F4F6':'#FFF1D6'); hemi.intensity=(1.45*(1-N)+1.25*N)*(wx.rain?0.85:1); hemi.color.set(N>0.5?'#8FA6E6':'#EAF6FF'); hemi.groundColor.set(N>0.5?'#4A5880':'#C9B48A');
     const pc=new T.Vector3(v.cx,0,v.cy); sun.target.position.copy(pc); sun.position.set(v.cx+16,34,v.cy-22+0.001); sun.target.updateMatrixWorld();
-    scene.background=new T.Color(N>0.5?'#24331F':wx.rain?'#8FAE7C':'#A6CF8B'); water.material.color.set(N>0.5?'#3C5236':wx.rain?'#93B57F':'#A6CF8B');
+    scene.background=new T.Color(N>0.5?'#24331F':wx.rain?'#8FAE7C':'#A6CF8B'); water.material.color.set(N>0.5?'#3C5236':wx.rain?'#93B57F':'#A6CF8B'); if(grassM) grassM.color.copy(water.material.color);
     const work=N>0.25&&!st.gateClosed&&(st.workers.length>0||st.vehicles.some(q=>!q.hidden&&q.type!=='truck'));   // someone is working after dark: the whole site is floodlit
     flood.forEach(f=>{ f.L.intensity=work?0.55*N:0; }); if(work){ hemi.intensity+=0.9*N; hemi.color.set('#C9D3EA'); sun.intensity+=0.6*N; sun.color.set('#FFF3DC'); }
     winMats.forEach(m=>{ m.emissiveIntensity=N>0.25&&!st.gateClosed?1.6:0; }); bWin.forEach(m=>{ m.emissiveIntensity=N>0.25&&!st.gateClosed?1.1:0; }); gatePts.forEach(p=>{ p.m.material.emissiveIntensity=0.4+N*3; }); nightL.forEach(l=>{ l.intensity=N>0.25?l.userData.k*N:0; });
