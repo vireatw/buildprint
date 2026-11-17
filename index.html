@@ -3350,6 +3350,12 @@ function simBuild(r){
     const zoneNear=(x,y,lim)=>{ let best=null,bd=lim; wz.forEach(z=>{ const P=z.pts||[{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}];
         P.forEach((p,i)=>{ const q=P[(i+1)%P.length], dx=q.x-p.x, dy=q.y-p.y, L2=dx*dx+dy*dy||1e-9, t=Math.max(0,Math.min(1,((x-p.x)*dx+(y-p.y)*dy)/L2)), d=Math.hypot(p.x+dx*t-x,p.y+dy*t-y);
           if(d<bd-1e-6||(Math.abs(d-bd)<1e-6&&best&&z.pts&&P.length<(best.pts||[]).length)){ bd=d; best=z; } }); }); return best; };
+    // a zone's 地樑 appear only once work has started there: some 日報 up to this day lists a job in that zone (or 全區, or a foundation job with no zone picked)
+    const dayNow=r?r.date:selDate, startedIds=new Set(); let startedAll=false;
+    Object.keys(REPORTS||{}).forEach(d=>{ if(d>dayNow) return; ((REPORTS[d]&&REPORTS[d].tasks)||[]).forEach(t=>{ if(t.status==='next'||!(t.text||'').trim()) return; const ids=zoneIds(t.zone);
+      if(!ids.length){ if(/地樑|地梁|基礎|筏基|綁筋|鋼筋|模板|組立|灌漿|澆置|混凝土|拆模|放樣|開挖/.test(t.text)) startedAll=true; return; }
+      ids.forEach(id=>{ if(id===ZONE_ALL) startedAll=true; else { startedIds.add(id); const nm=zoneName(id); if(nm) startedIds.add('n:'+nm); } }); }); });
+    const started=z=>!z||startedAll||startedIds.has(z.id)||startedIds.has('n:'+z.name);
     const modeOf=z=>{ if(!z) return stripAll?'strip':'concrete';
       if(/綁筋/.test(z.doing)) return 'rebar'; if(/組立|(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing)) return 'form'; if(stripZ(z)||stripAll) return 'strip';
       if(/拆模/.test(z.txt)) return 'concrete'; if(/(灌漿|澆置|打設|混凝土|混泥土)|組立/.test(z.txt)) return 'form'; if(/綁筋/.test(z.txt)) return 'form'; return 'concrete'; };
@@ -3383,13 +3389,13 @@ function simBuild(r){
           if((bx-ax)*ux+(by-ay)*uy<0.05) continue;
           const mx=(ax+bx)/2, my=(ay+by)/2;
           const z=zoneAt(mx-uy*0.4,my+ux*0.4)||zoneAt(mx+uy*0.4,my-ux*0.4)||zoneAt(mx,my)||zoneNear(mx,my,0.5);
-          { const md=modeOf(z); beamPiece(ax,ay,bx,by,pick(md),fillOf(z,md),z); }
+          if(started(z)){ const md=modeOf(z); beamPiece(ax,ay,bx,by,pick(md),fillOf(z,md),z); }
         }
       }
       const axTag=Math.abs(uy)<0.08?'h':Math.abs(ux)<0.08?'v':'d';
       for(let k=0.4;k<A.len;k+=0.7){ const px=A.x1+ux*k, py=A.y1+uy*k; const z=zoneAt(px+(axTag==='v'?0.4:0),py+(axTag==='v'?0:0.4))||zoneAt(px,py)||zoneNear(px,py,0.5); if(z){ (z.beamPts||(z.beamPts=[])).push({x:px,y:py,ax:axTag}); } }
     });
-    if(!slabOn) joints.forEach(j=>{ const z=zoneAt(j.x+0.3,j.y+0.3)||zoneAt(j.x-0.3,j.y-0.3)||zoneAt(j.x+0.3,j.y-0.3)||zoneAt(j.x-0.3,j.y+0.3); const m=modeOf(z);
+    if(!slabOn) joints.forEach(j=>{ const z=zoneAt(j.x+0.3,j.y+0.3)||zoneAt(j.x-0.3,j.y-0.3)||zoneAt(j.x+0.3,j.y-0.3)||zoneAt(j.x-0.3,j.y+0.3); if(!started(z)) return; const m=modeOf(z);
       const fl=fillOf(z,m); const mm=m==='strip'?'form':m;
       box(j.x-CH,j.y-CH,CH*2,CH*2,0.56,mm==='rebar'?SC.rebar:mm==='form'?SC.ply:SC.fresh,{cage:mm==='rebar',ply:mm==='form',form:mm==='form',fill:fl,filled:fl==='full',cx:j.x,cy:j.y,zn:z,strip:m==='strip',stripped:m==='strip'&&rng()<0.3}); });
   }
