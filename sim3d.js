@@ -192,7 +192,7 @@ function buildVehicle(v){ const g=grp(), u={}; g.userData=u; u.wheels=[]; u.beac
   return g; }
 function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv; const u=g.userData, T0=t+(v.ph||0), dig=v.type==='digger';
   let x=v.x, y=v.y; const dir=v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0);
-  if(dig&&v.dig&&!v.loadTo&&!view.edit&&!view.lunch){ const k=Math.sin(t*0.35+(v.ph||0))*0.7; x+=Math.cos(dir)*k; y+=Math.sin(dir)*k; }
+  if(dig&&v.dig&&!v.loadTo&&!v.still&&!view.edit&&!view.lunch){ const k=Math.sin(t*0.35+(v.ph||0))*0.7; x+=Math.cos(dir)*k; y+=Math.sin(dir)*k; }
   g.visible=!v.hidden; if(v.hidden) return; { const s0=soilTop(st,x,y,0), sh=s0>0?Math.max(0,s0*0.88-0.2):0; u.sh=u.sh==null?sh:u.sh+(sh-u.sh)*0.2; g.position.set(x,(v.z||0)+u.sh-(st.pitAt?st.pitAt(x,y):0),y); }
   u.hd=u.hd==null?dir:lerpAng(u.hd,dir,0.25); g.rotation.y=-u.hd;
   const moving=v.phase==='arrive'||v.phase==='leave'; if(moving) u.wheels.forEach(w=>{ w.rotation.z=-t*8; });

@@ -3460,18 +3460,22 @@ function simBuild(r){
   if(transport&&nDig>0&&nHaul>0&&(/土|砂石|廢方|棄方/.test(transport.text)||((r&&r.tasks)||[]).some(t=>t.status!=='next'&&/怪手|挖/.test(t.trade||'')&&(t.text||'').trim()===(transport.text||'').trim()))){
     // how it is done on site: the truck backs in beside the pile, the 怪手 stands square to the truck's bed, a boom's length off its side, with the pile within reach on its other hand.
     // It digs, lifts, swings a quarter turn or so, tips over the side of the bed and swings back. Neither machine stands on soil, and the two never touch
-    const digOk=(x,y)=>[[0,0],[1,0],[-1,0],[0,1],[0,-1],[0.8,0.8],[-0.8,0.8],[0.8,-0.8],[-0.8,-0.8]].every(([a,b])=>inSite(x+a*0.75,y+b*0.75))&&dProp(x,y)>0.4;
-    const trkOk=(q,h)=>[-1.15,-0.55,0,0.55,1.15].every(k=>{ const x=q.x+h.x*k, y=q.y+h.y*k; return inSite(x,y)&&inSite(x-h.y*0.55,y+h.x*0.55)&&inSite(x+h.y*0.55,y-h.x*0.55)&&dProp(x,y)>0.55; })&&Math.hypot(q.x-GT.G.x,q.y-GT.G.y)>2.0&&pathClear(gateIn,q);
-    const pair=(q,needPile)=>{ const L=Math.hypot(q.x-gateIn.x,q.y-gateIn.y); if(L<1) return null; const h={x:(q.x-gateIn.x)/L,y:(q.y-gateIn.y)/L}; if(!trkOk(q,h)) return null;
+    const dSolid=(x,y)=>{ let m=1e9; soilP.forEach(o=>{ m=Math.min(m,Math.hypot(x-o.x,y-o.y)-o.r); }); props.forEach(o=>{ if(o.beam||o.mound) return; m=Math.min(m,Math.hypot(Math.max(o.x-x,0,x-o.x-o.w),Math.max(o.y-y,0,y-o.y-o.d))); }); return m; };   // the 怪手 may stand among the 地樑 (it works there anyway), but not on soil, stacks or the office
+    const digOk=(x,y)=>[[0,0],[1,0],[-1,0],[0,1],[0,-1],[0.8,0.8],[-0.8,0.8],[0.8,-0.8],[-0.8,-0.8]].every(([a,b])=>inSite(x+a*0.75,y+b*0.75))&&dSolid(x,y)>0.6;
+    const trkOk=(q,h)=>[-1.0,-0.5,0,0.5,1.0].every(k=>{ const x=q.x+h.x*k, y=q.y+h.y*k; return inSite(x,y)&&inSite(x-h.y*0.5,y+h.x*0.5)&&inSite(x+h.y*0.5,y-h.x*0.5)&&dProp(x,y)>0.44; })&&Math.hypot(q.x-GT.G.x,q.y-GT.G.y)>1.6;
+    const wayIn=q=>{ const L=Math.hypot(q.x-gateIn.x,q.y-gateIn.y), n=Math.max(1,Math.ceil(L/0.3)); for(let i=0;i<=n;i++){ if(dProp(gateIn.x+(q.x-gateIn.x)*i/n,gateIn.y+(q.y-gateIn.y)*i/n)<0.48) return false; } return true; };   // a truck's width of clear ground all the way from the gate
+    const seg=(a,b)=>{ const L=Math.hypot(b.x-a.x,b.y-a.y), n=Math.max(1,Math.ceil(L/0.3)); for(let i=0;i<=n;i++){ const x=a.x+(b.x-a.x)*i/n, y=a.y+(b.y-a.y)*i/n; if(!inSite(x,y)||dProp(x,y)<0.46) return false; } return true; };
+    // the truck may stand any way round: it drives in to a point behind its place and pulls straight forward into it
+    const pair=(q,needPile,ang)=>{ const h={x:Math.cos(ang),y:Math.sin(ang)}; if(!trkOk(q,h)) return null; const via={x:q.x-h.x*1.3,y:q.y-h.y*1.3}; if(!seg(gateIn,via)||!seg(via,q)) return null;
       const bed={x:q.x-h.x*0.35,y:q.y-h.y*0.35}; let out=null, od=1e9;
       [1,-1].forEach(sd=>{ let got=false; [2.7,2.4,2.1,1.9].forEach(off=>{ if(got) return; const n={x:-h.y*sd,y:h.x*sd}, dg={x:bed.x+n.x*off,y:bed.y+n.y*off}; if(!digOk(dg.x,dg.y)) return;   // as far off the truck's side as the boom still reaches
-        soilP.forEach(pl=>{ const vx=pl.x-dg.x, vy=pl.y-dg.y, d=Math.hypot(vx,vy), gap=d-pl.r; if(gap<0.9||gap>1.6) return; const ux=vx/d, uy=vy/d; if(-(ux*n.x+uy*n.y)>0.35) return;   // the pile is not on the truck's side
-          got=true; if(gap-off<od){ od=gap-off; out={dig:{x:dg.x,y:dg.y,u:{x:ux,y:uy}},park:q,bed,r:gap+0.5,off}; } });
-        if(!got&&!needPile&&od>50-off){ od=50-off; out={dig:{x:dg.x,y:dg.y,u:{x:n.x,y:n.y}},park:q,bed,off}; } }); });   // no pile within reach here: it digs the ground on its far side
+        soilP.forEach(pl=>{ const vx=pl.x-dg.x, vy=pl.y-dg.y, d=Math.hypot(vx,vy), gap=d-pl.r; if(gap<0.6||gap>1.7) return; const ux=vx/d, uy=vy/d; if(-(ux*n.x+uy*n.y)>0.75) return;   // the pile is not on the truck's side
+          got=true; if(gap-off<od){ od=gap-off; out={dig:{x:dg.x,y:dg.y,u:{x:ux,y:uy}},park:q,bed,via,ang,r:gap+0.5,off}; } });
+        if(!got&&!needPile&&od>50-off){ od=50-off; out={dig:{x:dg.x,y:dg.y,u:{x:n.x,y:n.y}},park:q,bed,via,ang,off}; } }); });   // no pile within reach here: it digs the ground on its far side
       return out; };
     let best=null, bd=1e9;
     { const xs=BND.map(q=>q.x), ys=BND.map(q=>q.y);
-      for(let pass=0;pass<2&&!best;pass++) for(let yy=Math.min(...ys)+0.4; yy<Math.max(...ys); yy+=0.4) for(let xx=Math.min(...xs)+0.4; xx<Math.max(...xs); xx+=0.4){ const q={x:xx,y:yy}, d=Math.hypot(xx-gateIn.x,yy-gateIn.y); if(d>12) continue; if(yard&&pass===0&&!inZone(yard,xx,yy)) continue; const c=pair(q,pass===0&&soilP.length>0); if(c){ const sc=d-c.off*2; if(sc<bd){ bd=sc; best=c; } } } }   // near the gate, but room between the two machines counts for more
+      for(let pass=0;pass<2&&!best;pass++) for(let yy=Math.min(...ys)+0.4; yy<Math.max(...ys); yy+=0.4) for(let xx=Math.min(...xs)+0.4; xx<Math.max(...xs); xx+=0.4){ const q={x:xx,y:yy}, d=Math.hypot(xx-gateIn.x,yy-gateIn.y); if(d>12) continue; if(yard&&pass===0&&!inZone(yard,xx,yy)) continue; for(let a=0;a<16;a++){ const c=pair(q,pass===0&&soilP.length>0,a*Math.PI/8); if(c){ const sc=d-c.off*2; if(sc<bd){ bd=sc; best=c; } } } } }   // near the gate, but room between the two machines counts for more
     if(best){ haul=best; park=best.park; } }
   if(transport){
     const nT=Math.max(1,Math.min(2,nHaul||1));
@@ -3480,9 +3484,9 @@ function simBuild(r){
       let pk=park;
       // the trucks take turns at the one loading place: the next comes in only after the one before has driven off, so two are never in each other's way
       const A={x:gateOut.x-GT.t.x*span,y:gateOut.y-GT.t.y*span}, B={x:gateOut.x+GT.t.x*span,y:gateOut.y+GT.t.y*span};
-      let inPath=[A,gateOut,gateIn,pk], outPath=[gateIn,gateOut,B];
+      let inPath=haul?[A,gateOut,gateIn,haul.via,pk]:[A,gateOut,gateIn,pk], outPath=haul?[haul.via,gateIn,gateOut,B]:[gateIn,gateOut,B];
       if(i>0){ const via={x:gateIn.x+(pk.x-park.x)*0.9,y:gateIn.y+(pk.y-park.y)*0.9}; if(inSite(via.x,via.y)&&Math.hypot(via.x-park.x,via.y-park.y)>2.2){ inPath=[A,gateOut,gateIn,via,pk]; outPath=[via,gateIn,gateOut,B]; } }   // the second truck swings wide of the first one's parking place
-      vehicles.push({type:'truck',crane:i<nCraneTruck,earth:!!haul,park:pk,inPath,outPath,wp:0,x:i?A.x:pk.x,y:i?A.y:pk.y,phase:i?'away':'load',wait:i?11:7,loaded:false,hidden:i>0,dir:haul?Math.atan2(pk.y-gateIn.y,pk.x-gateIn.x):Math.atan2(-GT.n.y,-GT.n.x)});
+      vehicles.push({type:'truck',crane:i<nCraneTruck,earth:!!haul,park:pk,inPath,outPath,wp:0,x:i?A.x:pk.x,y:i?A.y:pk.y,phase:i?'away':'load',wait:i?11:7,loaded:false,hidden:i>0,dir:haul?haul.ang:Math.atan2(-GT.n.y,-GT.n.x)});
     }
     // 待運的料: what the crew brings over is set down in one stack beside the truck (never in its way); the truck loads from that stack and nothing else
     if(haul) z_loadPt=null; else { const lx=park.x-gateIn.x, ly=park.y-gateIn.y, ll=Math.hypot(lx,ly)||1, nx=-ly/ll, ny=lx/ll, wz=work, tgt=wz.length?{x:wz.reduce((s,z)=>s+z.cx,0)/wz.length,y:wz.reduce((s,z)=>s+z.cy,0)/wz.length}:{x:GW/2,y:GH/2};
@@ -3576,8 +3580,9 @@ function simBuild(r){
       if(mt.length) v.job=mt.map(t=>{ const zn=t.zone?zoneName(t.zone):''; return (zn?zn+' ':'')+t.text.trim()+(t.status==='done'?'（完成）':''); }).join('、'); });
     const seen={}, day=r?r.date:selDate;
     vehicles.forEach(v=>{ if(!v.mk) return; seen[v.mk]=(seen[v.mk]||0)+1; v.key=v.mk+'#'+seen[v.mk]; if(!machMovable(v)) return;
-      const e=machPosOn(v.key,day); if(!e) return; if(v.loadTo&&e.from!==day) return;   // loading the truck today: it works beside it, wherever it was left on an earlier day
-      v.x=MX(+e.x); v.y=MY(+e.y); if(e.a!=null) machSetAng(v,+e.a); if(v.loadTo&&Math.hypot(v.x-v.loadTo.x,v.y-v.loadTo.y)>4) v.loadTo=null; }); }   // moved away from the truck by hand today: it digs where it was put
+      const e=machPosOn(v.key,day); if(!e) return;
+      if(v.loadTo&&(e.from!==day||Math.hypot(MX(+e.x)-v.loadTo.x,MY(+e.y)-v.loadTo.y)<6)) return;   // loading the truck: it keeps the place worked out for it beside the truck, so the two never touch — unless it was taken well away by hand today
+      v.x=MX(+e.x); v.y=MY(+e.y); if(e.a!=null) machSetAng(v,+e.a); v.loadTo=null; }); }
   // 合作: whoever shares one 工作事項 on the 日報 (the very same words) works together — machine with machine, crew with machine, crew with crew.
   // Machines draw up beside the one that stays put (a truck, a pump); crews gather round their machine, or, with no machine, round one spot in the task's zone
   const normT=x=>(x||'').replace(/\s+/g,''), teams={};
@@ -3589,7 +3594,7 @@ function simBuild(r){
         if(Math.hypot(v.x-c.x,v.y-c.y)<4) return;
         for(let b=0;b<16;b++){ const a=b*Math.PI/8, q={x:c.x+Math.cos(a)*3,y:c.y+Math.sin(a)*3};
           if(inSite(q.x,q.y)&&inSite(q.x+0.9,q.y+0.9)&&inSite(q.x-0.9,q.y-0.9)&&inSite(q.x+0.9,q.y-0.9)&&inSite(q.x-0.9,q.y+0.9)&&dProp(q.x,q.y)>0.7&&!vehicles.some(o=>o!==v&&o!==A&&Math.hypot((o.park||o).x-q.x,(o.park||o).y-q.y)<2.4)&&Math.hypot(q.x-gateIn.x,q.y-gateIn.y)>2.5){
-            v.x=q.x; v.y=q.y; if(v.type==='digger'){ v.u={x:-Math.cos(a),y:-Math.sin(a)}; v.dir=a+Math.PI; } else machSetAng(v,a+Math.PI); break; } } }); }); }
+            v.x=q.x; v.y=q.y; v.still=true; if(v.type==='digger'){ v.u={x:-Math.cos(a),y:-Math.sin(a)}; v.dir=a+Math.PI; } else machSetAng(v,a+Math.PI); break; } } }); }); }
   const teamFor=(trade,text)=>{ const T=teams[normT(text)]; return T&&T.names.has(trade)?T:null; };
   // the flagger always stands out on the street, just beside the gate opening
   let sigPt=null;
