@@ -1626,8 +1626,8 @@ function islEditMode(on,quiet){ ISL.edit=!!on&&CAN_WRITE; if(!ISL.edit){ ISL.soi
   $('#p-island .isl-full').classList.toggle('editing',ISL.edit); islUndoBtn(); const ub=$('#islUndo'); if(ub) ub.onclick=islUndo; islSync(); if(SIM.paused) simDraw(); }
 function islEditBar(){ const bar=$('#islEditBar'); if(!bar||!ISL.edit) return;
   const mv=ISL.machSel&&SIM.st&&SIM.st.vehicles.find(v=>v.key===ISL.machSel);
-  if(mv){ const mov=machMovable(mv);
-    bar.innerHTML=`<span class="eb-tip">${esc(mv.mk)}${mv.vendor?`<small>（${esc(mv.vendor)}）</small>`:''}<br><small>${mov?'拖曳移動位置':'行駛中，不能拖曳'}</small></span>${mov?`<button type="button" class="eb-back" id="ebTurn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>轉向</button>`:''}<button type="button" class="eb-del" id="ebMDel">刪除</button><button type="button" class="eb-ok" id="ebDone">完成</button>`;
+  if(mv){ const grp=machGroup(mv).length>1, mov=machMovable(mv)||grp;
+    bar.innerHTML=`<span class="eb-tip">${esc(mv.mk)}${mv.vendor?`<small>（${esc(mv.vendor)}）</small>`:''}<br><small>${grp?'拖曳：一起作業的機具整組移動':mov?'拖曳移動位置':'行駛中，不能拖曳'}</small></span>${mov&&!grp?`<button type="button" class="eb-back" id="ebTurn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>轉向</button>`:''}<button type="button" class="eb-del" id="ebMDel">刪除</button><button type="button" class="eb-ok" id="ebDone">完成</button>`;
     const tn=$('#ebTurn'); if(tn) tn.onclick=()=>{ machSetAng(mv,machAng(mv)+Math.PI/2); machSave(mv); if(SIM.paused) simDraw(); };
     $('#ebMDel').onclick=e=>{ const b=e.currentTarget; if(b.dataset.arm!=='1'){ b.dataset.arm='1'; b.textContent='再按一次'; setTimeout(()=>{ if(b.isConnected){ b.dataset.arm=''; b.textContent='刪除'; } },3000); return; } islMachDelete(mv); };
     $('#ebDone').onclick=()=>{ ISL.machSel=null; islEditBar(); if(SIM.paused) simDraw(); }; return; }
@@ -2846,7 +2846,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=24').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=25').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -3467,14 +3467,19 @@ function simBuild(r){
     const seg=(a,b)=>{ const L=Math.hypot(b.x-a.x,b.y-a.y), n=Math.max(1,Math.ceil(L/0.3)); for(let i=0;i<=n;i++){ const x=a.x+(b.x-a.x)*i/n, y=a.y+(b.y-a.y)*i/n; if(!inSite(x,y)||dProp(x,y)<0.46) return false; } return true; };
     const pair=(q,needPile,ang)=>{ const h={x:Math.cos(ang),y:Math.sin(ang)}; if(!trkOk(q,h)) return null; const via={x:q.x+h.x*1.3,y:q.y+h.y*1.3}; if(!seg(gateIn,via)||!seg(via,q)) return null;   // it backs in from a point ahead of its place, so its nose ends up toward the way out
       const bed={x:q.x-h.x*0.35,y:q.y-h.y*0.35}; let out=null, od=1e9;
-      [1,-1].forEach(sd=>{ let got=false; [2.7,2.4,2.1,1.9].forEach(off=>{ if(got) return; const n={x:-h.y*sd,y:h.x*sd}, dg={x:bed.x+n.x*off,y:bed.y+n.y*off}; if(!digOk(dg.x,dg.y)) return;   // as far off the truck's side as the boom still reaches
-        soilP.forEach(pl=>{ const vx=pl.x-dg.x, vy=pl.y-dg.y, d=Math.hypot(vx,vy), gap=d-pl.r; if(gap<0.6||gap>1.7) return; const ux=vx/d, uy=vy/d; if(-(ux*n.x+uy*n.y)>0.75) return;   // the pile is not on the truck's side
-          got=true; if(gap-off<od){ od=gap-off; out={dig:{x:dg.x,y:dg.y,u:{x:ux,y:uy}},park:q,bed,via,ang,r:gap+0.5,off}; } });
+      [1,-1].forEach(sd=>{ let got=false; [2.7,2.4,2.15].forEach(off=>{ if(got) return; const n={x:-h.y*sd,y:h.x*sd}, dg={x:bed.x+n.x*off,y:bed.y+n.y*off}; if(!digOk(dg.x,dg.y)) return;   // as far off the truck's side as the boom still reaches
+        soilP.forEach(pl=>{ const vx=pl.x-dg.x, vy=pl.y-dg.y, d=Math.hypot(vx,vy), gap=d-pl.r; if(gap<0.9||gap>1.8) return; const ux=vx/d, uy=vy/d; if(-(ux*n.x+uy*n.y)>0.75) return;   // the pile is not on the truck's side
+          got=true; if(gap-off<od){ od=gap-off; out={dig:{x:dg.x,y:dg.y,u:{x:ux,y:uy}},park:q,bed,via,ang,r:gap+0.6,off}; } });
         if(!got&&!needPile&&od>50-off){ od=50-off; out={dig:{x:dg.x,y:dg.y,u:{x:n.x,y:n.y}},park:q,bed,via,ang,off}; } }); });   // no pile within reach here: it digs the ground on its far side
       return out; };
     let best=null, bd=1e9;
     { const xs=BND.map(q=>q.x), ys=BND.map(q=>q.y);
       for(let pass=0;pass<2&&!best;pass++) for(let yy=Math.min(...ys)+0.4; yy<Math.max(...ys); yy+=0.4) for(let xx=Math.min(...xs)+0.4; xx<Math.max(...xs); xx+=0.4){ const q={x:xx,y:yy}, d=Math.hypot(xx-gateIn.x,yy-gateIn.y); if(d>12) continue; if(yard&&pass===0&&!inZone(yard,xx,yy)) continue; for(let a=0;a<16;a++){ const c=pair(q,pass===0&&soilP.length>0,a*Math.PI/8); if(c){ const sc=d-c.off*2; if(sc<bd){ bd=sc; best=c; } } } } }   // near the gate, but room between the two machines counts for more
+    { const ho=machPosOn('@haul',r?r.date:selDate);   // the pair was put somewhere by hand (dragged together in 編輯): it stays as placed
+      if(ho){ const q={x:MX(+ho.x),y:MY(+ho.y)}, dg={x:MX(+ho.gx),y:MY(+ho.gy)}, h={x:Math.cos(+ho.a),y:Math.sin(+ho.a)};
+        if(inSite(q.x,q.y)&&inSite(dg.x,dg.y)){ const v1={x:q.x+h.x*1.3,y:q.y+h.y*1.3}, via=inSite(v1.x,v1.y)?v1:q, bed={x:q.x-h.x*0.35,y:q.y-h.y*0.35}; let u={x:Math.cos(+ho.ga),y:Math.sin(+ho.ga)}, rr=2;
+          soilP.forEach(pl=>{ const vx=pl.x-dg.x, vy=pl.y-dg.y, d=Math.hypot(vx,vy), gap=d-pl.r; if(gap>0.3&&gap<2.2&&gap<rr+0.2){ u={x:vx/d,y:vy/d}; rr=gap+0.6; } });   // a pile within reach: it digs from that
+          best={dig:{x:dg.x,y:dg.y,u},park:q,bed,via,ang:+ho.a,r:rr,off:2.4,manual:true}; } } }
     if(best){ haul=best; park=best.park; } }
   if(transport){
     const nT=Math.max(1,Math.min(2,nHaul||1));
@@ -3486,7 +3491,7 @@ function simBuild(r){
       // a truck that comes to take something away backs in: it drives past the gate on the road, reverses through it to its place, and afterwards pulls straight out, cab first
       const mid=haul?[haul.via]:[], P={x:gateOut.x+GT.t.x*2.6,y:gateOut.y+GT.t.y*2.6}, last=mid.length?mid[mid.length-1]:gateIn;
       const inPath=[A,P,gateOut,gateIn,...mid,pk], outPath=[...mid.slice().reverse(),gateIn,gateOut,B];
-      vehicles.push({type:'truck',crane:i<nCraneTruck,earth:!!haul,park:pk,inPath,outPath,rev:2,wp:0,x:i?A.x:pk.x,y:i?A.y:pk.y,phase:i?'away':'load',wait:i?11:7,loaded:false,hidden:i>0,dir:Math.atan2(last.y-pk.y,last.x-pk.x)});
+      vehicles.push({type:'truck',crane:i<nCraneTruck,earth:!!haul,hang:haul?haul.ang:null,park:pk,inPath,outPath,rev:2,wp:0,x:i?A.x:pk.x,y:i?A.y:pk.y,phase:i?'away':'load',wait:i?11:7,loaded:false,hidden:i>0,dir:Math.atan2(last.y-pk.y,last.x-pk.x)});
     }
     // 待運的料: what the crew brings over is set down in one stack beside the truck (never in its way); the truck loads from that stack and nothing else
     if(haul) z_loadPt=null; else { const lx=park.x-gateIn.x, ly=park.y-gateIn.y, ll=Math.hypot(lx,ly)||1, nx=-ly/ll, ny=lx/ll, wz=work, tgt=wz.length?{x:wz.reduce((s,z)=>s+z.cx,0)/wz.length,y:wz.reduce((s,z)=>s+z.cy,0)/wz.length}:{x:GW/2,y:GH/2};
@@ -3558,7 +3563,7 @@ function simBuild(r){
     const digT=((r&&r.tasks)||[]).filter(t=>t.status!=='next'&&t.zone&&/怪手|挖/.test(t.trade||'')).sort((x,y)=>(x.status==='done')-(y.status==='done'));
     const digZ=[]; digT.forEach(t=>{ const c=zonesOfTask(t); if(t.zone===ZONE_ALL){ if(c.length) digZ.push({t,z:c[Math.floor(rng()*c.length)]}); } else c.forEach(z=>digZ.push({t,z})); });
     for(let i=0;i<Math.min(2,nDig);i++){ let spot=null;
-      if(i===0&&haul){ vehicles.push({type:'digger',x:haul.dig.x,y:haul.dig.y,u:haul.dig.u,dig:true,loadTo:haul.bed,digR:haul.r||2,ph:0,dir:Math.atan2(haul.dig.u.y,haul.dig.u.x)}); continue; }
+      if(i===0&&haul){ vehicles.push({type:'digger',x:haul.dig.x,y:haul.dig.y,u:haul.dig.u,dig:true,loadTo:haul.bed,manual:!!haul.manual,digR:haul.r||2,ph:0,dir:Math.atan2(haul.dig.u.y,haul.dig.u.x)}); continue; }
       const dz=digZ.length?digZ[i%digZ.length]:null;
       if(dz){ for(const pl of piles.filter(pl=>inZone(dz.z,pl.x,pl.y))){ for(const [ux,uy] of [[-1,0],[0,-1],[1,0],[0,1]]){ const x=pl.x-ux*(pl.r+1.6), y=pl.y-uy*(pl.r+1.6); if(clear(x,y)){ spot={x,y,u:{x:ux,y:uy},dig:true}; break; } } if(spot) break; }
         for(let k=0;k<30&&!spot;k++){ const q=randIn(dz.z,rng); if(clear(q.x,q.y)){ const dx=dz.z.cx-q.x, dy=dz.z.cy-q.y; spot={x:q.x,y:q.y,u:Math.abs(dx)>Math.abs(dy)?{x:Math.sign(dx)||1,y:0}:{x:0,y:Math.sign(dy)||1},dig:/挖|土|回填|整地/.test(dz.t.text||'')}; } } }
@@ -3581,13 +3586,13 @@ function simBuild(r){
     const seen={}, day=r?r.date:selDate;
     vehicles.forEach(v=>{ if(!v.mk) return; seen[v.mk]=(seen[v.mk]||0)+1; v.key=v.mk+'#'+seen[v.mk]; if(!machMovable(v)) return;
       const e=machPosOn(v.key,day); if(!e) return;
-      if(v.loadTo&&(e.from!==day||Math.hypot(MX(+e.x)-v.loadTo.x,MY(+e.y)-v.loadTo.y)<6)) return;   // loading the truck: it keeps the place worked out for it beside the truck, so the two never touch — unless it was taken well away by hand today
-      v.x=MX(+e.x); v.y=MY(+e.y); if(e.a!=null) machSetAng(v,+e.a); v.loadTo=null; }); }
+      if(v.loadTo) return;   // loading the truck: it keeps the place worked out for it beside the truck, so the two never touch — to move it, the pair is dragged together
+      v.x=MX(+e.x); v.y=MY(+e.y); if(e.a!=null) machSetAng(v,+e.a); }); }
   // 合作: whoever shares one 工作事項 on the 日報 (the very same words) works together — machine with machine, crew with machine, crew with crew.
   // Machines draw up beside the one that stays put (a truck, a pump); crews gather round their machine, or, with no machine, round one spot in the task's zone
   const normT=x=>(x||'').replace(/\s+/g,''), teams={};
   ((r&&r.tasks)||[]).forEach(t=>{ if(t.status==='next'||!t.trade) return; const k=normT(t.text); if(!k) return; const T=teams[k]=teams[k]||{names:new Set(),veh:[],zt:null,spot:null,zone:null}; T.names.add(t.trade); if(!T.zt&&t.zone) T.zt=t; });
-  Object.keys(teams).forEach(k=>{ const T=teams[k]; if(T.names.size<2){ delete teams[k]; return; } T.veh=vehicles.filter(v=>v.mk&&T.names.has(v.mk)); });
+  Object.keys(teams).forEach(k=>{ const T=teams[k]; if(T.names.size<2){ delete teams[k]; return; } T.veh=vehicles.filter(v=>v.mk&&T.names.has(v.mk)); T.veh.forEach(v=>{ v.tm=k; }); });
   { const fixed=v=>v.type==='truck'||v.type==='pump'||v.type==='mixer', day=r?r.date:selDate;
     Object.values(teams).forEach(T=>{ if(!T.veh.length) return; const A=T.veh.find(fixed)||T.veh.find(v=>v.loadTo)||T.veh[0]; T.anchor=A; const c=A.park||A; if(T.veh.length<2) return;
       T.veh.forEach(v=>{ if(v===A||fixed(v)||v.loadTo||v.type==='skid'||!machMovable(v)) return; const e=machPosOn(v.key,day); if(e&&e.from===day) return;   // put somewhere by hand today: it stays there
@@ -4853,6 +4858,12 @@ const machMovable=v=>v.type==='digger'||v.type==='small'||v.type==='skid'||v.typ
 function machPosOn(key,day){ const L=((SITE&&SITE.mpos)||{})[key]; if(!Array.isArray(L)) return null; return L.filter(e=>!e.from||e.from<=day).sort((a,b)=>(a.from||'').localeCompare(b.from||'')).pop()||null; }
 function machAng(v){ return v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0); }
 function machSetAng(v,a){ const q=Math.round(a/(Math.PI/2))*(Math.PI/2); v.dir=q; v.u={x:Math.round(Math.cos(q)),y:Math.round(Math.sin(q))}; }
+// machines working together are moved together: the 怪手 and the truck it loads, or the machines sharing one 工作事項
+function machGroup(v){ const V=(SIM.st&&SIM.st.vehicles)||[]; if(v.loadTo||v.earth){ const g=V.filter(o=>o.loadTo||(o.earth&&o.type==='truck')); if(g.length>1) return g; } if(v.tm){ const g=V.filter(o=>o.tm===v.tm&&machMovable(o)); if(g.length>1&&g.includes(v)) return g; } return [v]; }
+function machGroupSave(G){ const st=SIM.st, dg=G.find(o=>o.loadTo), tr=G.find(o=>o.earth&&o.type==='truck');
+  if(dg&&tr){ if(ISL.edit) islSnap(); const a=st.toN(tr.park.x,tr.park.y), b=st.toN(dg.x,dg.y); SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos['@haul']||[]).filter(e=>e.from!==selDate);
+    L.push({from:selDate,x:a.x,y:a.y,a:+(tr.hang!=null?tr.hang:(tr.dir||0)).toFixed(3),gx:b.x,gy:b.y,ga:+machAng(dg).toFixed(3)}); SITE.mpos['@haul']=L; saveSite(); try{ simMount(REPORTS[selDate]||null); }catch(e){ console.error(e); } return; }
+  G.forEach(o=>{ if(machMovable(o)) machSave(o); }); }
 function machAt(sx,sy){ const st=SIM.st; if(!st) return null; let best=null, bd=1e9;
   st.vehicles.forEach(v=>{ if(v.hidden||!v.key) return; const q=SP(v.x,v.y,0.5+(v.z||0)), d=Math.hypot(q[0]-sx,q[1]-sy); if(d<Math.max(26,SIM.S*1.1)&&d<bd){ bd=d; best=v; } }); return best; }
 function machSave(v){ if(ISL.edit) islSnap(); if(v.type==='skid'){ v.hx=v.x; v.hy=v.y; v.run=null; } const n=SIM.st.toN(v.x,v.y); SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos[v.key]||[]).filter(e=>e.from!==selDate); L.push({from:selDate,x:n.x,y:n.y,a:+machAng(v).toFixed(3)}); SITE.mpos[v.key]=L; saveSite(); }
@@ -4933,7 +4944,7 @@ function setSimBtns(){ const zb=document.getElementById('simZoom'), pb=document.
   if(pb){ pb.innerHTML=SIM.paused?ICO.play:ICO.pause; pb.setAttribute('aria-label',SIM.paused?'播放動畫':'暫停動畫'); } }
 function simMount(r){
   const cv=document.getElementById('sim'); if(!cv) return;
-  const key=CUR+"|"+JSON.stringify(wxAuto(r?r.date:selDate)||0)+"|"+(SIM.half||'all')+"|"+(SIM.todayHalf||'')+"|"+gateState()+"|"+todayPunches().map(p=>p.id+(p.out?'o':'i')).join(',')+"|"+(r?punchesOn(r.date).map(p=>p.id+(p.out||'')).join(',')+'|':'')+(r?r.date+'|'+(r.at||'')+'|'+JSON.stringify(r.workers)+'|'+r.tasks.length:'none')+'|'+JSON.stringify(SITE.zones||[])+JSON.stringify(SITE.beams||[])+JSON.stringify(SITE.gate||{})+JSON.stringify(SITE.boundary||{})+JSON.stringify(SITE.office||{})+((SITE.drawing&&SITE.drawing.id)||'')+'|'+(layoutData()?((SITE.layout&&SITE.layout.id)||'L'):'');
+  const key=CUR+"|"+JSON.stringify(wxAuto(r?r.date:selDate)||0)+"|"+(SIM.half||'all')+"|"+(SIM.todayHalf||'')+"|"+gateState()+"|"+todayPunches().map(p=>p.id+(p.out?'o':'i')).join(',')+"|"+(r?punchesOn(r.date).map(p=>p.id+(p.out||'')).join(',')+'|':'')+(r?r.date+'|'+(r.at||'')+'|'+JSON.stringify(r.workers)+'|'+r.tasks.length:'none')+'|'+JSON.stringify(SITE.zones||[])+JSON.stringify(SITE.beams||[])+JSON.stringify(SITE.gate||{})+JSON.stringify(SITE.boundary||{})+JSON.stringify(SITE.office||{})+((SITE.drawing&&SITE.drawing.id)||'')+'|'+(layoutData()?((SITE.layout&&SITE.layout.id)||'L'):'')+'|'+JSON.stringify((SITE.mpos||{})['@haul']||0);
   if(key!==SIM.key){ SIM.st=simBuild(r); SIM.key=key; SIM.selZone=null; } else { soilProps(SIM.st); fillsBuild(SIM.st); }
   rotCentre(SIM.st); setRot(SIM.rot||0); rotBtn();
   SIM.cv=cv; SIM.ctx=cv.getContext('2d'); g3Mount();
@@ -4951,13 +4962,16 @@ function simMount(r){
     // 電腦：按住 Shift＋滑鼠左鍵左右拖曳 = 旋轉工地
     if(e.shiftKey&&e.pointerType==='mouse'&&e.button===0&&pts.size===0){ const p=loc(e); rdrag={x:p[0],rot:SIM.rot||0}; cv.style.cursor='ew-resize'; return; }
     if(ISL.edit&&ISL.mode!=='fill'&&pts.size===0){ const p=loc(e), m=machAt(p[0],p[1]);
-      if(m){ const g=simGround(p[0],p[1]); mdrag={v:m,dx:m.x-g.x,dy:m.y-g.y,x:p[0],y:p[1],moved:false,fixed:!machMovable(m)}; ISL.machSel=m.key; ISL.soilSel=null; islEditBar(); if(SIM.paused) simDraw(); return; } }
+      if(m){ const g=simGround(p[0],p[1]); const G=machGroup(m); mdrag={v:m,G,g0:{x:g.x,y:g.y},o:G.map(o=>({x:o.x,y:o.y,px:o.park?o.park.x:0,py:o.park?o.park.y:0,lx:o.loadTo?o.loadTo.x:0,ly:o.loadTo?o.loadTo.y:0})),dx:m.x-g.x,dy:m.y-g.y,x:p[0],y:p[1],moved:false,fixed:!machMovable(m)&&G.length<2}; ISL.machSel=m.key; ISL.soilSel=null; islEditBar(); if(SIM.paused) simDraw(); return; } }
     if(ISL.edit&&ISL.mode!=='fill'&&pts.size===0){ const p=loc(e), o=soilAt(p[0],p[1]); if(o){ ISL.machSel=null; const g=simGround(p[0],p[1]); sdrag={o,dx:o.x-g.x,dy:o.y-g.y,x:p[0],y:p[1],moved:false}; ISL.soilSel=o.id; islEditBar(); if(SIM.paused) simDraw(); return; } }
     pts.set(e.pointerId,loc(e));
     if(pts.size===1){ const p=loc(e); drag={x:p[0],y:p[1],px:SIM.panX||0,py:SIM.panY||0,moved:false}; }
     if(pts.size===2){ const [a,b]=[...pts.values()]; pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])||1,z:SIM.zoom||1,mx:(a[0]+b[0])/2,my:(a[1]+b[1])/2,ang:Math.atan2(b[1]-a[1],b[0]-a[0]),rot:SIM.rot||0,rotOn:false}; drag=null; } };
   cv.onpointermove=e=>{ if(rdrag){ const p=loc(e); setRot(rdrag.rot-(p[0]-rdrag.x)*0.008); rotBtn(); if(SIM.paused) simDraw(); return; }
     if(mdrag){ const p=loc(e); if(!mdrag.moved&&Math.hypot(p[0]-mdrag.x,p[1]-mdrag.y)<4) return; mdrag.moved=true; if(mdrag.fixed) return; const g=simGround(p[0],p[1]), nx=g.x+mdrag.dx, ny=g.y+mdrag.dy, B=(SIM.st.BND||[]).map(q=>[q.x,q.y]);
+      if(mdrag.G.length>1){ const ex=g.x-mdrag.g0.x, ey=g.y-mdrag.g0.y;   // the whole group moves as one, and only where every one of them stays inside the fence
+        if(!B.length||mdrag.o.every((o,i)=>inPolyS([(mdrag.G[i].park?o.px:o.x)+ex,(mdrag.G[i].park?o.py:o.y)+ey],B))) mdrag.G.forEach((v,i)=>{ const o=mdrag.o[i]; if(v.park){ v.park={x:o.px+ex,y:o.py+ey}; if(v.phase==='load'){ v.x=v.park.x; v.y=v.park.y; } } else { v.x=o.x+ex; v.y=o.y+ey; } if(v.loadTo) v.loadTo={x:o.lx+ex,y:o.ly+ey}; });
+        if(SIM.paused) simDraw(); return; }
       if(!B.length||inPolyS([nx,ny],B)){ mdrag.v.x=nx; mdrag.v.y=ny; } if(SIM.paused) simDraw(); return; }
     if(sdrag){ const p=loc(e); if(!sdrag.moved&&Math.hypot(p[0]-sdrag.x,p[1]-sdrag.y)<4) return; sdrag.moved=true; const g=simGround(p[0],p[1]);
       { const nx=g.x+sdrag.dx, ny=g.y+sdrag.dy, B=(SIM.st.BND||[]).map(q=>[q.x,q.y]); if(!B.length||inPolyS([nx,ny],B)){ sdrag.o.x=nx; sdrag.o.y=ny; } } if(SIM.paused) simDraw(); return; }
@@ -4972,7 +4986,7 @@ function simMount(r){
     if(drag){ const p=loc(e), dx=p[0]-drag.x, dy=p[1]-drag.y; if(Math.hypot(dx,dy)>6) drag.moved=true;
       if(drag.moved){ SIM.panX=drag.px+dx; SIM.panY=drag.py+dy; SIM.userZoom=true; simView(); if(SIM.paused) simDraw(); } } };
   const up=e=>{ if(rdrag){ rdrag=null; cv.style.cursor=''; if(Math.abs(SIM.rot||0)<0.07){ setRot(0); rotBtn(); if(SIM.paused) simDraw(); } return; }
-    if(mdrag){ const d=mdrag; mdrag=null; if(d.moved&&!d.fixed) machSave(d.v); return; }
+    if(mdrag){ const d=mdrag; mdrag=null; if(d.moved&&!d.fixed){ if(d.G.length>1) machGroupSave(d.G); else machSave(d.v); } return; }
     if(sdrag){ const d=sdrag; sdrag=null; if(d.moved){ const n=SIM.st.toN(d.o.x,d.o.y), it=(SITE.soil||[]).find(x=>x.id===d.o.id); if(it){ islSnap(); it.x=n.x; it.y=n.y; saveSite(); } } return; }
     const wasPinch=!!pinch; pts.delete(e.pointerId); if(pts.size<2){ if(pinch&&pinch.rotOn&&Math.abs(SIM.rot)<0.07){ setRot(0); rotBtn(); if(SIM.paused) simDraw(); } pinch=null; }
     if(pts.size===1 && wasPinch){ const p=[...pts.values()][0]; drag={x:p[0],y:p[1],px:SIM.panX,py:SIM.panY,moved:true}; return; }

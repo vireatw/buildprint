@@ -56,3 +56,4 @@ No network on Claude's side is guaranteed, so test with a fake Firebase: serve t
 - Other machines of a team draw up 3 units from the one that stays put (truck/pump/mixer); a machine moved by hand that day stays where it was put.
 - Crews of a team: `w.mate` (stand round the machine, further out round a digger/crane) or, with no machine, `w.spot` (one spot in the task's zone). Special roles (flagger, pour, carry, pipe, wash, clean, engineers) are left alone.
 - Soil piles are solid for parking and truck routes (`soilP` in `dProp`).
+- Group drag (編輯): `machGroup(v)` = the haul pair (digger with `loadTo` + `earth` truck) or the movable machines of one team (`v.tm`). The haul pair's place is saved as `SITE.mpos['@haul']` ({from,x,y,a truck; gx,gy,ga digger}) and simBuild uses it before searching; a haul digger ignores its own mpos entry.

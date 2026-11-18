@@ -220,8 +220,8 @@ function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv;
       // The round is timed by the truck (its eT, 9 s a bucket), so the soil lands in the bed as the bucket tips
       const tr=st.vehicles.find(o=>o.earth&&o.phase==='load'&&!o.hidden), p=tr&&!view.lunch?Math.min(0.999,(tr.eT||0)/9):null, sm=k=>{ k=Math.max(0,Math.min(1,k)); return k*k*(3-2*k); };
       let dA=Math.atan2(v.loadTo.y-v.y,v.loadTo.x-v.x)-dir; dA=Math.atan2(Math.sin(dA),Math.cos(dA));
-      const r=Math.max(1.5,Math.min(2.3,v.digR||2)), dT=Math.max(1.55,Math.min(2.55,Math.hypot(v.loadTo.x-v.x,v.loadTo.y-v.y)-0.15));
-      const C=[1.45,1.2,0.55], R=[r,0.6,-0.9], D=[r,0.02,-0.75], Sc=[r-0.45,0.18,0.5], T=[dT,1.3,0.55], Tp=[dT,1.3,-1.15];   // bucket: out, height, curl
+      const r=Math.max(1.85,Math.min(2.4,v.digR||2)), dT=Math.max(1.9,Math.min(2.55,Math.hypot(v.loadTo.x-v.x,v.loadTo.y-v.y)-0.15));
+      const C=[1.75,1.15,0.55], R=[r,0.6,-0.9], D=[r,0.02,-0.75], Sc=[r-0.45,0.18,0.5], T=[dT,1.3,0.55], Tp=[dT,1.3,-1.15];   // bucket: out, height, curl
       const mix=(A,B,k)=>A.map((a,i)=>a+(B[i]-a)*sm(k)); let q=C, sw2=0; full=false;
       if(p==null){ q=[C[0],C[1]+Math.sin(T0*0.5)*0.03,C[2]-0.5]; }
       else if(p<0.10) q=mix([C[0],C[1],0.05],R,p/0.10);
