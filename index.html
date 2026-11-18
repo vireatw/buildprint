@@ -3575,6 +3575,19 @@ function simBuild(r){
     vehicles.forEach(v=>{ if(!v.mk) return; seen[v.mk]=(seen[v.mk]||0)+1; v.key=v.mk+'#'+seen[v.mk]; if(!machMovable(v)) return;
       const e=machPosOn(v.key,day); if(!e) return; if(v.loadTo&&e.from!==day) return;   // loading the truck today: it works beside it, wherever it was left on an earlier day
       v.x=MX(+e.x); v.y=MY(+e.y); if(e.a!=null) machSetAng(v,+e.a); if(v.loadTo&&Math.hypot(v.x-v.loadTo.x,v.y-v.loadTo.y)>4) v.loadTo=null; }); }   // moved away from the truck by hand today: it digs where it was put
+  // 合作: whoever shares one 工作事項 on the 日報 (the very same words) works together — machine with machine, crew with machine, crew with crew.
+  // Machines draw up beside the one that stays put (a truck, a pump); crews gather round their machine, or, with no machine, round one spot in the task's zone
+  const normT=x=>(x||'').replace(/\s+/g,''), teams={};
+  ((r&&r.tasks)||[]).forEach(t=>{ if(t.status==='next'||!t.trade) return; const k=normT(t.text); if(!k) return; const T=teams[k]=teams[k]||{names:new Set(),veh:[],zt:null,spot:null,zone:null}; T.names.add(t.trade); if(!T.zt&&t.zone) T.zt=t; });
+  Object.keys(teams).forEach(k=>{ const T=teams[k]; if(T.names.size<2){ delete teams[k]; return; } T.veh=vehicles.filter(v=>v.mk&&T.names.has(v.mk)); });
+  { const fixed=v=>v.type==='truck'||v.type==='pump'||v.type==='mixer', day=r?r.date:selDate;
+    Object.values(teams).forEach(T=>{ if(!T.veh.length) return; const A=T.veh.find(fixed)||T.veh.find(v=>v.loadTo)||T.veh[0]; T.anchor=A; const c=A.park||A; if(T.veh.length<2) return;
+      T.veh.forEach(v=>{ if(v===A||fixed(v)||v.loadTo||v.type==='skid'||!machMovable(v)) return; const e=machPosOn(v.key,day); if(e&&e.from===day) return;   // put somewhere by hand today: it stays there
+        if(Math.hypot(v.x-c.x,v.y-c.y)<4) return;
+        for(let b=0;b<16;b++){ const a=b*Math.PI/8, q={x:c.x+Math.cos(a)*3,y:c.y+Math.sin(a)*3};
+          if(inSite(q.x,q.y)&&inSite(q.x+0.9,q.y+0.9)&&inSite(q.x-0.9,q.y-0.9)&&inSite(q.x+0.9,q.y-0.9)&&inSite(q.x-0.9,q.y+0.9)&&dProp(q.x,q.y)>0.7&&!vehicles.some(o=>o!==v&&o!==A&&Math.hypot((o.park||o).x-q.x,(o.park||o).y-q.y)<2.4)&&Math.hypot(q.x-gateIn.x,q.y-gateIn.y)>2.5){
+            v.x=q.x; v.y=q.y; if(v.type==='digger'){ v.u={x:-Math.cos(a),y:-Math.sin(a)}; v.dir=a+Math.PI; } else machSetAng(v,a+Math.PI); break; } } }); }); }
+  const teamFor=(trade,text)=>{ const T=teams[normT(text)]; return T&&T.names.has(trade)?T:null; };
   // the flagger always stands out on the street, just beside the gate opening
   let sigPt=null;
   { const on=q=>q.x>=-0.6&&q.x<=GW+0.6&&q.y>=-0.6&&q.y<=GH+0.6;
@@ -3628,7 +3641,12 @@ function simBuild(r){
       const mine=!task||!task.trade||task.trade===trade;   // not borrowing another crew's 工作事項
       if(w.role==='work' && mine && /沖洗|清洗|灑水|澆水|養護|洗/.test(w.task) && !/洗石/.test(w.task)){ w.wash=true; w.okPt=q=>inSite(q.x,q.y); }
       else if(w.role==='work' && ((mine&&/環境整理|清潔|清理|打掃|整理|掃地|垃圾|撿/.test(w.task))||(!w.actOwn&&/清潔|打掃/.test(trade)))){ w.clean=true; w.okPt=q=>inSite(q.x,q.y); }   // 環境整理: sweeps and picks up litter, a few steps at a time
-      const p=w.role==='signal'?w.sig:randIn(zone,rng); w.x=p.x; w.y=p.y; pickTarget(w,zones,anyZones,rng,stacks);   // the flagger starts at his post
+      { const T=w.role==='work'&&!w.wash&&!w.clean&&mine&&task?teamFor(trade,task.text):null;   // 合作: with the machine on the same job, or all at one spot of the zone
+        if(T&&T.anchor){ w.mate=T.anchor; w.okTeam=q=>inSite(q.x,q.y)&&dProp(q.x,q.y)>0.25; }
+        else if(T){ if(!T.spot){ T.zone=(T.zt&&zonesOfTask(T.zt)[0])||zone; const bp=T.zone.beamPts; T.spot=bp&&bp.length?bp[Math.floor(rng()*bp.length)]:randIn(T.zone,rng); }
+          w.zone=T.zone; w.spot=T.spot; w.okTeam=q=>inSite(q.x,q.y)&&inZone(T.zone,q.x,q.y); } }
+      const p=w.role==='signal'?w.sig:randIn(w.zone,rng); w.x=p.x; w.y=p.y; pickTarget(w,zones,anyZones,rng,stacks);   // the flagger starts at his post
+      if(w.mate||w.spot){ w.x=w.tx; w.y=w.ty; pickTarget(w,zones,anyZones,rng,stacks); }
       workers.push(w);
     }
   });
@@ -3687,6 +3705,8 @@ function pickTarget(w,zones,anyZones,rng,stacks){
     else { const near=stacks.length?stacks[Math.floor(rng()*stacks.length)]:{x:w.zone.cx,y:w.zone.cy}; w.tx=near.x+(rng()-.5)*0.6; w.ty=near.y+0.7+(rng()-.5)*0.3; }
     return;
   }
+  if(w.mate||w.spot){ const c=w.mate?(w.mate.park||w.mate):w.spot, r0=w.mate?(w.mate.type==='digger'||w.mate.type==='mcrane'?2.5:1.5):0.45, r1=w.mate?r0+0.9:1.6;   // clear of a swinging boom   // 合作: beside the machine, or round the crew's one spot
+    for(let k=0;k<14;k++){ const a=rng()*Math.PI*2, d=r0+rng()*(r1-r0), q={x:c.x+Math.cos(a)*d,y:c.y+Math.sin(a)*d}; if(!w.okTeam||w.okTeam(q)){ w.tx=q.x; w.ty=q.y; return; } } }
   const z=w.zone;
   if(w.wash && z.beamPts && z.beamPts.length){   // hosing rebar: stand inside the site, beside a beam, spraying toward it
     for(let i=0;i<12;i++){ const b=z.beamPts[Math.floor(rng()*z.beamPts.length)]; if(!w.okPt(b)) continue;

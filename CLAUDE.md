@@ -49,3 +49,10 @@ No network on Claude's side is guaranteed, so test with a fake Firebase: serve t
 - `beams` = 地樑 centre lines of the structural drawing (cm). With an exact fit, `beamSnap` moves hand-drawn beams onto them (reach 150 cm) before `fenceClamp`. SITE.beams itself is never rewritten.
 - `margin` (cm) = how far outside the outline a line may lie and still belong to a floor (default 60). Site lines (boundary wall, ditches) are removed when the file is built.
 - The sim is rebuilt once when the 平面配置 finishes loading (simMount key), so the beams can settle.
+
+## 合作 (same 工作事項 → work together, Nov 2026)
+- Tasks of the day whose text is identical (spaces ignored) and that belong to two or more trades/machines form a team (`teams` in simBuild).
+- 怪手 + 卡車類 (卡車、土車、砂石車…) with a soil-haul task: `haul` — digger by a soil pile, truck beside it off the soil, digger loads it (`v.loadTo`, `v.earth`, truck `eT` drives the digger's swing in sim3d).
+- Other machines of a team draw up 3 units from the one that stays put (truck/pump/mixer); a machine moved by hand that day stays where it was put.
+- Crews of a team: `w.mate` (stand round the machine, further out round a digger/crane) or, with no machine, `w.spot` (one spot in the task's zone). Special roles (flagger, pour, carry, pipe, wash, clean, engineers) are left alone.
+- Soil piles are solid for parking and truck routes (`soilP` in `dProp`).
