@@ -214,19 +214,32 @@ function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv;
     link(u.ram,0.35,0.3,0,Math.cos(el)*1.2,0.5+Math.sin(el)*1.2,0,0.07);
     const tipx=v.x+Math.cos(sl)*4.2*Math.cos(el), tipy=v.y+Math.sin(sl)*4.2*Math.cos(el), tipz=0.97+4.2*Math.sin(el), hz=1.25+0.45*Math.sin(t*0.8+(v.ph||0));
     const dx=tipx-v.x, dy=tipy-v.y, c=Math.cos(u.hd), s=Math.sin(u.hd), lx=dx*c+dy*s, lz=-dx*s+dy*c; link(u.cable,lx,tipz,lz,lx,hz+0.1,lz,0.02); u.hook.position.set(lx,hz,lz); }
-  else if(dig){ let sw=view.lunch?-0.6:v.dig?Math.sin(T0*1.1):Math.sin(T0*0.33)*0.15, full=null; const z=-0.18;
-    if(v.loadTo){ // loading a truck: dig at the pile, swing round to the truck, tip the bucket, swing back; in step with the truck's own count
-      const tr=st.vehicles.find(o=>o.earth&&o.phase==='load'&&!o.hidden), p=tr&&!view.lunch?((tr.eT||0)/6)%1:null, sm=k=>k*k*(3-2*k);
-      let dA=Math.atan2(v.loadTo.y-v.y,v.loadTo.x-v.x)-dir; dA=Math.atan2(Math.sin(dA),Math.cos(dA)); let s=0;
-      if(p==null){ sw=Math.sin(T0*0.33)*0.15; full=false; }
-      else if(p<0.4){ sw=Math.sin(p/0.4*Math.PI*3); full=p>0.3; }
-      else if(p<0.6){ s=sm((p-0.4)/0.2); sw=0.9; full=true; }
-      else if(p<0.78){ s=1; sw=0.9-(p-0.6)/0.18*0.9; full=p<0.68; }
-      else { s=1-sm((p-0.78)/0.22); sw=0; full=false; }
-      u.house.rotation.y=-dA*s; }
-    const P0=[0.35,0.48,z], E=[1.25+0.1*sw,1.45+0.25*sw,z], Bk=[1.95+0.25*sw,0.25+0.45*sw,z];
+  else if(dig){ const sw=view.lunch?-0.6:v.dig?Math.sin(T0*1.1):Math.sin(T0*0.33)*0.15, z=-0.18;
+    const P0=[0.35,0.48,z]; let E=[1.25+0.1*sw,1.45+0.25*sw,z], Bk=[1.95+0.25*sw,0.25+0.45*sw,z], rot=-0.5+sw*0.6, full=!!v.dig&&sw>0.2;
+    if(v.loadTo){ // loading a truck, the way it is done: reach out over the pile, lower, curl the bucket full, lift, swing round to the truck, tip over the side of the bed, swing back.
+      // The round is timed by the truck (its eT, 9 s a bucket), so the soil lands in the bed as the bucket tips
+      const tr=st.vehicles.find(o=>o.earth&&o.phase==='load'&&!o.hidden), p=tr&&!view.lunch?Math.min(0.999,(tr.eT||0)/9):null, sm=k=>{ k=Math.max(0,Math.min(1,k)); return k*k*(3-2*k); };
+      let dA=Math.atan2(v.loadTo.y-v.y,v.loadTo.x-v.x)-dir; dA=Math.atan2(Math.sin(dA),Math.cos(dA));
+      const r=Math.max(1.5,Math.min(2.3,v.digR||2)), dT=Math.max(1.55,Math.min(2.4,Math.hypot(v.loadTo.x-v.x,v.loadTo.y-v.y)-0.15));
+      const C=[1.45,1.2,0.55], R=[r,0.6,-0.9], D=[r,0.02,-0.75], Sc=[r-0.45,0.18,0.5], T=[dT,1.3,0.55], Tp=[dT,1.3,-1.15];   // bucket: out, height, curl
+      const mix=(A,B,k)=>A.map((a,i)=>a+(B[i]-a)*sm(k)); let q=C, sw2=0; full=false;
+      if(p==null){ q=[C[0],C[1]+Math.sin(T0*0.5)*0.03,C[2]-0.5]; }
+      else if(p<0.10) q=mix([C[0],C[1],0.05],R,p/0.10);
+      else if(p<0.20) q=mix(R,D,(p-0.10)/0.10);
+      else if(p<0.32){ q=mix(D,Sc,(p-0.20)/0.12); full=p>0.28; }
+      else if(p<0.42){ q=mix(Sc,C,(p-0.32)/0.10); full=true; }
+      else if(p<0.58){ sw2=sm((p-0.42)/0.16); q=mix(C,T,(p-0.42)/0.16); full=true; }
+      else if(p<0.68){ sw2=1; q=mix(T,Tp,(p-0.58)/0.07); full=p<0.64; }
+      else if(p<0.74){ sw2=1; q=mix(Tp,[C[0],C[1],0.05],(p-0.68)/0.06); }
+      else if(p<0.94){ sw2=1-sm((p-0.74)/0.20); q=[C[0],C[1],0.05]; }
+      else q=[C[0],C[1],0.05];
+      u.house.rotation.y=-dA*sw2;
+      // two-link arm: boom from its foot to the elbow, stick from the elbow to the bucket
+      const L1=1.38, L2=1.42, bx=q[0]-P0[0], by=q[1]-P0[1], d=Math.min(L1+L2-0.03,Math.hypot(bx,by)), al=Math.atan2(by,bx)+Math.acos(Math.max(-1,Math.min(1,(L1*L1+d*d-L2*L2)/(2*L1*d))));
+      E=[P0[0]+Math.cos(al)*L1,P0[1]+Math.sin(al)*L1,z]; Bk=[q[0],q[1],z]; rot=q[2]; }
+    else if(u.house.rotation.y) u.house.rotation.y=0;
     link(u.boom,...P0,...E,0.16); link(u.stick,...E,...Bk,0.12); link(u.ram1,0.62,0.44,z,(P0[0]+E[0])/2,(P0[1]+E[1])/2,z+0.0,0.06); link(u.ram2,(P0[0]+E[0]*2)/3,(P0[1]+E[1]*2)/3+0.14,z,(E[0]+Bk[0])/2,(E[1]+Bk[1])/2+0.12,z,0.05);
-    u.bucket.position.set(...Bk); u.bucket.rotation.z=-0.5+sw*0.6; u.dirt.visible=full!=null?full:(!!v.dig&&sw>0.2); [P0,E,Bk].forEach((p,i)=>u.j[i].position.set(...p));
+    u.bucket.position.set(...Bk); u.bucket.rotation.z=rot; u.dirt.visible=full; [P0,E,Bk].forEach((p,i)=>u.j[i].position.set(...p));
     u.smoke.forEach((sm,i)=>{ const k=((t*0.9)+i/3)%1; sm.visible=!!v.dig; sm.position.set(-0.36+k*0.1,0.78+k*0.7,-0.3); sm.scale.setScalar(0.1+k*0.2); sm.material.opacity=0.4*(1-k); }); }
   else if(v.type==='skid'){ const bz=v.bz==null?0.15:v.bz; u.arms.forEach(a=>{ const k=a.userData.k; link(a,-0.42,0.95,k*0.46,0.62,bz+0.2,k*0.46,0.09); }); u.bucket.position.set(0.78,bz,0); u.dirt.visible=!!v.loaded; u.wheels.forEach(w=>{ w.rotation.z=-(v.x+v.y)*4; }); }
   else { const sk=v.sk;
