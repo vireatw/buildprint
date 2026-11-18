@@ -3426,7 +3426,7 @@ function simBuild(r){
     const h=todayView?SIM.todayHalf:(SIM.half||'all'); return h==='am'?f+x.am:h==='pm'?f+x.pm:h==='ng'?x.ng:f+x.am+x.pm+x.ng; };   // past days: 上午／下午 picked on the 工地 screen
   const MM={}; Object.entries(machinesOf(r)).forEach(([k,v])=>{ const n=present(k,v,true); if(n>0) MM[k]=n; }); const machN=Object.values(MM).reduce((s,v)=>s+(+v||0),0);
   const cnt=re=>Object.entries(MM).filter(([k])=>re.test(k)).reduce((s,[,v])=>s+(+v||0),0);
-  const nCraneTruck=cnt(/吊卡/), nHaul=cnt(/卡車|砂石|貨車|未分類/)-cnt(/吊卡/)+nCraneTruck, nCrane=Object.entries(MM).filter(([k])=>/吊車|起重/.test(k)&&!/吊卡/.test(k)).reduce((s,[,v])=>s+(+v||0),0), nDig=cnt(/怪手|挖/),
+  const nCraneTruck=cnt(/吊卡/), nHaul=cnt(/卡車|土車|土方車|傾卸|砂石|貨車|未分類/)-cnt(/吊卡/)+nCraneTruck, nCrane=Object.entries(MM).filter(([k])=>/吊車|起重/.test(k)&&!/吊卡/.test(k)).reduce((s,[,v])=>s+(+v||0),0), nDig=cnt(/怪手|挖/),
         nMix=cnt(/預拌|攪拌/), nPump=cnt(/泵浦|幫浦|押送/), nSkid=cnt(/山貓/), nSmall=cnt(/堆高|鏟|高空/)-cnt(/山貓.*鏟|鏟.*山貓/), nOther=Math.max(0,machN-nHaul-nCrane-nDig-nMix-nPump-nSmall-nSkid);
   // free parking spots inside the yard (or along the road when there is no yard)
   const OF=SITE.office?{x:MX(+SITE.office.x),y:MY(+SITE.office.y),w:SITE.office.w/bw*GW,h:SITE.office.h/bh*GH}:null;
@@ -3521,7 +3521,7 @@ function simBuild(r){
   for(let i=0;i<(pumpV?0:Math.min(2,nMix));i++){ const p=takeSpot(); vehicles.push({type:'mixer',x:p.x,y:p.y,dir:tdir}); }
   for(let i=1;i<Math.min(2,nPump);i++){ const p=takeSpot(); vehicles.push({type:'pump',x:p.x,y:p.y,dir:tdir,u:{x:Math.cos(tdir),y:Math.sin(tdir)},parked:true}); }
   // every other machine on the 日報 (堆高機、高空作業車、壓路機、鑽掘機、發電機…): one of each first, then more of the same, up to 4
-  { const oth=Object.keys(MM).filter(k=>!/卡車|砂石|貨車|未分類|吊卡|吊車|起重|怪手|挖|預拌|攪拌|泵浦|幫浦|押送|山貓/.test(k)), list=[];
+  { const oth=Object.keys(MM).filter(k=>!/卡車|土車|土方車|傾卸|砂石|貨車|未分類|吊卡|吊車|起重|怪手|挖|預拌|攪拌|泵浦|幫浦|押送|山貓/.test(k)), list=[];
     for(let round=0;round<4&&list.length<4;round++) oth.forEach(k=>{ if(list.length<4&&(+MM[k]||0)>round) list.push(k); });
     list.forEach(k=>{ const p=takeSpot(); vehicles.push({type:'small',mk0:k,sk:smallKind(k),x:p.x,y:p.y,dir:tdir,ph:rng()*6}); }); }
   // 山貓 (skid steer): shuttles soil from beside a working 怪手 to a spot a few metres away
@@ -3543,7 +3543,8 @@ function simBuild(r){
       if(!spot){ const z=work.find(z=>z.status==='doing')||work[0]; if(z){ const q=randIn(z,rng); spot={x:q.x,y:q.y,u:{x:1,y:0}}; } }
       const earth=((r&&r.tasks)||[]).some(t=>t.status==='doing'&&/怪手|挖/.test(t.trade||'')&&/挖|土|回填|整地|開挖/.test(t.text||''));
       if(spot) vehicles.push({type:'digger',x:spot.x,y:spot.y,u:spot.u,dig:!!spot.dig||earth,ph:rng()*6,dir:Math.atan2(spot.u.y,spot.u.x)}); } }
-  { const mkFor=v=>{ if(v.mk0) return v.mk0; const re=v.type==='truck'?(v.crane?/吊卡/:/卡車|砂石|貨車|未分類|吊卡/):v.type==='mcrane'?/吊車|起重/:v.type==='mixer'?/預拌|攪拌/:v.type==='pump'?/泵浦|幫浦|押送/:v.type==='digger'?/怪手|挖/:v.type==='skid'?/山貓/:v.type==='small'?/堆高|鏟|高空/:/./;
+  { const haulL=[]; Object.keys(MM).forEach(k=>{ if(/卡車|土車|土方車|傾卸|砂石|貨車|未分類/.test(k)&&!/吊卡/.test(k)) for(let i=0;i<(+MM[k]||0);i++) haulL.push(k); }); let hi=0;   // 卡車 and 土車 on the same day: each truck takes its own name, in turn
+    const mkFor=v=>{ if(v.mk0) return v.mk0; if(v.type==='truck'&&!v.crane&&haulL.length) return haulL[hi++%haulL.length]; const re=v.type==='truck'?(v.crane?/吊卡/:/卡車|土車|土方車|傾卸|砂石|貨車|未分類|吊卡/):v.type==='mcrane'?/吊車|起重/:v.type==='mixer'?/預拌|攪拌/:v.type==='pump'?/泵浦|幫浦|押送/:v.type==='digger'?/怪手|挖/:v.type==='skid'?/山貓/:v.type==='small'?/堆高|鏟|高空/:/./;
       return Object.keys(MM).find(k=>re.test(k)&&!(v.type==='mcrane'&&/吊卡/.test(k)))||({truck:v.crane?'吊卡車':'卡車',mcrane:'吊車',mixer:'預拌車',pump:'押送車',digger:'怪手',skid:'山貓',small:'機具'})[v.type]; };
     vehicles.forEach(v=>{ v.mk=mkFor(v); v.vendor=((r&&r.vendors)||{})[v.mk]||''; v.count=MM[v.mk]||''; v.shift=shiftText(r||{},v.mk);
       v.job= v.type==='pump'?`泵送混凝土${pumpV&&pumpV.zone?'至'+pumpV.zone.name:''}`
