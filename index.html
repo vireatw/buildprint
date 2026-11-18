@@ -3465,8 +3465,7 @@ function simBuild(r){
     const trkOk=(q,h)=>[-1.0,-0.5,0,0.5,1.0].every(k=>{ const x=q.x+h.x*k, y=q.y+h.y*k; return inSite(x,y)&&inSite(x-h.y*0.5,y+h.x*0.5)&&inSite(x+h.y*0.5,y-h.x*0.5)&&dProp(x,y)>0.44; })&&Math.hypot(q.x-GT.G.x,q.y-GT.G.y)>1.6;
     const wayIn=q=>{ const L=Math.hypot(q.x-gateIn.x,q.y-gateIn.y), n=Math.max(1,Math.ceil(L/0.3)); for(let i=0;i<=n;i++){ if(dProp(gateIn.x+(q.x-gateIn.x)*i/n,gateIn.y+(q.y-gateIn.y)*i/n)<0.48) return false; } return true; };   // a truck's width of clear ground all the way from the gate
     const seg=(a,b)=>{ const L=Math.hypot(b.x-a.x,b.y-a.y), n=Math.max(1,Math.ceil(L/0.3)); for(let i=0;i<=n;i++){ const x=a.x+(b.x-a.x)*i/n, y=a.y+(b.y-a.y)*i/n; if(!inSite(x,y)||dProp(x,y)<0.46) return false; } return true; };
-    // the truck may stand any way round: it drives in to a point behind its place and pulls straight forward into it
-    const pair=(q,needPile,ang)=>{ const h={x:Math.cos(ang),y:Math.sin(ang)}; if(!trkOk(q,h)) return null; const via={x:q.x-h.x*1.3,y:q.y-h.y*1.3}; if(!seg(gateIn,via)||!seg(via,q)) return null;
+    const pair=(q,needPile,ang)=>{ const h={x:Math.cos(ang),y:Math.sin(ang)}; if(!trkOk(q,h)) return null; const via={x:q.x+h.x*1.3,y:q.y+h.y*1.3}; if(!seg(gateIn,via)||!seg(via,q)) return null;   // it backs in from a point ahead of its place, so its nose ends up toward the way out
       const bed={x:q.x-h.x*0.35,y:q.y-h.y*0.35}; let out=null, od=1e9;
       [1,-1].forEach(sd=>{ let got=false; [2.7,2.4,2.1,1.9].forEach(off=>{ if(got) return; const n={x:-h.y*sd,y:h.x*sd}, dg={x:bed.x+n.x*off,y:bed.y+n.y*off}; if(!digOk(dg.x,dg.y)) return;   // as far off the truck's side as the boom still reaches
         soilP.forEach(pl=>{ const vx=pl.x-dg.x, vy=pl.y-dg.y, d=Math.hypot(vx,vy), gap=d-pl.r; if(gap<0.6||gap>1.7) return; const ux=vx/d, uy=vy/d; if(-(ux*n.x+uy*n.y)>0.75) return;   // the pile is not on the truck's side
@@ -3484,9 +3483,10 @@ function simBuild(r){
       let pk=park;
       // the trucks take turns at the one loading place: the next comes in only after the one before has driven off, so two are never in each other's way
       const A={x:gateOut.x-GT.t.x*span,y:gateOut.y-GT.t.y*span}, B={x:gateOut.x+GT.t.x*span,y:gateOut.y+GT.t.y*span};
-      let inPath=haul?[A,gateOut,gateIn,haul.via,pk]:[A,gateOut,gateIn,pk], outPath=haul?[haul.via,gateIn,gateOut,B]:[gateIn,gateOut,B];
-      if(i>0){ const via={x:gateIn.x+(pk.x-park.x)*0.9,y:gateIn.y+(pk.y-park.y)*0.9}; if(inSite(via.x,via.y)&&Math.hypot(via.x-park.x,via.y-park.y)>2.2){ inPath=[A,gateOut,gateIn,via,pk]; outPath=[via,gateIn,gateOut,B]; } }   // the second truck swings wide of the first one's parking place
-      vehicles.push({type:'truck',crane:i<nCraneTruck,earth:!!haul,park:pk,inPath,outPath,wp:0,x:i?A.x:pk.x,y:i?A.y:pk.y,phase:i?'away':'load',wait:i?11:7,loaded:false,hidden:i>0,dir:haul?haul.ang:Math.atan2(-GT.n.y,-GT.n.x)});
+      // a truck that comes to take something away backs in: it drives past the gate on the road, reverses through it to its place, and afterwards pulls straight out, cab first
+      const mid=haul?[haul.via]:[], P={x:gateOut.x+GT.t.x*2.6,y:gateOut.y+GT.t.y*2.6}, last=mid.length?mid[mid.length-1]:gateIn;
+      const inPath=[A,P,gateOut,gateIn,...mid,pk], outPath=[...mid.slice().reverse(),gateIn,gateOut,B];
+      vehicles.push({type:'truck',crane:i<nCraneTruck,earth:!!haul,park:pk,inPath,outPath,rev:2,wp:0,x:i?A.x:pk.x,y:i?A.y:pk.y,phase:i?'away':'load',wait:i?11:7,loaded:false,hidden:i>0,dir:Math.atan2(last.y-pk.y,last.x-pk.x)});
     }
     // 待運的料: what the crew brings over is set down in one stack beside the truck (never in its way); the truck loads from that stack and nothing else
     if(haul) z_loadPt=null; else { const lx=park.x-gateIn.x, ly=park.y-gateIn.y, ll=Math.hypot(lx,ly)||1, nx=-ly/ll, ny=lx/ll, wz=work, tgt=wz.length?{x:wz.reduce((s,z)=>s+z.cx,0)/wz.length,y:wz.reduce((s,z)=>s+z.cy,0)/wz.length}:{x:GW/2,y:GH/2};
@@ -4449,7 +4449,8 @@ function simUpdate(dt){
     const path=v.phase==='arrive'?v.inPath:v.outPath; const target=path[Math.min(v.wp,path.length-1)];
     const dx=target.x-v.x, dy=target.y-v.y, d=Math.hypot(dx,dy);
     if(d<0.05){ v.wp++; if(v.wp>=path.length){ if(v.phase==='arrive'){ v.phase='load'; v.wait=10; } else { v.phase='away'; v.wait=4; v.hidden=true; } } return; }
-    const sp=(v.phase==='arrive'&&v.wp>=path.length-2?1.1:1.7)*dt; v.x+=dx/d*Math.min(sp,d); v.y+=dy/d*Math.min(sp,d); v.dir=Math.atan2(dy,dx);
+    const back=v.phase==='arrive'&&v.rev!=null&&v.wp>=v.rev;   // reversing in: it moves tail first
+    const sp=(back?0.95:v.phase==='arrive'&&v.wp>=path.length-2?1.1:1.7)*dt; v.x+=dx/d*Math.min(sp,d); v.y+=dy/d*Math.min(sp,d); v.dir=back?Math.atan2(-dy,-dx):Math.atan2(dy,dx);
     v.hidden = v.x<-2.2||v.x>GW+2.2||v.y<-2.2||v.y>GH+2.2;
   });
   if(st.dog) dogStep(st.dog,dt,st);
