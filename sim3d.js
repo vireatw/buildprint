@@ -192,12 +192,12 @@ function buildVehicle(v){ const g=grp(), u={}; g.userData=u; u.wheels=[]; u.beac
   return g; }
 function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv; const u=g.userData, T0=t+(v.ph||0), dig=v.type==='digger';
   let x=v.x, y=v.y; const dir=v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0);
-  if(dig&&v.dig&&!view.edit&&!view.lunch){ const k=Math.sin(t*0.35+(v.ph||0))*0.7; x+=Math.cos(dir)*k; y+=Math.sin(dir)*k; }
+  if(dig&&v.dig&&!v.loadTo&&!view.edit&&!view.lunch){ const k=Math.sin(t*0.35+(v.ph||0))*0.7; x+=Math.cos(dir)*k; y+=Math.sin(dir)*k; }
   g.visible=!v.hidden; if(v.hidden) return; { const s0=soilTop(st,x,y,0), sh=s0>0?Math.max(0,s0*0.88-0.2):0; u.sh=u.sh==null?sh:u.sh+(sh-u.sh)*0.2; g.position.set(x,(v.z||0)+u.sh-(st.pitAt?st.pitAt(x,y):0),y); }
   u.hd=u.hd==null?dir:lerpAng(u.hd,dir,0.25); g.rotation.y=-u.hd;
   const moving=v.phase==='arrive'||v.phase==='leave'; if(moving) u.wheels.forEach(w=>{ w.rotation.z=-t*8; });
   u.beacons.forEach(b=>{ const on=Math.sin(T0*7)>0; b.material.emissiveIntensity=on?(1.2+view.N*3):0.1; });
-  if(v.type==='truck'){ const cg=v.cargo==null?(v.loaded?3:0):v.cargo; u.load.visible=cg>0; u.load.children.forEach((b,i)=>{ b.visible=i<cg; });
+  if(v.type==='truck'){ if(v.earth&&!u.soilLoad){ u.soilLoad=true; u.load.children.forEach((b,i)=>{ b.material=M(i%2?'#9A7445':'#8A6A40'); }); } const cg=v.cargo==null?(v.loaded?3:0):v.cargo; u.load.visible=cg>0; u.load.children.forEach((b,i)=>{ b.visible=i<cg; });
     if(u.kn){ // 吊卡: the knuckle crane picks a bundle up off the stack beside the truck, swings it over and sets it on the bed
       const D=st.drop, L=v.lift, sm=x=>x*x*(3-2*x); let tx=-0.55, ty=1.25, tz=0, on=false, bx=0, by=0, bz=0;
       if(L&&D){ const k=Math.max(0,Math.min(1,(t-L.t0)/3.3)), dx=D.x+D.w/2-v.x, dy=D.y+D.d/2-v.y, c=Math.cos(u.hd), s2=Math.sin(u.hd), sx=dx*c+dy*s2, sz=-dx*s2+dy*c, ex=-0.32, ey=0.74+cg*0.09;
@@ -214,10 +214,19 @@ function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv;
     link(u.ram,0.35,0.3,0,Math.cos(el)*1.2,0.5+Math.sin(el)*1.2,0,0.07);
     const tipx=v.x+Math.cos(sl)*4.2*Math.cos(el), tipy=v.y+Math.sin(sl)*4.2*Math.cos(el), tipz=0.97+4.2*Math.sin(el), hz=1.25+0.45*Math.sin(t*0.8+(v.ph||0));
     const dx=tipx-v.x, dy=tipy-v.y, c=Math.cos(u.hd), s=Math.sin(u.hd), lx=dx*c+dy*s, lz=-dx*s+dy*c; link(u.cable,lx,tipz,lz,lx,hz+0.1,lz,0.02); u.hook.position.set(lx,hz,lz); }
-  else if(dig){ const sw=view.lunch?-0.6:v.dig?Math.sin(T0*1.1):Math.sin(T0*0.33)*0.15, z=-0.18;
+  else if(dig){ let sw=view.lunch?-0.6:v.dig?Math.sin(T0*1.1):Math.sin(T0*0.33)*0.15, full=null; const z=-0.18;
+    if(v.loadTo){ // loading a truck: dig at the pile, swing round to the truck, tip the bucket, swing back; in step with the truck's own count
+      const tr=st.vehicles.find(o=>o.earth&&o.phase==='load'&&!o.hidden), p=tr&&!view.lunch?((tr.eT||0)/6)%1:null, sm=k=>k*k*(3-2*k);
+      let dA=Math.atan2(v.loadTo.y-v.y,v.loadTo.x-v.x)-dir; dA=Math.atan2(Math.sin(dA),Math.cos(dA)); let s=0;
+      if(p==null){ sw=Math.sin(T0*0.33)*0.15; full=false; }
+      else if(p<0.4){ sw=Math.sin(p/0.4*Math.PI*3); full=p>0.3; }
+      else if(p<0.6){ s=sm((p-0.4)/0.2); sw=0.9; full=true; }
+      else if(p<0.78){ s=1; sw=0.9-(p-0.6)/0.18*0.9; full=p<0.68; }
+      else { s=1-sm((p-0.78)/0.22); sw=0; full=false; }
+      u.house.rotation.y=-dA*s; }
     const P0=[0.35,0.48,z], E=[1.25+0.1*sw,1.45+0.25*sw,z], Bk=[1.95+0.25*sw,0.25+0.45*sw,z];
     link(u.boom,...P0,...E,0.16); link(u.stick,...E,...Bk,0.12); link(u.ram1,0.62,0.44,z,(P0[0]+E[0])/2,(P0[1]+E[1])/2,z+0.0,0.06); link(u.ram2,(P0[0]+E[0]*2)/3,(P0[1]+E[1]*2)/3+0.14,z,(E[0]+Bk[0])/2,(E[1]+Bk[1])/2+0.12,z,0.05);
-    u.bucket.position.set(...Bk); u.bucket.rotation.z=-0.5+sw*0.6; u.dirt.visible=!!v.dig&&sw>0.2; [P0,E,Bk].forEach((p,i)=>u.j[i].position.set(...p));
+    u.bucket.position.set(...Bk); u.bucket.rotation.z=-0.5+sw*0.6; u.dirt.visible=full!=null?full:(!!v.dig&&sw>0.2); [P0,E,Bk].forEach((p,i)=>u.j[i].position.set(...p));
     u.smoke.forEach((sm,i)=>{ const k=((t*0.9)+i/3)%1; sm.visible=!!v.dig; sm.position.set(-0.36+k*0.1,0.78+k*0.7,-0.3); sm.scale.setScalar(0.1+k*0.2); sm.material.opacity=0.4*(1-k); }); }
   else if(v.type==='skid'){ const bz=v.bz==null?0.15:v.bz; u.arms.forEach(a=>{ const k=a.userData.k; link(a,-0.42,0.95,k*0.46,0.62,bz+0.2,k*0.46,0.09); }); u.bucket.position.set(0.78,bz,0); u.dirt.visible=!!v.loaded; u.wheels.forEach(w=>{ w.rotation.z=-(v.x+v.y)*4; }); }
   else { const sk=v.sk;
