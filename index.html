@@ -3464,14 +3464,14 @@ function simBuild(r){
     const trkOk=(q,h)=>[-1.15,-0.55,0,0.55,1.15].every(k=>{ const x=q.x+h.x*k, y=q.y+h.y*k; return inSite(x,y)&&inSite(x-h.y*0.55,y+h.x*0.55)&&inSite(x+h.y*0.55,y-h.x*0.55)&&dProp(x,y)>0.55; })&&Math.hypot(q.x-GT.G.x,q.y-GT.G.y)>2.0&&pathClear(gateIn,q);
     const pair=(q,needPile)=>{ const L=Math.hypot(q.x-gateIn.x,q.y-gateIn.y); if(L<1) return null; const h={x:(q.x-gateIn.x)/L,y:(q.y-gateIn.y)/L}; if(!trkOk(q,h)) return null;
       const bed={x:q.x-h.x*0.35,y:q.y-h.y*0.35}; let out=null, od=1e9;
-      [1,-1].forEach(sd=>[1.9,2.2,2.5].forEach(off=>{ const n={x:-h.y*sd,y:h.x*sd}, dg={x:bed.x+n.x*off,y:bed.y+n.y*off}; if(!digOk(dg.x,dg.y)) return;
-        if(!needPile&&od>50){ od=50; out={dig:{x:dg.x,y:dg.y,u:{x:n.x,y:n.y}},park:q,bed}; }   // no pile within reach here: it digs the ground on its far side
+      [1,-1].forEach(sd=>{ let got=false; [2.7,2.4,2.1,1.9].forEach(off=>{ if(got) return; const n={x:-h.y*sd,y:h.x*sd}, dg={x:bed.x+n.x*off,y:bed.y+n.y*off}; if(!digOk(dg.x,dg.y)) return;   // as far off the truck's side as the boom still reaches
         soilP.forEach(pl=>{ const vx=pl.x-dg.x, vy=pl.y-dg.y, d=Math.hypot(vx,vy), gap=d-pl.r; if(gap<0.9||gap>1.6) return; const ux=vx/d, uy=vy/d; if(-(ux*n.x+uy*n.y)>0.35) return;   // the pile is not on the truck's side
-          if(gap<od){ od=gap; out={dig:{x:dg.x,y:dg.y,u:{x:ux,y:uy}},park:q,bed,r:gap+0.5}; } }); }));
+          got=true; if(gap-off<od){ od=gap-off; out={dig:{x:dg.x,y:dg.y,u:{x:ux,y:uy}},park:q,bed,r:gap+0.5,off}; } });
+        if(!got&&!needPile&&od>50-off){ od=50-off; out={dig:{x:dg.x,y:dg.y,u:{x:n.x,y:n.y}},park:q,bed,off}; } }); });   // no pile within reach here: it digs the ground on its far side
       return out; };
     let best=null, bd=1e9;
     { const xs=BND.map(q=>q.x), ys=BND.map(q=>q.y);
-      for(let pass=0;pass<2&&!best;pass++) for(let yy=Math.min(...ys)+0.4; yy<Math.max(...ys); yy+=0.4) for(let xx=Math.min(...xs)+0.4; xx<Math.max(...xs); xx+=0.4){ const q={x:xx,y:yy}, d=Math.hypot(xx-gateIn.x,yy-gateIn.y); if(d>=bd||d>12) continue; if(yard&&pass===0&&!inZone(yard,xx,yy)) continue; const c=pair(q,pass===0&&soilP.length>0); if(c){ bd=d; best=c; } } }
+      for(let pass=0;pass<2&&!best;pass++) for(let yy=Math.min(...ys)+0.4; yy<Math.max(...ys); yy+=0.4) for(let xx=Math.min(...xs)+0.4; xx<Math.max(...xs); xx+=0.4){ const q={x:xx,y:yy}, d=Math.hypot(xx-gateIn.x,yy-gateIn.y); if(d>12) continue; if(yard&&pass===0&&!inZone(yard,xx,yy)) continue; const c=pair(q,pass===0&&soilP.length>0); if(c){ const sc=d-c.off*2; if(sc<bd){ bd=sc; best=c; } } } }   // near the gate, but room between the two machines counts for more
     if(best){ haul=best; park=best.park; } }
   if(transport){
     const nT=Math.max(1,Math.min(2,nHaul||1));
