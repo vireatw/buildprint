@@ -3463,12 +3463,12 @@ function simBuild(r){
     let best=null, bd=1e9;
     soilP.forEach(pl=>{ for(let a=0;a<16;a++){ const ax=Math.cos(a*Math.PI/8), ay=Math.sin(a*Math.PI/8), dg={x:pl.x-ax*(pl.r+1.5),y:pl.y-ay*(pl.r+1.5)}; if(!digOk(dg.x,dg.y)) continue;
         for(let b=0;b<16;b++){ const bx=Math.cos(b*Math.PI/8), by=Math.sin(b*Math.PI/8); if(ax*bx+ay*by>0.3) continue;   // the truck stands to the side of or behind the 怪手, never between it and the pile
-          const q={x:dg.x+bx*2.5,y:dg.y+by*2.5}; if(!trkOk(q)) continue; const d=Math.hypot(q.x-gateIn.x,q.y-gateIn.y); if(d<bd){ bd=d; best={dig:{x:dg.x,y:dg.y,u:{x:ax,y:ay}},park:q}; } } } });
+          const q={x:dg.x+bx*3,y:dg.y+by*3}; if(!trkOk(q)) continue; const d=Math.hypot(q.x-gateIn.x,q.y-gateIn.y); if(d<bd){ bd=d; best={dig:{x:dg.x,y:dg.y,u:{x:ax,y:ay}},park:q}; } } } });
     const lane=q=>{ const vx=park.x-gateIn.x, vy=park.y-gateIn.y, L2=vx*vx+vy*vy||1, k=Math.max(0,Math.min(1,((q.x-gateIn.x)*vx+(q.y-gateIn.y)*vy)/L2)); return Math.hypot(q.x-gateIn.x-vx*k,q.y-gateIn.y-vy*k); };
     if(!best&&dProp(park.x,park.y)>1.0){ // the truck keeps its usual place (clear of the soil): the 怪手 by the nearest pile within reach of it
-      soilP.forEach(pl=>{ for(let a=0;a<24;a++){ const ax=Math.cos(a*Math.PI/12), ay=Math.sin(a*Math.PI/12), dg={x:pl.x-ax*(pl.r+1.5),y:pl.y-ay*(pl.r+1.5)}, d=Math.hypot(dg.x-park.x,dg.y-park.y); if(!digOk(dg.x,dg.y)||d<2.2||d>3.6||lane(dg)<1.3) continue;
+      soilP.forEach(pl=>{ for(let a=0;a<24;a++){ const ax=Math.cos(a*Math.PI/12), ay=Math.sin(a*Math.PI/12), dg={x:pl.x-ax*(pl.r+1.5),y:pl.y-ay*(pl.r+1.5)}, d=Math.hypot(dg.x-park.x,dg.y-park.y); if(!digOk(dg.x,dg.y)||d<2.8||d>3.6||lane(dg)<1.3) continue;
           if(((park.x-dg.x)*ax+(park.y-dg.y)*ay)/d>0.3) continue; if(d<bd){ bd=d; best={dig:{x:dg.x,y:dg.y,u:{x:ax,y:ay}},park}; } } }); }
-    if(!best&&dProp(park.x,park.y)>1.0){ for(let b=0;b<16&&!best;b++){ const bx=Math.cos(b*Math.PI/8), by=Math.sin(b*Math.PI/8), dg={x:park.x+bx*2.5,y:park.y+by*2.5}; if(digOk(dg.x,dg.y)&&lane(dg)>1.3) best={dig:{x:dg.x,y:dg.y,u:{x:bx,y:by}},park}; } }   // no pile to dig from: beside the truck, digging the ground on its far side
+    if(!best&&dProp(park.x,park.y)>1.0){ for(let b=0;b<16&&!best;b++){ const bx=Math.cos(b*Math.PI/8), by=Math.sin(b*Math.PI/8), dg={x:park.x+bx*3,y:park.y+by*3}; if(digOk(dg.x,dg.y)&&lane(dg)>1.3) best={dig:{x:dg.x,y:dg.y,u:{x:bx,y:by}},park}; } }   // no pile to dig from: beside the truck, digging the ground on its far side
     if(best){ haul=best; park=best.park; } }
   if(transport){
     const nT=Math.max(1,Math.min(2,nHaul||1));
