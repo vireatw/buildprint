@@ -3611,6 +3611,15 @@ function simBuild(r){
         for(let b=0;b<16;b++){ const a=b*Math.PI/8, q={x:c.x+Math.cos(a)*3,y:c.y+Math.sin(a)*3};
           if(inSite(q.x,q.y)&&inSite(q.x+0.9,q.y+0.9)&&inSite(q.x-0.9,q.y-0.9)&&inSite(q.x+0.9,q.y-0.9)&&inSite(q.x-0.9,q.y+0.9)&&dProp(q.x,q.y)>0.7&&!vehicles.some(o=>o!==v&&o!==A&&Math.hypot((o.park||o).x-q.x,(o.park||o).y-q.y)<2.4)&&Math.hypot(q.x-gateIn.x,q.y-gateIn.y)>2.5){
             v.x=q.x; v.y=q.y; v.still=true; if(v.type==='digger'){ v.u={x:-Math.cos(a),y:-Math.sin(a)}; v.dir=a+Math.PI; } else machSetAng(v,a+Math.PI); break; } } }); }); }
+  { // nothing stands in anything else: the machines that can move give way (山貓 first, then small ones, then 怪手 and 吊車); trucks, pumps and mixers keep their places
+    const tmp={vehicles}, rank=v=>v.type==='skid'?0:v.type==='small'?1:v.type==='digger'&&!v.loadTo?2:v.type==='mcrane'?3:9;
+    const okAt=(x,y)=>inSite(x,y)&&inSite(x+0.6,y+0.6)&&inSite(x-0.6,y-0.6)&&inSite(x+0.6,y-0.6)&&inSite(x-0.6,y+0.6)&&dProp(x,y)>0.5;
+    const lanes=vehicles.filter(t=>t.inPath).map(t=>t.inPath.filter(q=>inSite(q.x,q.y)));   // and off the way the trucks come in
+    const offLanes=(v,x,y)=>lanes.every(L=>{ for(let i=1;i<L.length;i++){ const a=L[i-1], b=L[i], n=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)/0.4)); for(let j=0;j<=n;j++){ const qx=a.x+(b.x-a.x)*j/n, qy=a.y+(b.y-a.y)*j/n; if(vBody(v,x,y).some(c=>Math.hypot(c.x-qx,c.y-qy)<c.r+0.85)) return false; } } return true; });
+    vehicles.filter(v=>rank(v)<9&&!v.hidden).sort((a,b)=>rank(a)-rank(b)).forEach(v=>{
+      const hit=vehicles.some(o=>o!==v&&!vPair(v,o)&&(!o.hidden||o.park)&&vClash(vBody(v),vBodyAt(o)))||!offLanes(v,v.x,v.y); if(!hit) return;
+      const q=vFreeSpot(tmp,v,v.x,v.y,(x,y)=>okAt(x,y)&&offLanes(v,x,y))||vFreeSpot(tmp,v,v.x,v.y,okAt); if(!q) return;
+      v.x=q.x; v.y=q.y; if(v.type==='skid'){ v.hx=q.x; v.hy=q.y; } }); }
   const teamFor=(trade,text)=>{ const T=teams[normT(text)]; return T&&T.names.has(trade)?T:null; };
   // the flagger always stands out on the street, just beside the gate opening
   let sigPt=null;
@@ -4446,6 +4455,7 @@ function simUpdate(dt){
     } else { w.t-=dt; if(w.t<=0){ pickTarget(w,st.zones,st.anyZones,st.rng,st.stacks); if(w.role==='work'&&/拆模/.test(w.task||'')&&st.rng()<0.8) stripTarget(st,w); if(climbTop(st,w.tx,w.ty)>0){ for(let k=0;k<16;k++){ const a=k*2.4, r=0.35+k*0.06, x=w.tx+Math.cos(a)*r, y=w.ty+Math.sin(a)*r; if(!climbTop(st,x,y)){ w.tx=x; w.ty=y; break; } } }   // work beside a beam, not on top of it
       w.state='walk'; w.bestD=null; w.stuckT=0; } }
   });
+  st.vehicles.forEach(v=>{ v._px=v.x; v._py=v.y; v._ph=v.hidden; v._pu=v.u; v._pd=v.dir; });
   st.vehicles.forEach(v=>{
     if(v.type==='skid'){ if(!st.lunch) skidStep(v,dt,st); return; }
     if(v.type==='mixer'&&v.cycle){ if(!st.lunch) mixerStep(v,dt); return; }
@@ -4469,6 +4479,11 @@ function simUpdate(dt){
     const sp=(back?0.95:v.phase==='arrive'&&v.wp>=path.length-2?1.1:1.7)*dt; v.x+=dx/d*Math.min(sp,d); v.y+=dy/d*Math.min(sp,d); v.dir=back?Math.atan2(-dy,-dx):Math.atan2(dy,dx);
     v.hidden = v.x<-2.2||v.x>GW+2.2||v.y<-2.2||v.y>GH+2.2;
   });
+  // a machine that would run into another stops where it was and waits (the 山貓 finds another way, see skidStep)
+  { const V=st.vehicles.filter(v=>!v.hidden);
+    const pen=(v,B)=>V.reduce((m,o)=>o===v||vPair(v,o)?m:Math.max(m,vPen(B,vBody(o),0.05)),0);
+    V.forEach(v=>{ if(v._ph||(v.x===v._px&&v.y===v._py&&v.u===v._pu&&v.dir===v._pd)) return; const now=pen(v,vBody(v)); if(now<=0) return;
+      const a0=v._pu?Math.atan2(v._pu.y,v._pu.x):(v._pd||0), was=pen(v,vBody(v,v._px,v._py,a0)); if(now>=was-1e-6){ v.x=v._px; v.y=v._py; v.u=v._pu; v.dir=v._pd; } }); }   // moving or turning into another is undone; moving out of an overlap is allowed
   if(st.dog) dogStep(st.dog,dt,st);
   if(!st.lunch) stripStep(st,dt);
   // dust kicked up behind anything driving (not in the rain)
@@ -4478,6 +4493,23 @@ function simUpdate(dt){
 }
 // people never stand in or walk through a machine: each machine keeps a small clear area (its body, and the 怪手's bucket);
 // anyone inside is eased out to its edge, and a walking target inside is moved out too
+// every machine is solid: its body as a few circles (site units). A digging 怪手 creeps back and forth (sim3d), so all of that stretch counts
+function vBody(v,x,y,a){ x=x==null?v.x:x; y=y==null?v.y:y; if(a==null) a=v.type==='truck'&&v.hidden&&v.hang!=null?v.hang:v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0); const ux=Math.cos(a), uy=Math.sin(a), o=[];
+  if(v.type==='digger'){ (v.dig&&!v.loadTo&&!v.still?[-0.7,0,0.7]:[0]).forEach(k=>{ o.push({x:x+ux*k,y:y+uy*k,r:1.2}); if(!v.loadTo) o.push({x:x+ux*(k+1.9),y:y+uy*(k+1.9),r:0.6}); }); }
+  else if(v.type==='truck'||v.type==='mixer'||v.type==='pump') [-0.9,0,0.9].forEach(k=>o.push({x:x+ux*k,y:y+uy*k,r:0.72}));
+  else if(v.type==='skid'){ o.push({x,y,r:0.72}); o.push({x:x+ux*0.8,y:y+uy*0.8,r:0.5}); }
+  else if(v.type==='mcrane') o.push({x,y,r:1.0});
+  else o.push({x,y,r:0.72});
+  return o; }
+const vPair=(a,b)=>(a.feeding&&a.feeding===b)||(b.feeding&&b.feeding===a)||(a.loadTo&&b.earth)||(b.loadTo&&a.earth);   // a 預拌車 backed up to its pump, a 怪手 loading its 土車: they meet on purpose
+function vPen(A,B,gap){ let m=0; for(const p of A) for(const q of B){ m=Math.max(m,p.r+q.r+gap-Math.hypot(p.x-q.x,p.y-q.y)); } return m; }   // how far two bodies overlap (0 = clear)
+function vClash(A,B,gap){ gap=gap==null?0.15:gap; for(const p of A) for(const q of B){ if(Math.hypot(p.x-q.x,p.y-q.y)<p.r+q.r+gap) return true; } return false; }
+const vBodyAt=o=>o.hidden&&o.park?vBody(o,o.park.x,o.park.y):vBody(o);   // a truck still on its way counts where it will stand
+// where a machine would stand clear of all the others (nearest first); null if nowhere near
+function vFreeSpot(st,v,x,y,ok,a){ const OB=st.vehicles.filter(o=>o!==v&&!vPair(v,o)&&(!o.hidden||o.park)).map(vBodyAt), free=(qx,qy)=>(!ok||ok(qx,qy))&&OB.every(B=>!vClash(vBody(v,qx,qy,a),B));
+  if(free(x,y)) return {x,y};
+  for(let r=0.3;r<7;r+=0.3){ const n=Math.max(8,Math.round(r*10)); for(let k=0;k<n;k++){ const t=k/n*Math.PI*2, qx=x+Math.cos(t)*r, qy=y+Math.sin(t)*r; if(free(qx,qy)) return {x:qx,y:qy}; } }
+  return null; }
 function machZones(st){ const out=[];
   st.vehicles.forEach(v=>{ if(v.hidden) return;
     const a=v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0), ux=Math.cos(a), uy=Math.sin(a);
@@ -4499,12 +4531,12 @@ function skidStep(v,dt,st){
   const lineFree=(P,Q)=>{ const L=Math.hypot(Q.x-P.x,Q.y-P.y), n=Math.max(1,Math.ceil(L/0.25)); for(let i=0;i<=n;i++){ const q={x:P.x+(Q.x-P.x)*i/n,y:P.y+(Q.y-P.y)*i/n}; if(v.stay&&Math.hypot(q.x-v.hx,q.y-v.hy)<1.6) continue; if(!free(q)||!v.ok(q)) return false; } return true; };   // put there by hand: it may pull away from its own spot even if that is close to something
   if(!v.run){ // load beside the nearest 怪手's bucket (else at its own spot); put somewhere by hand: it loads right there
     let A=v.stay?{x:v.hx,y:v.hy}:null, best=1e9;
-    if(!A) digs.forEach(d=>{ const u=d.u||{x:1,y:0}, n={x:-u.y,y:u.x}; [1,-1].forEach(sg=>[2.6,3.0,3.4].forEach(off=>[2.0,2.6,1.2].forEach(fw=>{ const q={x:d.x+u.x*fw+n.x*sg*off,y:d.y+u.y*fw+n.y*sg*off}; const dd=Math.hypot(q.x-v.hx,q.y-v.hy)+off*0.5; if(v.ok(q)&&free(q)&&dd<best){ best=dd; A=q; } }))); });
-    if(!A){ for(let k=0;k<60&&!A;k++){ const a=st.rng()*Math.PI*2, d=k*0.08, q={x:v.hx+Math.cos(a)*d,y:v.hy+Math.sin(a)*d}; if(v.ok(q)&&free(q)) A=q; } }
+    if(!A) digs.forEach(d=>{ const u=d.u||{x:1,y:0}, n={x:-u.y,y:u.x}; [1,-1].forEach(sg=>[2.6,3.0,3.4].forEach(off=>[2.0,2.6,1.2].forEach(fw=>{ const q={x:d.x+u.x*fw+n.x*sg*off,y:d.y+u.y*fw+n.y*sg*off}; const dd=Math.hypot(q.x-v.hx,q.y-v.hy)+off*0.5; if(v.ok(q)&&free(q)&&dd<best&&!st.vehicles.some(o=>o!==v&&!o.hidden&&vClash(vBody(v,q.x,q.y),vBodyAt(o),0.25))){ best=dd; A=q; } }))); });
+    if(!A){ for(let k=0;k<60&&!A;k++){ const a=st.rng()*Math.PI*2, d=k*0.08, q={x:v.hx+Math.cos(a)*d,y:v.hy+Math.sin(a)*d}; if(v.ok(q)&&free(q)&&!st.vehicles.some(o=>o!==v&&!o.hidden&&vClash(vBody(v,q.x,q.y),vBodyAt(o),0.25))) A=q; } }
     if(!A){ v.work=false; return; }   // no room to work: park
     v.run={A,phase:'load',t:1.4+st.rng()*0.6,path:[],i:0}; v.x=A.x; v.y=A.y; v.loaded=false; }
   const R=v.run;
-  const pickB=()=>{ for(let k=0;k<30;k++){ const a=st.rng()*Math.PI*2, d=2.4+st.rng()*2.8, q={x:R.A.x+Math.cos(a)*d,y:R.A.y+Math.sin(a)*d}, cor={x:q.x,y:R.A.y};
+  const pickB=()=>{ for(let k=0;k<30;k++){ const a=st.rng()*Math.PI*2, d=2.4+st.rng()*2.8, q={x:R.A.x+Math.cos(a)*d,y:R.A.y+Math.sin(a)*d}, cor={x:q.x,y:R.A.y}; if(st.vehicles.some(o=>o!==v&&!o.hidden&&vClash(vBody(v,q.x,q.y),vBody(o),0.3))) continue;
       if(lineFree(R.A,cor)&&lineFree(cor,q)) return [cor,q];
       const cor2={x:R.A.x,y:q.y}; if(lineFree(R.A,cor2)&&lineFree(cor2,q)) return [cor2,q]; } return [{x:R.A.x,y:R.A.y}]; };
   if(R.phase==='load'){ if(v.stay&&v.fa!=null){ v.dir=v.fa; v.u={x:Math.cos(v.fa),y:Math.sin(v.fa)}; } ease('bz',0.04,4); R.t-=dt; if(R.t<0.6) v.loaded=true; if(R.t<=0){ R.path=pickB(); R.i=0; R.phase='go'; } return; }
@@ -4513,13 +4545,15 @@ function skidStep(v,dt,st){
   ease('bz',v.loaded?0.45:0.18,3);
   const tg=R.path[R.i]; if(!tg){ R.phase=R.phase==='go'?'dump':'load'; R.t=R.phase==='dump'?1.3:1.4+st.rng()*0.6; return; }
   const dx=tg.x-v.x, dy=tg.y-v.y, d=Math.hypot(dx,dy); setDir(dx,dy);
-  const ahead=st.workers.some(w=>{ const ox=w.x-v.x, oy=w.y-v.y, fw=ox*v.u.x+oy*v.u.y, side=Math.abs(ox*v.u.y-oy*v.u.x); return fw>0.2&&fw<1.5&&side<0.75; });
-  if(ahead){ R.wait=(R.wait||0)+dt; if(R.wait<1.6) return;   // waited long enough: someone is standing there, go another way
+  const nx=v.x+dx/Math.max(d,1e-6)*Math.min(d,0.5), ny=v.y+dy/Math.max(d,1e-6)*Math.min(d,0.5), NB=vBody(v,nx,ny);
+  const ahead=st.workers.some(w=>{ const ox=w.x-v.x, oy=w.y-v.y, fw=ox*v.u.x+oy*v.u.y, side=Math.abs(ox*v.u.y-oy*v.u.x); return fw>0.2&&fw<1.5&&side<0.75; })||st.vehicles.some(o=>o!==v&&!o.hidden&&vClash(NB,vBody(o),0.1));
+  if(ahead){ R.wait=(R.wait||0)+dt; R.blk=(R.blk||0)+dt; if(R.blk>5&&R.phase==='back'&&!v.stay){ v.run=null; return; }   // still can't get back after a while: load somewhere else
+    if(R.wait<1.6) return;   // waited long enough: someone is standing there, go another way
     R.wait=0; const here={x:v.x,y:v.y};
     if(R.phase==='go'){ const P=pickB(), q=P[P.length-1], c1={x:here.x,y:q.y}, c2={x:q.x,y:here.y}; R.path=lineFree(here,c1)&&lineFree(c1,q)?[c1,q]:lineFree(here,c2)&&lineFree(c2,q)?[c2,q]:R.path; }
     else { const c1={x:here.x,y:R.A.y}, c2={x:R.A.x,y:here.y}; R.path=lineFree(here,c1)&&lineFree(c1,R.A)?[c1,{x:R.A.x,y:R.A.y}]:lineFree(here,c2)&&lineFree(c2,R.A)?[c2,{x:R.A.x,y:R.A.y}]:R.path; }
     R.i=0; return; }
-  R.wait=0;
+  R.wait=0; R.blk=0;
   const sp=1.15*dt; if(d<=sp){ v.x=tg.x; v.y=tg.y; R.i++; } else { v.x+=dx/d*sp; v.y+=dy/d*sp; }
 }
 // nobody on the crews walks out past the fence (only the 交通指揮 粗工 at his post outside the gate): anyone outside is put back just inside
@@ -4903,7 +4937,7 @@ function soilNear(x,y){ const st=SIM.st; if(!st||!st.toG) return null; let best=
 // 土方合作: the machine draws up at the pile's edge, facing it, and its 工作事項 says so
 async function soilJoin(v,pl,text){ const st=SIM.st, r0=REPORTS[selDate], B=(st.BND||[]).map(q=>[q.x,q.y]), ins=p=>!B.length||inPolyS([p.x,p.y],B);
   const a0=Math.atan2(v.y-pl.y,v.x-pl.x), R=pl.r+(v.type==='digger'?1.3:1.0); let at=null;
-  for(let k=0;k<16&&!at;k++){ const a=a0+(k%2?1:-1)*Math.ceil(k/2)*Math.PI/8, q={x:pl.x+Math.cos(a)*R,y:pl.y+Math.sin(a)*R}; if(ins(q)&&ins({x:q.x+0.8,y:q.y})&&ins({x:q.x-0.8,y:q.y})&&ins({x:q.x,y:q.y+0.8})&&ins({x:q.x,y:q.y-0.8})) at={q,a:a+Math.PI}; }
+  for(let k=0;k<16&&!at;k++){ const a=a0+(k%2?1:-1)*Math.ceil(k/2)*Math.PI/8, q={x:pl.x+Math.cos(a)*R,y:pl.y+Math.sin(a)*R}; if(ins(q)&&ins({x:q.x+0.8,y:q.y})&&ins({x:q.x-0.8,y:q.y})&&ins({x:q.x,y:q.y+0.8})&&ins({x:q.x,y:q.y-0.8})&&!st.vehicles.some(o=>o!==v&&!vPair(v,o)&&(!o.hidden||o.park)&&vClash(vBody(v,q.x,q.y,a+Math.PI),vBodyAt(o),0.2))) at={q,a:a+Math.PI}; }
   if(!at){ toast('這堆土方旁邊沒有位置可以停'); return; }
   islSnap(); const n=st.toN(at.q.x,at.q.y); SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos[v.key]||[]).filter(e=>e.from!==selDate); L.push({from:selDate,x:n.x,y:n.y,a:+at.a.toFixed(3),soil:1}); SITE.mpos[v.key]=L; saveSite();
   try{ if(r0&&text&&!(r0.tasks||[]).some(t=>t.status!=='next'&&t.trade===v.mk&&teamKey(t.text)===teamKey(text))){ const rep=JSON.parse(JSON.stringify(r0)); rep.tasks=rep.tasks||[]; rep.tasks.push({id:uid(),text,zone:'',status:'doing',trade:v.mk});
@@ -4933,7 +4967,8 @@ async function teamJoin(a,b,text,zone,ctx){ ctx=ctx||{}; const r0=REPORTS[selDat
   catch(e){ toast(writeFailed(e)); } }
 function machAt(sx,sy){ const st=SIM.st; if(!st) return null; let best=null, bd=1e9;
   st.vehicles.forEach(v=>{ if(v.hidden||!v.key) return; const q=SP(v.x,v.y,0.5+(v.z||0)), d=Math.hypot(q[0]-sx,q[1]-sy); if(d<Math.max(26,SIM.S*1.1)&&d<bd){ bd=d; best=v; } }); machAt.d=bd; return best; }
-function machSave(v){ if(ISL.edit) islSnap(); if(v.type==='skid'){ v.hx=v.x; v.hy=v.y; v.run=null; v.stay=true; v.fa=machAng(v); } const n=SIM.st.toN(v.x,v.y); SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos[v.key]||[]).filter(e=>e.from!==selDate); L.push({from:selDate,x:n.x,y:n.y,a:+machAng(v).toFixed(3)}); SITE.mpos[v.key]=L; saveSite(); }
+function machSave(v){ if(ISL.edit) islSnap();
+  { const B=(SIM.st.BND||[]).map(q=>[q.x,q.y]), ins=(x,y)=>!B.length||[[0,0],[0.6,0.6],[-0.6,-0.6],[0.6,-0.6],[-0.6,0.6]].every(([a,b])=>inPolyS([x+a,y+b],B)); const q=vFreeSpot(SIM.st,v,v.x,v.y,ins); if(q&&(q.x!==v.x||q.y!==v.y)){ v.x=q.x; v.y=q.y; toast('碰到別的機具了，往旁邊挪一點'); if(SIM.paused) simDraw(); } } if(v.type==='skid'){ v.hx=v.x; v.hy=v.y; v.run=null; v.stay=true; v.fa=machAng(v); } const n=SIM.st.toN(v.x,v.y); SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos[v.key]||[]).filter(e=>e.from!==selDate); L.push({from:selDate,x:n.x,y:n.y,a:+machAng(v).toFixed(3)}); SITE.mpos[v.key]=L; saveSite(); }
 // 土方: piles placed by hand on the 工地 page (SITE.soil, plan coords 0–1); they show from the day added
 const SOIL_R={s:1.0,m:1.5,l:2.2};
 function soilOn(p,day){ return (!p.from||p.from<=day)&&(!p.to||day<p.to); }
