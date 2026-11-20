@@ -3597,7 +3597,7 @@ function simBuild(r){
     vehicles.forEach(v=>{ if(!v.mk) return; seen[v.mk]=(seen[v.mk]||0)+1; v.key=v.mk+'#'+seen[v.mk]; if(!machMovable(v)) return;
       const e=machPosOn(v.key,day); if(!e) return;
       if(v.loadTo) return;   // loading the truck: it keeps the place worked out for it beside the truck, so the two never touch — to move it, the pair is dragged together
-      v.x=MX(+e.x); v.y=MY(+e.y); if(e.a!=null) machSetAng(v,+e.a); }); }
+      v.x=MX(+e.x); v.y=MY(+e.y); if(e.a!=null) machSetAng(v,+e.a); if(e.soil&&e.a!=null){ v.dir=+e.a; v.u={x:Math.cos(+e.a),y:Math.sin(+e.a)}; if(v.type==='digger') v.dig=true; } }); }
   // 合作: whoever shares one 工作事項 on the 日報 (the very same words) works together — machine with machine, crew with machine, crew with crew.
   // Machines draw up beside the one that stays put (a truck, a pump); crews gather round their machine, or, with no machine, round one spot in the task's zone
   const normT=x=>(x||'').replace(/\s+/g,''), teams={};
@@ -4879,22 +4879,45 @@ const teamKey=x=>(x||'').replace(/\s+/g,'');
 function crewAt(sx,sy){ const st=SIM.st; if(!st) return null; let best=null, bd=1e9;
   st.workers.forEach(w=>{ if(w.inside||w.sx==null) return; const d=Math.hypot(w.sx-sx,w.sy-sy); if(d<Math.max(18,w.sr||0)&&d<bd){ bd=d; best=w; } }); crewAt.d=bd; return best; }
 function teamTarget(x,y,name,skip){ const st=SIM.st; if(!st) return null; let best=null, bd=1;
-  st.vehicles.forEach(v=>{ if(v.hidden||!v.mk||v.mk===name||(Array.isArray(skip)&&skip.includes(v))) return; const d=Math.hypot(v.x-x,v.y-y)/2.4; if(d<bd){ bd=d; best=v.mk; } });
-  st.workers.forEach(w=>{ if(w.inside||!w.trade||w.trade===name||w===skip) return; const d=Math.hypot(w.x-x,w.y-y)/1.3; if(d<bd){ bd=d; best=w.trade; } }); return best; }
-function teamAsk(a,b){ const r0=REPORTS[selDate], sh=$('#teamSheet'); if(!r0||!sh){ toast('這一天還沒有日報，沒辦法設定合作'); return; }
-  const own=n=>(r0.tasks||[]).filter(t=>t.status!=='next'&&t.trade===n&&teamKey(t.text)), ta=own(a), tb=own(b);
-  if(ta.some(t=>tb.some(u=>teamKey(u.text)===teamKey(t.text)))){ toast(`「${a}」和「${b}」已經在一起合作了`); return; }
+  st.vehicles.forEach(v=>{ if(v.hidden||!v.mk||v.mk===name||(Array.isArray(skip)&&skip.includes(v))) return; const d=Math.hypot(v.x-x,v.y-y)/2.4; if(d<bd){ bd=d; best={name:v.mk,v}; } });
+  st.workers.forEach(w=>{ if(w.inside||!w.trade||w.trade===name||w===skip) return; const d=Math.hypot(w.x-x,w.y-y)/1.3; if(d<bd){ bd=d; best={name:w.trade,w}; } }); return best; }
+function soilNear(x,y){ const st=SIM.st; if(!st||!st.toG) return null; let best=null, bd=1e9;
+  (SITE.soil||[]).forEach(q=>{ if(!soilOn(q,selDate)) return; const g=st.toG(+q.x,+q.y), r=SOIL_R[q.s]||SOIL_R.m, d=Math.hypot(g.x-x,g.y-y)-r; if(d<0.5&&d<bd){ bd=d; best={x:g.x,y:g.y,r}; } }); return best; }
+// 土方合作: the machine draws up at the pile's edge, facing it, and its 工作事項 says so
+async function soilJoin(v,pl,text){ const st=SIM.st, r0=REPORTS[selDate], B=(st.BND||[]).map(q=>[q.x,q.y]), ins=p=>!B.length||inPolyS([p.x,p.y],B);
+  const a0=Math.atan2(v.y-pl.y,v.x-pl.x), R=pl.r+(v.type==='digger'?1.3:1.0); let at=null;
+  for(let k=0;k<16&&!at;k++){ const a=a0+(k%2?1:-1)*Math.ceil(k/2)*Math.PI/8, q={x:pl.x+Math.cos(a)*R,y:pl.y+Math.sin(a)*R}; if(ins(q)&&ins({x:q.x+0.8,y:q.y})&&ins({x:q.x-0.8,y:q.y})&&ins({x:q.x,y:q.y+0.8})&&ins({x:q.x,y:q.y-0.8})) at={q,a:a+Math.PI}; }
+  if(!at){ toast('這堆土方旁邊沒有位置可以停'); return; }
+  islSnap(); const n=st.toN(at.q.x,at.q.y); SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos[v.key]||[]).filter(e=>e.from!==selDate); L.push({from:selDate,x:n.x,y:n.y,a:+at.a.toFixed(3),soil:1}); SITE.mpos[v.key]=L; saveSite();
+  try{ if(r0&&text&&!(r0.tasks||[]).some(t=>t.status!=='next'&&t.trade===v.mk&&teamKey(t.text)===teamKey(text))){ const rep=JSON.parse(JSON.stringify(r0)); rep.tasks=rep.tasks||[]; rep.tasks.push({id:uid(),text,zone:'',status:'doing',trade:v.mk});
+      await saveReport(rep); REPORTS[rep.date]=JSON.parse(JSON.stringify(rep)); if(draft&&draft.date===rep.date&&!draftDirty) draft=null; }
+    ISL.machSel=null; toast(`「${v.mk}」到土方旁邊作業`); islSetDay(selDate,true); islEditBar(); }
+  catch(e){ toast(writeFailed(e)); } }
+function teamAsk(a,b,ctx){ ctx=ctx||{}; const r0=REPORTS[selDate], sh=$('#teamSheet'); if(!r0||!sh){ toast('這一天還沒有日報，沒辦法設定合作'); return; }
+  const own=n=>(r0.tasks||[]).filter(t=>t.status!=='next'&&t.trade===n&&teamKey(t.text)), ta=own(a), tb=ctx.soil?[]:own(b);
+  if(!ctx.soil&&ta.some(t=>tb.some(u=>teamKey(u.text)===teamKey(t.text)))){ toast(`「${a}」和「${b}」已經在一起合作了`); return; }
   const src=tb.find(t=>t.status==='doing')||tb[0]||ta.find(t=>t.status==='doing')||ta[0]||null;
-  $('#tmWho').innerHTML=`讓「<b>${esc(a)}</b>」和「<b>${esc(b)}</b>」一起合作嗎？`; $('#tmText').value=src?src.text:''; $('#tmMsg').textContent=`會寫進 ${fmtShort(selDate)} 的日報：兩邊的工作事項相同，動畫就會一起做。`;
+  $('#tmWho').innerHTML=ctx.soil?`讓「<b>${esc(a)}</b>」和這堆<b>土方</b>一起合作嗎？`:`讓「<b>${esc(a)}</b>」和「<b>${esc(b)}</b>」一起合作嗎？`; $('#tmText').value=src?src.text:ctx.soil?'挖土、整理土方':''; $('#tmMsg').textContent=ctx.soil?`機具會停到這堆土方旁邊作業，工作事項會寫進 ${fmtShort(selDate)} 的日報。`:`會寫進 ${fmtShort(selDate)} 的日報：兩邊的工作事項相同，動畫就會一起做。`;
   const close=()=>{ sh.hidden=true; }; sh.querySelectorAll('[data-tmclose]').forEach(x=>x.onclick=close);
-  $('#tmOk').onclick=()=>{ const text=$('#tmText').value.trim(); if(!text){ $('#tmMsg').textContent='請填一起做的工作事項'; $('#tmText').focus(); return; } close(); teamJoin(a,b,text,src?src.zone||'':''); };
+  $('#tmOk').onclick=()=>{ const text=$('#tmText').value.trim(); if(!text){ $('#tmMsg').textContent='請填一起做的工作事項'; $('#tmText').focus(); return; } close(); if(ctx.soil) soilJoin(ctx.a,ctx.soil,text); else teamJoin(a,b,text,src?src.zone||'':'',ctx); };
   sh.hidden=false; }
-async function teamJoin(a,b,text,zone){ const r0=REPORTS[selDate]; if(!r0) return; const rep=JSON.parse(JSON.stringify(r0)), k=teamKey(text); rep.tasks=rep.tasks||[];
+async function teamJoin(a,b,text,zone,ctx){ ctx=ctx||{}; const r0=REPORTS[selDate]; if(!r0) return; const rep=JSON.parse(JSON.stringify(r0)), k=teamKey(text); rep.tasks=rep.tasks||[];
   [a,b].forEach(n=>{ if(rep.tasks.some(t=>t.status!=='next'&&t.trade===n&&teamKey(t.text)===k)) return; const t={id:uid(),text,zone:zone||'',status:'doing',trade:n}, i=rep.tasks.findIndex(x=>x.trade===n&&x.status!=='next');
     if(i<0) rep.tasks.push(t); else rep.tasks.splice(i,0,t); });   // ahead of their other work, so it is what the animation shows
   islSnap();
   { const M=Object.assign({},SITE.mpos||{}); let ch=false;   // placed by hand today: let go, so the two draw up beside each other
-    Object.keys(M).forEach(key=>{ const n=key.replace(/#\d+$/,''); if((n!==a&&n!==b)||!Array.isArray(M[key])) return; const L=M[key].filter(e=>e.from!==selDate); if(L.length!==M[key].length){ M[key]=L; ch=true; } }); if(ch){ SITE.mpos=M; saveSite(); } }
+    Object.keys(M).forEach(key=>{ const n=key.replace(/#\d+$/,''); if((n!==a&&n!==b)||!Array.isArray(M[key])) return; const L=M[key].filter(e=>e.from!==selDate); if(L.length!==M[key].length){ M[key]=L; ch=true; } });
+    // 怪手 with a 土車: the one dropped on stays where it is and the other draws up beside it (not sent off to a place by the gate)
+    const P=[ctx.a,ctx.b], dg=P.find(v=>v&&v.type==='digger'), tr=P.find(v=>v&&v.type==='truck'), st=SIM.st;
+    if(dg&&tr&&st&&st.toN){ const B=(st.BND||[]).map(q=>[q.x,q.y]), ins=p=>!B.length||inPolyS([p.x,p.y],B); let q, ang, g, bed;
+      if(ctx.b===tr){ q=tr.park||{x:tr.x,y:tr.y}; ang=tr.hang!=null?tr.hang:(tr.dir||0); const h={x:Math.cos(ang),y:Math.sin(ang)}, n={x:-h.y,y:h.x}; bed={x:q.x-h.x*0.35,y:q.y-h.y*0.35};
+        const sd=((dg.x-bed.x)*n.x+(dg.y-bed.y)*n.y)>=0?1:-1; g={x:bed.x+n.x*2.4*sd,y:bed.y+n.y*2.4*sd}; if(!ins(g)) g={x:bed.x-n.x*2.4*sd,y:bed.y-n.y*2.4*sd}; }
+      else { g={x:dg.x,y:dg.y}; const o=tr.park||tr; let c=null;
+        for(let k=0;k<16&&!c;k++){ const a=Math.atan2(o.y-g.y,o.x-g.x)+(k%2?1:-1)*Math.ceil(k/2)*Math.PI/8, n={x:Math.cos(a),y:Math.sin(a)}, bd2={x:g.x+n.x*2.4,y:g.y+n.y*2.4}, h={x:-n.y,y:n.x}, qq={x:bd2.x+h.x*0.35,y:bd2.y+h.y*0.35};
+          if(ins(qq)&&ins({x:qq.x+h.x*1.3,y:qq.y+h.y*1.3})&&ins({x:qq.x-h.x*1.3,y:qq.y-h.y*1.3})) c={q:qq,bed:bd2,ang:Math.atan2(h.y,h.x)}; }
+        if(c){ q=c.q; bed=c.bed; ang=c.ang; } }
+      if(q&&ins(q)&&ins(g)){ const A=st.toN(q.x,q.y), G=st.toN(g.x,g.y), L=(M['@haul']||[]).filter(e=>e.from!==selDate); L.push({from:selDate,x:A.x,y:A.y,a:+ang.toFixed(3),gx:G.x,gy:G.y,ga:+Math.atan2(g.y-bed.y,g.x-bed.x).toFixed(3)}); M['@haul']=L; ch=true; } }
+    if(ch){ SITE.mpos=M; saveSite(); } }
   try{ await saveReport(rep); REPORTS[rep.date]=JSON.parse(JSON.stringify(rep)); if(draft&&draft.date===rep.date&&!draftDirty) draft=null;
     ISL.machSel=null; toast(`「${a}」和「${b}」一起做「${text}」，已寫進 ${fmtShort(rep.date)} 的日報`); islSetDay(selDate,true); islEditBar(); }
   catch(e){ toast(writeFailed(e)); } }
@@ -5025,10 +5048,11 @@ function simMount(r){
   const up=e=>{ if(rdrag){ rdrag=null; cv.style.cursor=''; if(Math.abs(SIM.rot||0)<0.07){ setRot(0); rotBtn(); if(SIM.paused) simDraw(); } return; }
     if(mdrag){ const d=mdrag; mdrag=null; if(!d.moved) return;
       if(d.G.length<2){ const t=teamTarget(d.v.x,d.v.y,d.v.mk,[d.v]);   // dropped on another machine or a crew: work together?
-        if(t||d.fixed){ d.v.x=d.o[0].x; d.v.y=d.o[0].y; if(SIM.paused) simDraw(); if(t) teamAsk(d.v.mk,t); else toast('這台在跑車，位置跟著動畫走；拖到別台機具或工班上可以設定一起合作'); return; }
+        const drop={x:d.v.x,y:d.v.y}, so=!t&&!d.fixed?soilNear(drop.x,drop.y):null;
+        if(t||so||d.fixed){ d.v.x=d.o[0].x; d.v.y=d.o[0].y; if(SIM.paused) simDraw(); if(t) teamAsk(d.v.mk,t.name,{a:d.v,b:t.v,drop}); else if(so) teamAsk(d.v.mk,null,{a:d.v,soil:so}); else toast('這台在跑車，位置跟著動畫走；拖到別台機具或工班上可以設定一起合作'); return; }
         machSave(d.v); return; }
       machGroupSave(d.G); return; }
-    if(wdrag){ const d=wdrag; wdrag=null; if(!d.moved){ toast('把工人拖到機具或別的工班上，可以設定一起合作'); return; } const t=teamTarget(d.w.x,d.w.y,d.w.trade,d.w); d.w.x=d.ox; d.w.y=d.oy; if(SIM.paused) simDraw(); if(t) teamAsk(d.w.trade,t); return; }
+    if(wdrag){ const d=wdrag; wdrag=null; if(!d.moved){ toast('把工人拖到機具或別的工班上，可以設定一起合作'); return; } const t=teamTarget(d.w.x,d.w.y,d.w.trade,d.w); d.w.x=d.ox; d.w.y=d.oy; if(SIM.paused) simDraw(); if(t) teamAsk(d.w.trade,t.name); return; }
     if(sdrag){ const d=sdrag; sdrag=null; if(d.moved){ const n=SIM.st.toN(d.o.x,d.o.y), it=(SITE.soil||[]).find(x=>x.id===d.o.id); if(it){ islSnap(); it.x=n.x; it.y=n.y; saveSite(); } } return; }
     const wasPinch=!!pinch; pts.delete(e.pointerId); if(pts.size<2){ if(pinch&&pinch.rotOn&&Math.abs(SIM.rot)<0.07){ setRot(0); rotBtn(); if(SIM.paused) simDraw(); } pinch=null; }
     if(pts.size===1 && wasPinch){ const p=[...pts.values()][0]; drag={x:p[0],y:p[1],px:SIM.panX,py:SIM.panY,moved:true}; return; }
