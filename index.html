@@ -1637,7 +1637,7 @@ function islEditMode(on,quiet){ ISL.edit=!!on&&CAN_WRITE; if(!ISL.edit){ ISL.soi
 function islEditBar(){ const bar=$('#islEditBar'); if(!bar||!ISL.edit) return;
   const mv=ISL.machSel&&SIM.st&&SIM.st.vehicles.find(v=>v.key===ISL.machSel);
   if(mv){ const hl=!!machHaul(mv), grp=machGroup(mv).length>1||hl, mov=machMovable(mv)||grp;
-    bar.innerHTML=`<span class="eb-tip">${esc(mv.mk)}${mv.vendor?`<small>（${esc(mv.vendor)}）</small>`:''}<br><small>${hl?'拖曳移動這一台；太遠時另一台會靠過來':grp?'拖曳：一起作業的機具整組移動':mov?'拖曳移動；疊到別台或工班上＝合作':'拖到別台機具或工班上＝合作'}</small></span>${mov&&!grp?`<button type="button" class="eb-back" id="ebTurn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>轉向</button>`:''}<button type="button" class="eb-del" id="ebMDel">刪除</button><button type="button" class="eb-ok" id="ebDone">完成</button>`;
+    bar.innerHTML=`<span class="eb-tip">${esc(mv.mk)}${mv.vendor?`<small>（${esc(mv.vendor)}）</small>`:''}<br><small>${hl?'拖曳移動這一台；太遠時另一台會靠過來':mov?'拖曳移動；疊到別台或工班上＝合作':'拖到別台機具或工班上＝合作'}</small></span>${mov&&!grp?`<button type="button" class="eb-back" id="ebTurn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>轉向</button>`:''}<button type="button" class="eb-del" id="ebMDel">刪除</button><button type="button" class="eb-ok" id="ebDone">完成</button>`;
     const tn=$('#ebTurn'); if(tn) tn.onclick=()=>{ machSetAng(mv,machAng(mv)+Math.PI/2); machSave(mv); if(SIM.paused) simDraw(); };
     $('#ebMDel').onclick=e=>{ const b=e.currentTarget; if(b.dataset.arm!=='1'){ b.dataset.arm='1'; b.textContent='再按一次'; setTimeout(()=>{ if(b.isConnected){ b.dataset.arm=''; b.textContent='刪除'; } },3000); return; } islMachDelete(mv); };
     $('#ebDone').onclick=()=>{ ISL.machSel=null; islEditBar(); if(SIM.paused) simDraw(); }; return; }
@@ -3605,6 +3605,7 @@ function simBuild(r){
   Object.keys(teams).forEach(k=>{ const T=teams[k]; if(T.names.size<2){ delete teams[k]; return; } T.veh=vehicles.filter(v=>v.mk&&T.names.has(v.mk)); T.veh.forEach(v=>{ v.tm=k; }); });
   { const fixed=v=>v.type==='truck'||v.type==='pump'||v.type==='mixer', day=r?r.date:selDate;
     Object.values(teams).forEach(T=>{ if(!T.veh.length) return; const A=T.veh.find(fixed)||T.veh.find(v=>v.loadTo)||T.veh[0]; T.anchor=A; const c=A.park||A; if(T.veh.length<2) return;
+      const eA=machPosOn(A.key,day); if(eA&&eA.from===day&&machMovable(A)) return;   // the one they gather round was moved by hand today: the others keep their own places
       T.veh.forEach(v=>{ if(v===A||fixed(v)||v.loadTo||v.type==='skid'||!machMovable(v)) return; const e=machPosOn(v.key,day); if(e&&e.from===day) return;   // put somewhere by hand today: it stays there
         if(Math.hypot(v.x-c.x,v.y-c.y)<4) return;
         for(let b=0;b<16;b++){ const a=b*Math.PI/8, q={x:c.x+Math.cos(a)*3,y:c.y+Math.sin(a)*3};
@@ -4885,7 +4886,7 @@ function haulDrop(P,v){ const q=P.tr.park||P.tr, ang=P.tr.hang!=null?P.tr.hang:(
   if(e){ SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos['@haul']||[]).filter(x=>x.from!==selDate); L.push(e); SITE.mpos['@haul']=L; saveSite(); if(!ok) toast(v===P.dg?'離土車太遠（或太近）裝不到，土車停到怪手旁邊':'怪手搆不到車斗，怪手靠到土車旁邊'); }
   else toast('這裡放不下，位置沒有變');
   try{ simMount(REPORTS[selDate]||null); }catch(err){ console.error(err); } }
-function machGroup(v){ const V=(SIM.st&&SIM.st.vehicles)||[]; if(v.tm){ const g=V.filter(o=>o.tm===v.tm&&machMovable(o)); if(g.length>1&&g.includes(v)) return g; } return [v]; }
+function machGroup(v){ return [v]; }   // 編輯: one machine at a time (Danny: dragging one must never move the others)
 function machGroupSave(G){ const st=SIM.st, dg=G.find(o=>o.loadTo), tr=G.find(o=>o.earth&&o.type==='truck');
   if(dg&&tr){ if(ISL.edit) islSnap(); const a=st.toN(tr.park.x,tr.park.y), b=st.toN(dg.x,dg.y); SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos['@haul']||[]).filter(e=>e.from!==selDate);
     L.push({from:selDate,x:a.x,y:a.y,a:+(tr.hang!=null?tr.hang:(tr.dir||0)).toFixed(3),gx:b.x,gy:b.y,ga:+machAng(dg).toFixed(3)}); SITE.mpos['@haul']=L; saveSite(); try{ simMount(REPORTS[selDate]||null); }catch(e){ console.error(e); } return; }
@@ -5058,6 +5059,8 @@ function simMount(r){
     if(mdrag){ const d=mdrag; mdrag=null; if(!d.moved) return;
       if(d.haul){ haulDrop(d.haul,d.v); return; }
       if(d.G.length<2){ const t=teamTarget(d.v.x,d.v.y,d.v.mk,[d.v]);   // dropped on another machine or a crew: work together?
+        const mate=t&&t.v&&d.v.tm&&t.v.tm===d.v.tm;   // dropped by a machine it already works with: just stays there
+        if(mate&&!d.fixed){ machSave(d.v); return; }
         const drop={x:d.v.x,y:d.v.y}, so=!t&&!d.fixed?soilNear(drop.x,drop.y):null;
         if(t||so||d.fixed){ d.v.x=d.o[0].x; d.v.y=d.o[0].y; if(SIM.paused) simDraw(); if(t) teamAsk(d.v.mk,t.name,{a:d.v,b:t.v,drop}); else if(so) teamAsk(d.v.mk,null,{a:d.v,soil:so}); else toast('這台在跑車，位置跟著動畫走；拖到別台機具或工班上可以設定一起合作'); return; }
         machSave(d.v); return; }
