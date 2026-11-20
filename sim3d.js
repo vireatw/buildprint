@@ -171,8 +171,8 @@ function buildVehicle(v){ const g=grp(), u={}; g.userData=u; u.wheels=[]; u.beac
     u.cable=mesh(G.box,M('#22282E')); u.hook=grp(B(0.14,0.16,0.1,'#F2C200',0,0,0),B(0.14,0.04,0.11,'#2B3238',0,0,0),B(0.03,0.1,0.03,'#5B6670',0,-0.12,0)); g.add(u.cable,u.hook); }
   else if(v.type==='digger'){ g.add(tracks(1.5,1.15,0.3)); const hs=grp(); hs.position.y=0.3; g.add(hs); u.house=hs; hs.add(B(1.0,0.42,0.96,YEL,-0.1,0.21,0),B(1.02,0.06,0.98,'#2B3238',-0.1,0.07,0),B(0.28,0.34,0.88,YEL2,-0.62,0.17,0)); for(let i=-1;i<=1;i++) hs.add(B(0.02,0.24,0.14,'#2B3238',-0.765,0.2,i*0.28));
     const cb=cab(0.44,0.5,0.44,'#F5BE3A',0.12,0.42); cb.position.z=0.24; hs.add(cb); hs.add(B(0.5,0.05,0.5,'#2B3238',0.12,0.945,0.24)); hs.add(operator(0.1,0.72,0.24)); const bc=beacon(0,1.0,0.24); hs.add(bc); u.beacons.push(bc); hs.add(B(0.07,0.3,0.07,'#3B4650',-0.36,0.57,-0.3));
-    u.boom=mesh(G.box,M(YEL)); u.stick=mesh(G.box,M(YEL)); u.ram1=mesh(G.cyl,M('#D5DADF',{flatShading:false})); u.ram2=mesh(G.cyl,M('#D5DADF',{flatShading:false})); u.bucket=grp(B(0.34,0.26,0.4,'#4A5058',0,-0.1,0)); for(let i=-1;i<=1;i++){ const tt=mesh(G.cone4,M('#C9CED2')); tt.scale.set(0.07,0.1,0.07); tt.position.set(0.08,-0.27,i*0.13); tt.rotation.z=Math.PI; u.bucket.add(tt); } u.dirt=B(0.28,0.08,0.34,'#9A7445',0,0.05,0); u.bucket.add(u.dirt); u.j=[0,1,2].map(()=>S(0.09,'#3B4650'));
-    hs.add(u.boom,u.stick,u.ram1,u.ram2,u.bucket,...u.j); u.smoke=[0,1,2].map(()=>{ const s=S(0.06,'#6E7378',0,0,0,G.ico,{transparent:true,opacity:0.4}); s.material=s.material.clone(); s.castShadow=false; hs.add(s); return s; }); }
+    u.boom=mesh(G.box,M(YEL)); u.stick=mesh(G.box,M(YEL)); u.ram1=mesh(G.cyl,M('#D5DADF',{flatShading:false})); u.ram2=mesh(G.cyl,M('#D5DADF',{flatShading:false})); u.bucket=grp(B(0.34,0.26,0.4,'#4A5058',0,-0.1,0)); for(let i=-1;i<=1;i++){ const tt=mesh(G.cone4,M('#C9CED2')); tt.scale.set(0.07,0.1,0.07); tt.position.set(0.08,-0.27,i*0.13); tt.rotation.z=Math.PI; u.bucket.add(tt); } u.dirt=B(0.28,0.08,0.34,'#9A7445',0,0.05,0); u.bucket.add(u.dirt); u.clods=[0,1,2,3,4].map(i=>{ const c=B(0.09+0.03*(i%2),0.07,0.08,i%2?'#8A6A40':'#9A7445'); c.visible=false; return c; }); u.j=[0,1,2].map(()=>S(0.09,'#3B4650'));
+    hs.add(u.boom,u.stick,u.ram1,u.ram2,u.bucket,...u.j,...u.clods); u.smoke=[0,1,2].map(()=>{ const s=S(0.06,'#6E7378',0,0,0,G.ico,{transparent:true,opacity:0.4}); s.material=s.material.clone(); s.castShadow=false; hs.add(s); return s; }); }
   else if(v.type==='skid'){ addW([0.38,-0.38],0.19,0.5); u.wheels.forEach(w=>{ w.children[1].material=M(YEL); }); g.add(B(1.0,0.3,0.8,YEL,-0.05,0.31,0),B(1.0,0.06,0.82,'#2B3238',-0.05,0.22,0),B(0.16,0.42,0.78,YEL2,-0.5,0.37,0));
     const cg=grp(); [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([a,k])=>cg.add(B(0.04,0.5,0.04,'#2E3740',-0.12+a*0.29,0.71,k*0.31))); cg.add(B(0.66,0.06,0.7,YEL,-0.12,0.99,0)); g.add(cg); g.add(operator(-0.12,0.72,0)); const bc=beacon(-0.3,1.06,0); g.add(bc); u.beacons.push(bc);
     u.arms=[-1,1].map(k=>{ const a=mesh(G.box,M(YEL)); g.add(a); a.userData.k=k; return a; }); u.bucket=grp(B(0.34,0.26,1.05,'#59616A',0,0.13,0)); u.dirt=B(0.26,0.12,0.85,'#8B6A3E',0,0.3,0); u.bucket.add(u.dirt); g.add(u.bucket); }
@@ -192,7 +192,6 @@ function buildVehicle(v){ const g=grp(), u={}; g.userData=u; u.wheels=[]; u.beac
   return g; }
 function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv; const u=g.userData, T0=t+(v.ph||0), dig=v.type==='digger';
   let x=v.x, y=v.y; const dir=v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0);
-  if(dig&&v.dig&&!v.loadTo&&!v.still&&!view.edit&&!view.lunch){ const k=Math.sin(t*0.35+(v.ph||0))*0.7; x+=Math.cos(dir)*k; y+=Math.sin(dir)*k; }
   g.visible=!v.hidden; if(v.hidden) return; { const s0=soilTop(st,x,y,0), sh=s0>0?Math.max(0,s0*0.88-0.2):0; u.sh=u.sh==null?sh:u.sh+(sh-u.sh)*0.2; g.position.set(x,(v.z||0)+u.sh-(st.pitAt?st.pitAt(x,y):0),y); }
   u.hd=u.hd==null?dir:lerpAng(u.hd,dir,0.25); g.rotation.y=-u.hd;
   const moving=v.phase==='arrive'||v.phase==='leave'; if(moving) u.wheels.forEach(w=>{ w.rotation.z=-t*8; });
@@ -214,30 +213,36 @@ function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv;
     link(u.ram,0.35,0.3,0,Math.cos(el)*1.2,0.5+Math.sin(el)*1.2,0,0.07);
     const tipx=v.x+Math.cos(sl)*4.2*Math.cos(el), tipy=v.y+Math.sin(sl)*4.2*Math.cos(el), tipz=0.97+4.2*Math.sin(el), hz=1.25+0.45*Math.sin(t*0.8+(v.ph||0));
     const dx=tipx-v.x, dy=tipy-v.y, c=Math.cos(u.hd), s=Math.sin(u.hd), lx=dx*c+dy*s, lz=-dx*s+dy*c; link(u.cable,lx,tipz,lz,lx,hz+0.1,lz,0.02); u.hook.position.set(lx,hz,lz); }
-  else if(dig){ const sw=view.lunch?-0.6:v.dig?Math.sin(T0*1.1):Math.sin(T0*0.33)*0.15, z=-0.18;
-    const P0=[0.35,0.48,z]; let E=[1.25+0.1*sw,1.45+0.25*sw,z], Bk=[1.95+0.25*sw,0.25+0.45*sw,z], rot=-0.5+sw*0.6, full=!!v.dig&&sw>0.2;
-    if(v.loadTo){ // loading a truck, the way it is done: reach out over the pile, lower, curl the bucket full, lift, swing round to the truck, tip over the side of the bed, swing back.
-      // The round is timed by the truck (its eT, 9 s a bucket), so the soil lands in the bed as the bucket tips
-      const tr=st.vehicles.find(o=>o.earth&&o.phase==='load'&&!o.hidden), p=tr&&!view.lunch?Math.min(0.999,(tr.eT||0)/9):null, sm=k=>{ k=Math.max(0,Math.min(1,k)); return k*k*(3-2*k); };
-      let dA=Math.atan2(v.loadTo.y-v.y,v.loadTo.x-v.x)-dir; dA=Math.atan2(Math.sin(dA),Math.cos(dA));
-      const r=Math.max(1.85,Math.min(2.4,v.digR||2)), dT=Math.max(1.9,Math.min(2.55,Math.hypot(v.loadTo.x-v.x,v.loadTo.y-v.y)-0.15));
-      const C=[1.75,1.15,0.55], R=[r,0.6,-0.9], D=[r,0.02,-0.75], Sc=[r-0.45,0.18,0.5], T=[dT,1.3,0.55], Tp=[dT,1.3,-1.15];   // bucket: out, height, curl
-      const mix=(A,B,k)=>A.map((a,i)=>a+(B[i]-a)*sm(k)); let q=C, sw2=0; full=false;
-      if(p==null){ q=[C[0],C[1]+Math.sin(T0*0.5)*0.03,C[2]-0.5]; }
-      else if(p<0.10) q=mix([C[0],C[1],0.05],R,p/0.10);
-      else if(p<0.20) q=mix(R,D,(p-0.10)/0.10);
-      else if(p<0.32){ q=mix(D,Sc,(p-0.20)/0.12); full=p>0.28; }
-      else if(p<0.42){ q=mix(Sc,C,(p-0.32)/0.10); full=true; }
-      else if(p<0.58){ sw2=sm((p-0.42)/0.16); q=mix(C,T,(p-0.42)/0.16); full=true; }
-      else if(p<0.68){ sw2=1; q=mix(T,Tp,(p-0.58)/0.07); full=p<0.64; }
-      else if(p<0.74){ sw2=1; q=mix(Tp,[C[0],C[1],0.05],(p-0.68)/0.06); }
-      else if(p<0.94){ sw2=1-sm((p-0.74)/0.20); q=[C[0],C[1],0.05]; }
-      else q=[C[0],C[1],0.05];
-      u.house.rotation.y=-dA*sw2;
-      // two-link arm: boom from its foot to the elbow, stick from the elbow to the bucket
-      const L1=1.38, L2=1.42, bx=q[0]-P0[0], by=q[1]-P0[1], d=Math.min(L1+L2-0.03,Math.hypot(bx,by)), al=Math.atan2(by,bx)+Math.acos(Math.max(-1,Math.min(1,(L1*L1+d*d-L2*L2)/(2*L1*d))));
-      E=[P0[0]+Math.cos(al)*L1,P0[1]+Math.sin(al)*L1,z]; Bk=[q[0],q[1],z]; rot=q[2]; }
-    else if(u.house.rotation.y) u.house.rotation.y=0;
+  else if(dig){ const z=-0.18, P0=[0.35,0.48,z], sm=k=>{ k=Math.max(0,Math.min(1,k)); return k*k*(3-2*k); }, mix=(A,B,k)=>A.map((a,i)=>a+(B[i]-a)*sm(k));
+    // One bucket, the way an operator works it (q = bucket pin: out from the boom foot, height, curl; curl + = closed/carrying, − = opened/tipping):
+    // reach out with the bucket open → set the teeth into the ground → pull the stick in so the teeth drag through the soil while the bucket curls shut →
+    // lift → swing to the dump side (the truck's bed when loading one) → open the bucket so the soil falls out → swing back and reach out again.
+    // While it digs the tracks stay put; the hole is in front of it (or the pile it faces).
+    let p=null, dA=0, dT=2.1, dH=0.95, rch=2.1;
+    if(v.loadTo){ const tr=st.vehicles.find(o=>o.earth&&o.phase==='load'&&!o.hidden); p=tr&&!view.lunch?Math.min(0.999,(tr.eT||0)/9):null;   // timed by the truck (its eT, 9 s a bucket), so the soil lands as the bucket tips
+      dA=Math.atan2(v.loadTo.y-v.y,v.loadTo.x-v.x)-dir; dA=Math.atan2(Math.sin(dA),Math.cos(dA)); rch=Math.max(1.85,Math.min(2.4,v.digR||2)); dT=Math.max(1.9,Math.min(2.55,Math.hypot(v.loadTo.x-v.x,v.loadTo.y-v.y)-0.15)); dH=1.35; }
+    else if(v.dig&&!view.lunch&&!view.edit){ p=((T0/8.5)%1+1)%1; dA=(v.dumpSide||1)*1.55; }
+    // where the teeth meet the ground: the pit floor, or the surface of the soil pile in front
+    const fx=x+Math.cos(dir)*rch, fy=y+Math.sin(dir)*rch, gH=Math.max(-0.25,Math.min(0.9,(soilTop(st,fx,fy,0)||0)*0.9-(u.sh||0)-(st.pitAt?st.pitAt(fx,fy)-st.pitAt(x,y):0)))-0.3;   // local height of the ground there (the arm's foot is 0.3 up)
+    const C=[1.95,0.95,0.55], R=[rch,gH+0.55,-0.95], D=[rch,gH-0.06,-0.55], Dr=[rch-0.75,gH-0.02,0.15], Sc=[rch-0.9,gH+0.22,0.7], T=[dT,dH,0.6], Tp=[dT+0.15,dH+0.05,-1.2];
+    let q, sw2=0, full=false, tip=0;
+    if(p==null) q=view.lunch||!v.dig?[1.7,gH+0.12,0.1]:[C[0],C[1],0.2];   // resting: bucket set down on the ground in front
+    else if(p<0.10) q=mix([C[0],C[1],0.0],R,p/0.10);                 // reach out, bucket opening
+    else if(p<0.17) q=mix(R,D,(p-0.10)/0.07);                          // teeth into the ground
+    else if(p<0.33){ q=mix(D,Dr,(p-0.17)/0.16); full=p>0.26; }        // crowd: stick pulls in, teeth drag through the soil
+    else if(p<0.40){ q=mix(Dr,Sc,(p-0.33)/0.07); full=true; }          // curl shut, break out of the ground
+    else if(p<0.48){ q=mix(Sc,C,(p-0.40)/0.08); full=true; }           // boom up
+    else if(p<0.60){ sw2=sm((p-0.48)/0.12); q=mix(C,T,(p-0.48)/0.12); full=true; }   // swing to the dump side, rising
+    else if(p<0.70){ sw2=1; q=mix(T,Tp,(p-0.60)/0.07); full=p<0.64; tip=Math.max(0,Math.min(1,(p-0.62)/0.08)); }   // open the bucket: the soil falls out
+    else if(p<0.76){ sw2=1; q=mix(Tp,[C[0],C[1],0.0],(p-0.70)/0.06); }
+    else if(p<0.94){ sw2=1-sm((p-0.76)/0.18); q=[C[0],C[1],0.0]; }    // swing back
+    else q=[C[0],C[1],0.0];
+    u.house.rotation.y=-dA*sw2;
+    // two-link arm of fixed lengths: boom from its foot to the elbow, stick from the elbow to the bucket (elbow kept up)
+    const L1=1.38, L2=1.42, bx=q[0]-P0[0], by=q[1]-P0[1], d=Math.max(0.3,Math.min(L1+L2-0.03,Math.hypot(bx,by))), al=Math.atan2(by,bx)+Math.acos(Math.max(-1,Math.min(1,(L1*L1+d*d-L2*L2)/(2*L1*d))));
+    const E=[P0[0]+Math.cos(al)*L1,P0[1]+Math.sin(al)*L1,z], Bk=[P0[0]+Math.cos(Math.atan2(by,bx))*d,P0[1]+Math.sin(Math.atan2(by,bx))*d,z], rot=q[2];
+    // clods dropping out of the bucket as it opens (they fall into the truck's bed, or onto the spoil heap)
+    if(u.clods){ const flo=v.loadTo?0.62:Math.max(-0.25,gH+0.05); u.clods.forEach((c,i)=>{ const k=tip-i*0.12; if(k<=0||k>=0.9||!tip){ c.visible=false; return; } c.visible=true; const f=k/0.9; c.position.set(Bk[0]+0.12+(i%2?0.06:-0.04),Bk[1]-0.15-(Bk[1]-0.15-flo)*f*f,z+(i-2)*0.07); c.rotation.set(f*3+i,f*2,0); }); }
     link(u.boom,...P0,...E,0.16); link(u.stick,...E,...Bk,0.12); link(u.ram1,0.62,0.44,z,(P0[0]+E[0])/2,(P0[1]+E[1])/2,z+0.0,0.06); link(u.ram2,(P0[0]+E[0]*2)/3,(P0[1]+E[1]*2)/3+0.14,z,(E[0]+Bk[0])/2,(E[1]+Bk[1])/2+0.12,z,0.05);
     u.bucket.position.set(...Bk); u.bucket.rotation.z=rot; u.dirt.visible=full; [P0,E,Bk].forEach((p,i)=>u.j[i].position.set(...p));
     u.smoke.forEach((sm,i)=>{ const k=((t*0.9)+i/3)%1; sm.visible=!!v.dig; sm.position.set(-0.36+k*0.1,0.78+k*0.7,-0.3); sm.scale.setScalar(0.1+k*0.2); sm.material.opacity=0.4*(1-k); }); }

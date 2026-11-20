@@ -2856,7 +2856,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=25').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=26').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -3616,6 +3616,7 @@ function simBuild(r){
     const okAt=(x,y)=>inSite(x,y)&&inSite(x+0.6,y+0.6)&&inSite(x-0.6,y-0.6)&&inSite(x+0.6,y-0.6)&&inSite(x-0.6,y+0.6)&&dProp(x,y)>0.5;
     const lanes=vehicles.filter(t=>t.inPath).map(t=>t.inPath.filter(q=>inSite(q.x,q.y)));   // and off the way the trucks come in
     const offLanes=(v,x,y)=>lanes.every(L=>{ for(let i=1;i<L.length;i++){ const a=L[i-1], b=L[i], n=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)/0.4)); for(let j=0;j<=n;j++){ const qx=a.x+(b.x-a.x)*j/n, qy=a.y+(b.y-a.y)*j/n; if(vBody(v,x,y).some(c=>Math.hypot(c.x-qx,c.y-qy)<c.r+0.85)) return false; } } return true; });
+    vehicles.filter(v=>v.type==='digger'&&v.dig&&!v.loadTo).forEach(v=>{ const a=v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0), room=sd=>{ const b=a+sd*1.55, qx=v.x+Math.cos(b)*2, qy=v.y+Math.sin(b)*2; return (inSite(qx,qy)?2:0)+Math.min(3,dProp(qx,qy))+Math.min(3,...vehicles.filter(o=>o!==v&&!o.hidden).map(o=>Math.hypot(o.x-qx,o.y-qy)),9); }; v.dumpSide=room(-1)>room(1)?-1:1; });   // the 怪手 tips its bucket on the side with room
     vehicles.filter(v=>rank(v)<9&&!v.hidden).sort((a,b)=>rank(a)-rank(b)).forEach(v=>{
       const hit=vehicles.some(o=>o!==v&&!vPair(v,o)&&(!o.hidden||o.park)&&vClash(vBody(v),vBodyAt(o)))||!offLanes(v,v.x,v.y); if(!hit) return;
       const q=vFreeSpot(tmp,v,v.x,v.y,(x,y)=>okAt(x,y)&&offLanes(v,x,y))||vFreeSpot(tmp,v,v.x,v.y,okAt); if(!q) return;
@@ -4495,7 +4496,7 @@ function simUpdate(dt){
 // anyone inside is eased out to its edge, and a walking target inside is moved out too
 // every machine is solid: its body as a few circles (site units). A digging 怪手 creeps back and forth (sim3d), so all of that stretch counts
 function vBody(v,x,y,a){ x=x==null?v.x:x; y=y==null?v.y:y; if(a==null) a=v.type==='truck'&&v.hidden&&v.hang!=null?v.hang:v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0); const ux=Math.cos(a), uy=Math.sin(a), o=[];
-  if(v.type==='digger'){ (v.dig&&!v.loadTo&&!v.still?[-0.7,0,0.7]:[0]).forEach(k=>{ o.push({x:x+ux*k,y:y+uy*k,r:1.2}); if(!v.loadTo) o.push({x:x+ux*(k+1.9),y:y+uy*(k+1.9),r:0.6}); }); }
+  if(v.type==='digger'){ o.push({x,y,r:1.2}); if(!v.loadTo){ o.push({x:x+ux*1.9,y:y+uy*1.9,r:0.6}); if(v.dig){ const b=a+(v.dumpSide||1)*1.55; o.push({x:x+Math.cos(b)*1.9,y:y+Math.sin(b)*1.9,r:0.6}); } } }   // its arm reaches out in front and swings to the dump side
   else if(v.type==='truck'||v.type==='mixer'||v.type==='pump') [-0.9,0,0.9].forEach(k=>o.push({x:x+ux*k,y:y+uy*k,r:0.72}));
   else if(v.type==='skid'){ o.push({x,y,r:0.72}); o.push({x:x+ux*0.8,y:y+uy*0.8,r:0.5}); }
   else if(v.type==='mcrane') o.push({x,y,r:1.0});
