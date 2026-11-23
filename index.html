@@ -1223,7 +1223,8 @@ function dayHighlights(r){
     add(vd||k,{crew:(vd?'':'')+cnt(k,false)}); tasks.filter(t=>t.trade===k).forEach(t=>{ add(vd||k,{task:t}); used.add(t); }); });
   Object.entries(machinesOf(r)).forEach(([k])=>{ const vd=V[k]||''; add(vd||k,{crew:`${esc(k)} ${cnt(k,true)}`}); });
   tasks.filter(t=>!used.has(t)&&t.trade&&!/工程師|監工|主任/.test(t.trade)).forEach(t=>{ add(V[t.trade]||t.trade,{task:t}); used.add(t); });
-  groups.forEach((g,key)=>{ const doing=g.tasks.some(t=>t.status==='doing');
+  groups.forEach((g,key)=>{ { const seen=new Set(); g.tasks=g.tasks.filter(t=>{ const k=(t.text||'').replace(/\s+/g,'')+'|'+(t.zone||'')+'|'+t.status; if(seen.has(k)) return false; seen.add(k); return true; }); }   // crews and machines sharing one 工作事項 (合作): say it once
+    const doing=g.tasks.some(t=>t.status==='doing');
     work.push(li(`<b>${vset.has(key)?'（'+esc(key)+'）':esc(key)}</b>${g.crews.length?' '+g.crews.join('・'):''}${g.tasks.length?'：'+g.tasks.map(txt).join('、'):''}`, doing?'doing':'')); });
   const rest=tasks.filter(t=>!used.has(t)); if(rest.length) work.push(li(rest.map(txt).join('、'),rest.some(t=>t.status==='doing')?'doing':''));
   (r.tasks||[]).filter(t=>t.status==='next').forEach(t=>next.push(li(`${esc(taskLabel(t))}${t.trade?`（${esc(V[t.trade]||t.trade)}）`:''}`)));
@@ -5247,7 +5248,8 @@ const isPour=t=>/澆置|灌漿|打設|混凝土|混泥土/.test(t);
 function vlabel(r,k){ const v=(r.vendors||{})[k]; return v&&!isEngT(k)?`${k}（${v}）`:(v&&isEngT(k)?`${k}（${v}）`:k); }
 function workersRows(r){ return Object.entries(r.workers||{}).filter(([k,v])=>+v>0&&!isMachTrade(k)).sort((a,b)=>isEngT(b[0])-isEngT(a[0])); }
 function machRows(r){ return Object.entries(machinesOf(r)); }
-function dayTaskText(r){ return r.tasks.filter(t=>t.status!=='next').map(t=>`${zoneName(t.zone)?zoneName(t.zone)+' ':''}${t.text}${t.status==='doing'?'（進行中）':''}${t.trade&&!/（/.test(t.text)?'（'+((r.vendors||{})[t.trade]||t.trade)+'）':''}`); }
+function dayTaskText(r){ return dayTaskText0(r).filter((x,i,A)=>A.indexOf(x)===i); }   // the same 工作事項 by the same 廠商 (合作) is listed once
+function dayTaskText0(r){ return r.tasks.filter(t=>t.status!=='next').map(t=>`${zoneName(t.zone)?zoneName(t.zone)+' ':''}${t.text}${t.status==='doing'?'（進行中）':''}${t.trade&&!/（/.test(t.text)?'（'+((r.vendors||{})[t.trade]||t.trade)+'）':''}`); }
 function pours(ds){ const out=[]; ds.forEach(d=>{ const r=REPORTS[d]; r.tasks.filter(t=>t.status!=='next'&&isPour(t.text)).forEach(t=>{ const q=qtyOf(t.text); if(q) out.push({d,zone:zoneName(t.zone),text:t.text,q:q.q,about:q.about,s:strengthOf(t.text),mix:(r.vendors||{})['預拌車']||(r.vendors||{})['混凝土工']||'',pump:(r.vendors||{})['押送車']||(r.vendors||{})['押送工']||''}); }); }); return out; }
 function blocksGeneral(ds,from,to){
   const B=[]; const e=esc;
@@ -5290,7 +5292,7 @@ function pagePublic(d,n,N){
   const all=sortedDates().filter(x=>x<=d);
   const cumP={}, cumM={}; all.forEach(x=>{ workersRows(REPORTS[x]).forEach(([k,v])=>cumP[k]=(cumP[k]||0)+(+v)); machRows(REPORTS[x]).forEach(([k,v])=>cumM[k]=(cumM[k]||0)+(+v)); });
   const pourCum=pours(all).reduce((s,p)=>s+p.q,0);
-  const items=r.tasks.filter(t=>t.status!=='next').map(t=>{ const q=qtyOf(t.text); const name=`${zoneName(t.zone)?zoneName(t.zone):''}${t.text}${t.trade&&!/（/.test(t.text)?'（'+((r.vendors||{})[t.trade]||t.trade)+'）':''}`;
+  const items=r.tasks.filter(t=>t.status!=='next').filter((t,i,A)=>{ const k=x=>(x.text||'').replace(/\s+/g,'')+'|'+(x.zone||'')+'|'+x.status+'|'+((r.vendors||{})[x.trade]||x.trade||''); return A.findIndex(x=>k(x)===k(t))===i; }).map(t=>{ const q=qtyOf(t.text); const name=`${zoneName(t.zone)?zoneName(t.zone):''}${t.text}${t.trade&&!/（/.test(t.text)?'（'+((r.vendors||{})[t.trade]||t.trade)+'）':''}`;
     return q&&isPour(t.text)?[name,'m³','',(q.about?'約 ':'')+fmtN(q.q),'約 '+fmtN(Math.round(pourCum*10)/10),'']:[name,'式','',t.status==='doing'?'進行中':'完成','','']; });
   const todayPour=pours([d]).reduce((s,p)=>s+p.q,0), st=(pours(all)[0]||{}).s;
   const mats=pourCum?[[`預拌混凝土${st?' '+st+' kgf/cm²':''}`,'m³','',fmtN(todayPour),'約 '+fmtN(Math.round(pourCum*10)/10),(r.vendors||{})['預拌車']||'']]:[];
