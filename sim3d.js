@@ -213,17 +213,18 @@ function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv;
     link(u.ram,0.35,0.3,0,Math.cos(el)*1.2,0.5+Math.sin(el)*1.2,0,0.07);
     const tipx=v.x+Math.cos(sl)*4.2*Math.cos(el), tipy=v.y+Math.sin(sl)*4.2*Math.cos(el), tipz=0.97+4.2*Math.sin(el), hz=1.25+0.45*Math.sin(t*0.8+(v.ph||0));
     const dx=tipx-v.x, dy=tipy-v.y, c=Math.cos(u.hd), s=Math.sin(u.hd), lx=dx*c+dy*s, lz=-dx*s+dy*c; link(u.cable,lx,tipz,lz,lx,hz+0.1,lz,0.02); u.hook.position.set(lx,hz,lz); }
-  else if(dig){ const z=-0.18, P0=[0.35,0.48,z], sm=k=>{ k=Math.max(0,Math.min(1,k)); return k*k*(3-2*k); }, mix=(A,B,k)=>A.map((a,i)=>a+(B[i]-a)*sm(k));
+  else if(dig){ const sc=v.sc||1; if(g.scale.x!==sc) g.scale.setScalar(sc);   // 微型／小型／中型／大型: the whole machine to scale; the arm below works in the machine's own units
+    const z=-0.18, P0=[0.35,0.48,z], sm=k=>{ k=Math.max(0,Math.min(1,k)); return k*k*(3-2*k); }, mix=(A,B,k)=>A.map((a,i)=>a+(B[i]-a)*sm(k));
     // One bucket, the way an operator works it (q = bucket pin: out from the boom foot, height, curl; curl + = closed/carrying, − = opened/tipping):
     // reach out with the bucket open → set the teeth into the ground → pull the stick in so the teeth drag through the soil while the bucket curls shut →
     // lift → swing to the dump side (the truck's bed when loading one) → open the bucket so the soil falls out → swing back and reach out again.
     // While it digs the tracks stay put; the hole is in front of it (or the pile it faces).
     let p=null, dA=0, dT=2.1, dH=0.95, rch=2.1;
     if(v.loadTo){ const tr=st.vehicles.find(o=>o.earth&&o.phase==='load'&&!o.hidden); p=tr&&!view.lunch?Math.min(0.999,(tr.eT||0)/9):null;   // timed by the truck (its eT, 9 s a bucket), so the soil lands as the bucket tips
-      dA=Math.atan2(v.loadTo.y-v.y,v.loadTo.x-v.x)-dir; dA=Math.atan2(Math.sin(dA),Math.cos(dA)); rch=Math.max(1.85,Math.min(2.4,v.digR||2)); dT=Math.max(1.9,Math.min(2.55,Math.hypot(v.loadTo.x-v.x,v.loadTo.y-v.y)-0.15)); dH=1.35; }
+      dA=Math.atan2(v.loadTo.y-v.y,v.loadTo.x-v.x)-dir; dA=Math.atan2(Math.sin(dA),Math.cos(dA)); rch=Math.max(1.85,Math.min(2.4,(v.digR||2)/sc)); dT=Math.max(1.9,Math.min(2.55,(Math.hypot(v.loadTo.x-v.x,v.loadTo.y-v.y)-0.15)/sc)); dH=Math.min(1.65/sc-0.3,0.48+Math.sqrt(Math.max(0.1,2.72*2.72-(dT-0.35)*(dT-0.35)))); }   // the bucket clears the side of the bed whatever the machine's size (as far as its arm reaches)
     else if(v.dig&&!view.lunch&&!view.edit){ p=((T0/8.5)%1+1)%1; dA=(v.dumpSide||1)*1.55; }
     // where the teeth meet the ground: the pit floor, or the surface of the soil pile in front
-    const fx=x+Math.cos(dir)*rch, fy=y+Math.sin(dir)*rch, gH=Math.max(-0.25,Math.min(0.9,(soilTop(st,fx,fy,0)||0)*0.9-(u.sh||0)-(st.pitAt?st.pitAt(fx,fy)-st.pitAt(x,y):0)))-0.3;   // local height of the ground there (the arm's foot is 0.3 up)
+    const fx=x+Math.cos(dir)*rch*sc, fy=y+Math.sin(dir)*rch*sc, gH=Math.max(-0.25,Math.min(0.9,((soilTop(st,fx,fy,0)||0)*0.9-(u.sh||0)-(st.pitAt?st.pitAt(fx,fy)-st.pitAt(x,y):0))/sc))-0.3;   // local height of the ground there (the arm's foot is 0.3 up)
     const C=[1.95,0.95,0.55], R=[rch,gH+0.55,-0.95], D=[rch,gH-0.06,-0.55], Dr=[rch-0.75,gH-0.02,0.15], Sc=[rch-0.9,gH+0.22,0.7], T=[dT,dH,0.6], Tp=[dT+0.15,dH+0.05,-1.2];
     let q, sw2=0, full=false, tip=0;
     if(p==null) q=view.lunch||!v.dig?[1.7,gH+0.12,0.1]:[C[0],C[1],0.2];   // resting: bucket set down on the ground in front
@@ -242,7 +243,7 @@ function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv;
     const L1=1.38, L2=1.42, bx=q[0]-P0[0], by=q[1]-P0[1], d=Math.max(0.3,Math.min(L1+L2-0.03,Math.hypot(bx,by))), al=Math.atan2(by,bx)+Math.acos(Math.max(-1,Math.min(1,(L1*L1+d*d-L2*L2)/(2*L1*d))));
     const E=[P0[0]+Math.cos(al)*L1,P0[1]+Math.sin(al)*L1,z], Bk=[P0[0]+Math.cos(Math.atan2(by,bx))*d,P0[1]+Math.sin(Math.atan2(by,bx))*d,z], rot=q[2];
     // clods dropping out of the bucket as it opens (they fall into the truck's bed, or onto the spoil heap)
-    if(u.clods){ const flo=v.loadTo?0.62:Math.max(-0.25,gH+0.05); u.clods.forEach((c,i)=>{ const k=tip-i*0.12; if(k<=0||k>=0.9||!tip){ c.visible=false; return; } c.visible=true; const f=k/0.9; c.position.set(Bk[0]+0.12+(i%2?0.06:-0.04),Bk[1]-0.15-(Bk[1]-0.15-flo)*f*f,z+(i-2)*0.07); c.rotation.set(f*3+i,f*2,0); }); }
+    if(u.clods){ const flo=v.loadTo?0.92/sc-0.3:Math.max(-0.25,gH+0.05); u.clods.forEach((c,i)=>{ const k=tip-i*0.12; if(k<=0||k>=0.9||!tip){ c.visible=false; return; } c.visible=true; const f=k/0.9; c.position.set(Bk[0]+0.12+(i%2?0.06:-0.04),Bk[1]-0.15-(Bk[1]-0.15-flo)*f*f,z+(i-2)*0.07); c.rotation.set(f*3+i,f*2,0); }); }
     link(u.boom,...P0,...E,0.16); link(u.stick,...E,...Bk,0.12); link(u.ram1,0.62,0.44,z,(P0[0]+E[0])/2,(P0[1]+E[1])/2,z+0.0,0.06); link(u.ram2,(P0[0]+E[0]*2)/3,(P0[1]+E[1]*2)/3+0.14,z,(E[0]+Bk[0])/2,(E[1]+Bk[1])/2+0.12,z,0.05);
     u.bucket.position.set(...Bk); u.bucket.rotation.z=rot; u.dirt.visible=full; [P0,E,Bk].forEach((p,i)=>u.j[i].position.set(...p));
     u.smoke.forEach((sm,i)=>{ const k=((t*0.9)+i/3)%1; sm.visible=!!v.dig; sm.position.set(-0.36+k*0.1,0.78+k*0.7,-0.3); sm.scale.setScalar(0.1+k*0.2); sm.material.opacity=0.4*(1-k); }); }
