@@ -4915,7 +4915,7 @@ function drawTree(c,q,t){
 }
 // 怪手 sizes (by operating weight): 微型 ≤1 t, 小型 1–6 t, 中型 6–20 t, 大型 20 t+. Drawn to scale against the 中型 (the model's own size).
 // Kept on the 日報 per machine name, one code per unit: r.msize={怪手:'m,s'}; a name that says its size (小怪手、微型怪手) sets the default
-const DIG_SIZES=[['xs','微型','微'],['s','小型','小'],['m','中型','中'],['l','大型','大']], DIG_SC={xs:0.4,s:0.58,m:1,l:1.22};
+const DIG_SIZES=[['xs','微型','微'],['s','小型','小'],['m','中型','中'],['l','大型','大']], DIG_SC={xs:0.6,s:0.82,m:1.1,l:1.38};
 const isDigName=k=>/怪手|挖/.test(k||'');
 function digSizeOf(r,k,i){ const c=(((r&&r.msize)||{})[k]||'').split(',')[i]; if(DIG_SC[c]) return c; return /微型|迷你/.test(k||'')?'xs':/小/.test(k||'')?'s':/大/.test(k||'')?'l':'m'; }
 const digSizeName=c=>(DIG_SIZES.find(x=>x[0]===c)||DIG_SIZES[2])[1];
