@@ -5072,7 +5072,35 @@ function soilProps(st){ if(!st||!st.toG) return; st.props=st.props.filter(o=>!o.
   ((SITE&&SITE.soil)||[]).forEach(p=>{ if(!soilOn(p,st.date)) return; const g=st.toG(+p.x,+p.y); st.props.push({mound:true,soil:true,id:p.id,x:g.x,y:g.y,r:SOIL_R[p.s]||SOIL_R.m}); }); }
 // 回填: a beam cell filled flat. Stored as the tapped point (SITE.fills); the cell is worked out from the beams each time
 const FILL_H=0.46;   // level with the top of the beams
-function fillCell(st,px,py){ const segs=[]; st.props.forEach(o=>{ if(o.beam) segs.push([o.ax,o.ay,o.bx,o.by,(o.wd||0.34)/2]); }); if(!segs.length) return null;
+// 回填 anywhere in the dig that the beams (and the sides of the dig) close off, whatever its shape — a narrow strip along the edge, an L round a corner:
+// flood out from the tap over a fine grid, stopped by beams, the edge of the excavation and the fence, then trace the outline of what was reached
+function fillFlood(st,px,py){ if(!st.pitAt||!(st.pitAt(px,py)>0)) return null; const H=0.07, segs=[]; st.props.forEach(o=>{ if(o.beam) segs.push([o.ax,o.ay,o.bx,o.by,(o.wd||0.34)/2]); });   // (column heads do not stop it: a strip runs on past them)
+  const B=(st.BND||[]).map(p=>[p.x,p.y]);
+  const blocked=(x,y)=>{ if(!(st.pitAt(x,y)>0)) return true; if(B.length>2&&!inPolyS([x,y],B)) return true;
+    for(const g of segs){ const ex=g[2]-g[0], ey=g[3]-g[1], L=Math.hypot(ex,ey)||1, e=0.3/L, t=Math.max(-e,Math.min(1+e,((x-g[0])*ex+(y-g[1])*ey)/(L*L))); if(Math.hypot(x-g[0]-ex*t,y-g[1]-ey*t)<g[4]+0.02) return true; } return false; };
+  if(blocked(px,py)) return null;
+  const key=(i,j)=>i*100003+j, seen=new Map(), Q=[[0,0]]; seen.set(key(0,0),[0,0]); let n=0;
+  while(Q.length){ const [i,j]=Q.pop(); if(++n>40000) return null;   // runs on and on: not closed off
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(([a,b])=>{ const k=key(i+a,j+b); if(seen.has(k)) return; if(blocked(px+(i+a)*H,py+(j+b)*H)) return; seen.set(k,[i+a,j+b]); Q.push([i+a,j+b]); }); }
+  if(n<6) return null;
+  // outline: every cell side that faces a cell not reached, joined end to end (reached cells kept on the left), the longest loop wins
+  const E=new Map(), ck=(i,j)=>i+','+j; seen.forEach(([i,j])=>{ const has=(a,b)=>seen.has(key(i+a,j+b));
+    if(!has(0,-1)) E.set(ck(i,j),[i+1,j]); if(!has(1,0)) E.set(ck(i+1,j),[i+1,j+1]); if(!has(0,1)) E.set(ck(i+1,j+1),[i,j+1]); if(!has(-1,0)) E.set(ck(i,j+1),[i,j]); });
+  const used=new Set(), loops=[];
+  E.forEach((to,k0)=>{ if(used.has(k0)) return; const loop=[]; let k=k0, guard=0; while(E.has(k)&&!used.has(k)&&guard++<80000){ used.add(k); const c=k.split(',').map(Number); loop.push(c); k=ck(E.get(k)[0],E.get(k)[1]); } if(loop.length>=4) loops.push(loop); });
+  if(!loops.length) return null;
+  const dp=(A,eps)=>{ if(A.length<3) return A; let md=0, mi=0; const a=A[0], b=A[A.length-1], L=Math.hypot(b.x-a.x,b.y-a.y)||1e-9; for(let i=1;i<A.length-1;i++){ const d=Math.abs((A[i].x-a.x)*(b.y-a.y)-(A[i].y-a.y)*(b.x-a.x))/L; if(d>md){ md=d; mi=i; } } return md>eps?dp(A.slice(0,mi+1),eps).slice(0,-1).concat(dp(A.slice(mi),eps)):[a,b]; };
+  // corners only; the stair steps a slanted beam leaves are smoothed (Douglas–Peucker on the closed outline)
+  const tidy=loop=>{ let P=loop.map(([i,j])=>({x:px+(i-0.5)*H,y:py+(j-0.5)*H})); P=P.filter((p,i)=>{ const a=P[(i-1+P.length)%P.length], b=P[(i+1)%P.length]; return Math.abs((p.x-a.x)*(b.y-p.y)-(p.y-a.y)*(b.x-p.x))>1e-9; });
+    if(P.length>8){ let fi=0, fd=-1; P.forEach((p,i)=>{ const d=Math.hypot(p.x-P[0].x,p.y-P[0].y); if(d>fd){ fd=d; fi=i; } }); P=dp(P.slice(0,fi+1),H*0.75).slice(0,-1).concat(dp(P.slice(fi).concat([P[0]]),H*0.75).slice(0,-1)); } return P; };
+  const areaOf=P=>{ let a=0; P.forEach((q,i)=>{ const c=P[(i+1)%P.length]; a+=q.x*c.y-c.x*q.y; }); return a/2; };
+  const L2=loops.map(tidy).filter(P=>P.length>=3).sort((a,b)=>Math.abs(areaOf(b))-Math.abs(areaOf(a))); if(!L2.length) return null;
+  // a strip that runs right round (the outline has holes: the beam grid inside it): each hole is joined to the outline by a slit, so it stays one polygon
+  let P=L2[0]; L2.slice(1).forEach(Hh=>{ if(Math.abs(areaOf(Hh))<0.05) return; let bi=0, bj=0, bd=1e9; P.forEach((a,i)=>Hh.forEach((b,j)=>{ const d=Math.hypot(a.x-b.x,a.y-b.y); if(d<bd){ bd=d; bi=i; bj=j; } }));
+    P=P.slice(0,bi+1).concat(Hh.slice(bj),Hh.slice(0,bj+1),P.slice(bi)); });
+  return P.length>=3?P:null; }
+function fillCell(st,px,py){ return fillCell0(st,px,py)||fillFlood(st,px,py); }
+function fillCell0(st,px,py){ const segs=[]; st.props.forEach(o=>{ if(o.beam) segs.push([o.ax,o.ay,o.bx,o.by,(o.wd||0.34)/2]); }); if(!segs.length) return null;
   // the edge of the excavation bounds a cell too: the strip between the outermost 地樑 and the side of the dig can be backfilled (Danny, Nov 2026).
   // Only the outer edge counts — where one zone's dig opens into the next there is no wall
   if(st.pitAt&&st.pitAt(px,py)>0){ const Z=(st.zones||[]).filter(z=>z.pit&&z.pitPts&&z.pitPts.length>2);
