@@ -5069,6 +5069,12 @@ function soilProps(st){ if(!st||!st.toG) return; st.props=st.props.filter(o=>!o.
 // 回填: a beam cell filled flat. Stored as the tapped point (SITE.fills); the cell is worked out from the beams each time
 const FILL_H=0.46;   // level with the top of the beams
 function fillCell(st,px,py){ const segs=[]; st.props.forEach(o=>{ if(o.beam) segs.push([o.ax,o.ay,o.bx,o.by,(o.wd||0.34)/2]); }); if(!segs.length) return null;
+  // the edge of the excavation bounds a cell too: the strip between the outermost 地樑 and the side of the dig can be backfilled (Danny, Nov 2026).
+  // Only the outer edge counts — where one zone's dig opens into the next there is no wall
+  if(st.pitAt&&st.pitAt(px,py)>0){ const Z=(st.zones||[]).filter(z=>z.pit&&z.pitPts&&z.pitPts.length>2);
+    Z.forEach(z=>{ const P=z.pitPts; P.forEach((a,i)=>{ const b=P[(i+1)%P.length], L=Math.hypot(b.x-a.x,b.y-a.y), n=Math.max(1,Math.ceil(L/0.5));
+      for(let k=0;k<n;k++){ const x1=a.x+(b.x-a.x)*k/n, y1=a.y+(b.y-a.y)*k/n, x2=a.x+(b.x-a.x)*(k+1)/n, y2=a.y+(b.y-a.y)*(k+1)/n, mx=(x1+x2)/2, my=(y1+y2)/2;
+        if(Z.some(o=>o!==z&&inPolyS([mx,my],o.pitPts.map(q=>[q.x,q.y])))) continue; const g=[x1,y1,x2,y2,0]; g.pit=true; segs.push(g); } }); }); }
   const B=st.BND||[]; if(B.length>2&&!inPolyS([px,py],B.map(p=>[p.x,p.y]))) return null;
   // a tap on a beam or on a column (the gap where beam pieces meet) is not inside any cell
   if(segs.some(g=>{ const ex=g[2]-g[0], ey=g[3]-g[1], L=Math.hypot(ex,ey)||1, e=0.32/L; const t=Math.max(-e,Math.min(1+e,((px-g[0])*ex+(py-g[1])*ey)/(L*L))); return Math.hypot(px-g[0]-ex*t,py-g[1]-ey*t)<g[4]+0.06; })) return null;
@@ -5087,7 +5093,7 @@ function fillCell(st,px,py){ const segs=[]; st.props.forEach(o=>{ if(o.beam) seg
     poly=out; };
   hit.forEach(i=>{ const g=segs[i]; clip(g[0],g[1],g[2],g[3],g[4]); });   // stop at the inner face of each beam
   if(poly.length<3) return null;
-  if(segs.some(g=>inPolyS([(g[0]+g[2])/2,(g[1]+g[3])/2],poly))) return null;   // swallowed a beam: the cell is not closed here
+  if(segs.some(g=>!g.pit&&inPolyS([(g[0]+g[2])/2,(g[1]+g[3])/2],poly))) return null;   // swallowed a beam: the cell is not closed here
   let ar=0; for(let j=0;j<poly.length;j++){ const A=poly[j], C=poly[(j+1)%poly.length]; ar+=A[0]*C[1]-C[0]*A[1]; } if(Math.abs(ar)/2>GW*GH*0.35||Math.abs(ar)/2<0.02) return null;
   return poly.map(q=>({x:q[0],y:q[1]})); }
 if(location.protocol==='file:') window.__gd={machZones:st=>machZones(st),segsOf:st=>{ const segs=[]; st.props.forEach(o=>{ if(o.beam) segs.push([o.ax,o.ay,o.bx,o.by,(o.wd||0.34)/2]); }); return segs; },fillCell:(...a)=>fillCell(...a),SIM:()=>SIM,simGround:(...a)=>simGround(...a),SP:(...a)=>SP(...a),FILL_H};
