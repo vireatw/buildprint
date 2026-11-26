@@ -223,7 +223,10 @@ const CSS = `
 #bpGate .walk{position:relative;width:236px;height:64px;margin:30px auto 0}
 #bpGate .walk i{position:absolute;width:44px;height:21px;background:url(logo-print.png?v=1) center/contain no-repeat;opacity:0;transform:rotate(var(--r));animation:bpstep 2.5s cubic-bezier(.3,.7,.4,1) infinite}
 @keyframes bpstep{0%{opacity:0;transform:translateY(-6px) scale(.7) rotate(var(--r))}7%{opacity:1;transform:translateY(0) scale(1.1) rotate(var(--r))}13%{transform:scale(1) rotate(var(--r))}55%{opacity:.9}78%,100%{opacity:0;transform:scale(1) rotate(var(--r))}}
-@media (prefers-reduced-motion:reduce){#bpGate .walk i{animation:none;opacity:.85}}
+#bpGate .ld{margin:18px 0 0;text-align:center;color:#cfd8e0;font-size:16px;font-weight:700;letter-spacing:.14em}
+#bpGate .ld span{animation:bpdot 1.2s infinite}#bpGate .ld span:nth-child(2){animation-delay:.2s}#bpGate .ld span:nth-child(3){animation-delay:.4s}
+@keyframes bpdot{0%,60%,100%{opacity:.2}30%{opacity:1}}
+@media (prefers-reduced-motion:reduce){#bpGate .walk i{animation:none;opacity:.85}#bpGate .ld span{animation:none}}
 #bpGate.splash .err{text-align:center;margin-top:28px}
 @keyframes bpspin{to{transform:rotate(360deg)}}
 .bp-codes{display:grid;gap:10px;margin:10px 0}
@@ -256,9 +259,9 @@ function overlay(state, msg) {
   const head = `<div class="hd">${LOGO}<div><b>築跡</b><small>Buildprint · 工地日報</small></div></div>`;
   g.classList.toggle('splash', state === 'loading' || state === 'error');   // loading: big centred logo, 築跡 underneath
   const lock = `<img class="lockup" src="logo-lockup.png?v=1" alt="築跡 BuildPrint" width="600" height="704">`;   // the full logo: BUILD footprint, 築跡, BuildPrint — in white
-  if (state === 'loading') {   // footprints walking from right to left under the logo, one step at a time (築跡: the traces of building)
-    const steps = [0, 1, 2, 3, 4].map(i => `<i style="left:${(4 - i) * 48}px;top:${i % 2 ? 36 : 6}px;--r:${i % 2 ? 7 : -7}deg;animation-delay:${(i * 0.32).toFixed(2)}s"></i>`).join('');
-    g.innerHTML = `<div class="bx">${lock}<div class="walk" role="img" aria-label="載入中">${steps}</div><p class="note slow" hidden style="text-align:center;margin-top:22px">連線比較慢，還在載入…<br><button class="lnk" type="button" onclick="location.reload()">重新整理</button></p></div>`;
+  if (state === 'loading') {   // footprints walking from right to left under the logo, one step at a time (築跡: the traces of building); toes turned slightly out, never in
+    const steps = [0, 1, 2, 3, 4].map(i => `<i style="left:${(4 - i) * 48}px;top:${i % 2 ? 36 : 6}px;--r:${i % 2 ? -6 : 6}deg;animation-delay:${(i * 0.32).toFixed(2)}s"></i>`).join('');
+    g.innerHTML = `<div class="bx">${lock}<div class="walk" role="img" aria-label="載入中">${steps}</div><p class="ld" aria-hidden="true">Loading<span>.</span><span>.</span><span>.</span></p><p class="note slow" hidden style="text-align:center;margin-top:22px">連線比較慢，還在載入…<br><button class="lnk" type="button" onclick="location.reload()">重新整理</button></p></div>`;
     clearTimeout(overlay.slowT); overlay.slowT = setTimeout(() => { const n = g.querySelector('.slow'); if (n && g.classList.contains('splash') && !g.hidden) n.hidden = false; }, 15000); return; }
   if (state === 'error') { g.innerHTML = `<div class="bx">${lock}<p class="err">${esc(msg)}</p><button class="go" onclick="location.reload()">重新整理</button></div>`; return; }
   if (state === 'join') {
