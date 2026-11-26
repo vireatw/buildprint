@@ -363,11 +363,11 @@ export function create(){
     const buf=s=>{ const bin=atob(s), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u.buffer; };
     L=[]; md.parts.forEach(p=>{ try{ const g=new T.BufferGeometry(); g.setAttribute('position',new T.BufferAttribute(new Float32Array(new Int16Array(buf(p.p))),3)); g.setIndex(new T.BufferAttribute(p.w===4?new Uint32Array(buf(p.i)):new Uint16Array(buf(p.i)),1)); SHARED.add(g); L.push({g,c:p.c,o:p.o,k:p.k}); }catch(e){ console.warn('model part',e); } });
     MDL.set(md.id,L); return L; }
-  // the model stands where the 平面配置 sits; it shows as far up as the work has got: steel (k=0) to the top of the floor being built, the rest to the floors already done
+  // the model stands where the 平面配置 sits and carries only the inside (steel, floors, stairs): it shows as far up as the work has got: steel (k=0) to the top of the floor being built, the rest to the floors already done
   function buildModel(S){ const md=S.mdl, f=md.f, o=f(0,0), ax=f(1000,0), ay=f(0,1000), g=grp();
     g.matrixAutoUpdate=false; g.matrix.set((ax[0]-o[0])/1000,(ay[0]-o[0])/1000,0,o[0], 0,0,S.zk,-S.zb*S.zk, (ax[1]-o[1])/1000,(ay[1]-o[1])/1000,0,o[1], 0,0,0,1);
     const last=S.F[S.F.length-1], doing=S.F.find(x=>x.state==='doing'), cutF=S.F.find(x=>x.state==='cut'), mg=20*S.zk, lift=S.lift||0;
-    const whole=!cutF&&!doing&&last.roof, zF=cutF?(S.cut?S.cut.z0:cutF.z0)-0.1:last.z1+mg, zR=cutF?zF:doing?doing.z0+mg:last.z1+mg;
+    const whole=false, zF=cutF?(S.cut?S.cut.z0:cutF.z0)-0.1:last.z1+mg, zR=cutF?zF:doing?doing.z0+mg:last.z1+mg;
     const pl=z=>whole?[]:[new T.Plane(new T.Vector3(0,-1,0),(z+lift)*YS)], P=[pl(zF),pl(zR)];
     mdlGeo(md).forEach(x=>{ const tr=x.o<1, m=new T.MeshLambertMaterial({color:x.c,flatShading:true,side:T.DoubleSide,clippingPlanes:P[x.k?1:0],clipShadows:true,transparent:tr,opacity:tr?x.o:1,depthWrite:!tr}); m.userData.cached=false;
       const o3=mesh(x.g,m,!tr); g.add(o3); });
@@ -375,7 +375,7 @@ export function create(){
   function buildBldg(st,S){
     if(bldM){ world.remove(bldM); bldM.traverse(m=>{ if(m.isInstancedMesh) m.dispose(); }); freeTree(bldM); bldM=null; } bWin=[];
     const B=st.bldg; if(!B||!S) return; bldM=grp(); world.add(bldM); bldM.position.y=S.lift||0;
-    if(S.mdl) buildModel(S);
+    if(S.mdl&&!S.F.some(x=>x.state==='cut')&&(!S.clad||S.F.some(x=>x.state==='doing'))) buildModel(S);   // once the outside walls are on, the drawn building (平面、立面圖) is what shows
     const H=B.H.map(p=>({x:p[0],y:p[1]})), E=B.edges;
     // the outline pushed out by d: each corner moves along the two edge normals (inward at a notch)
     const out=d=>H.map((p,i)=>{ const e1=E[(i-1+E.length)%E.length], e2=E[i]; let nx=e1.nx+e2.nx, ny=e1.ny+e2.ny; const L=Math.hypot(nx,ny)||1; nx/=L; ny/=L; const c=Math.max(0.3,nx*e2.nx+ny*e2.ny); return {x:p.x+nx*d/c,y:p.y+ny*d/c}; });
@@ -406,7 +406,7 @@ export function create(){
         for(let k=0;k+3<s.length;k+=4){ const ax=s[k], ay=s[k+1], bx=s[k+2], by=s[k+3], dx=bx-ax, dy=by-ay, L=Math.hypot(dx,dy); if(L<1e-3) continue;
           _p.set((ax+bx)/2,z0+wh/2,(ay+by)/2); _q.setFromAxisAngle(UPY,Math.atan2(-dy,dx)); _s.set(L+th*0.5,wh,th); _m.compose(_p,_q,_s); put('#FBF8F2',_m); }
         return; }
-      if(S.mdl&&!(f.roof&&f.state==='done'&&S.clad&&S.fac&&S.fac.roof)) return;   // the SketchUp model stands in for the drawn floors; the roof sheets, 太陽能板 and 避雷針 from the elevations still go on top of it
+      if(S.mdl&&(f.state==='doing'||!S.clad)) return;   // while it is being built the SketchUp model (fitted to the drawings' grid and floor heights) shows the steel and floors; walls, windows and roof come from the drawings
       if(f.roof){
         const RF=S.fac&&S.fac.roof;
         if((f.state==='doing'||!S.clad)&&RF&&RF.hAt){ const col=f.state==='doing'?'#B4573E':'#66737E', dz=f.z1-f.z0, zt=(x,y)=>f.z0+RF.hAt(x,y)*dz;
