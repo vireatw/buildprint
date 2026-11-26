@@ -1680,7 +1680,11 @@ function islToggleFill(sx,sy){ const st=SIM.st; if(!st||!st.toN) return; const g
     const same=(SITE.fills||[]).filter(f=>soilOn(f,selDate)&&(f.id===cur.id||inPolyS((()=>{ const q=st.toG(+f.x,+f.y); return [q.x,q.y]; })(),poly)));
     same.forEach(it=>{ if(it.from&&it.from<selDate) it.to=selDate; else SITE.fills=SITE.fills.filter(x=>x!==it); });
     toast(same.some(it=>it.to)?'已取消回填（從 '+fmtShort(selDate)+' 起，之前的日子還看得到）':'已取消回填'); }
-  else { const cell=fillCell(st,g.x,g.y); if(!cell){ toast('請點在地樑圍起來的格子裡'); return; } islSnap(); const n=st.toN(g.x,g.y); SITE.fills=(SITE.fills||[]).concat([{id:'f'+uid(),x:n.x,y:n.y,from:selDate}]); }
+  else { // the floor of the dig is drawn below ground level, so what the finger points at down there is not the ground point straight under it:
+    // look first where the tap lands on the dig's floor, then on the ground
+    let hit=null; const C=[]; if(st.pitAt){ [PIT_D,PIT_D*0.5].forEach(d0=>{ let q=simGround(sx,sy-d0*SIM.S*0.5); const d=st.pitAt(q.x,q.y); if(d>0){ q=simGround(sx,sy-d*SIM.S*0.5); if(st.pitAt(q.x,q.y)>0) C.push(q); } }); } C.push(g);
+    for(const q of C){ const cell=fillCell(st,q.x,q.y); if(cell){ hit=q; break; } }
+    if(!hit){ toast('請點在地樑圍起來的格子，或地樑和開挖邊緣之間'); return; } islSnap(); const n=st.toN(hit.x,hit.y); SITE.fills=(SITE.fills||[]).concat([{id:'f'+uid(),x:n.x,y:n.y,from:selDate}]); }
   saveSite(); fillsBuild(st); simDraw(); }
 // remove one machine from this day's report (one unit; the last one removes the entry)
 async function islMachDelete(v){ const k=v.mk, r0=REPORTS[selDate];
