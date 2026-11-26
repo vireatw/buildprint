@@ -1536,7 +1536,7 @@ function renderIsland(){
   el.innerHTML=`<div class="isl-full"><canvas id="sim" role="img" aria-label="工地動畫：依${esc(fmtK(selDate))}日報產生的工地動畫"></canvas><div class="simtip" id="simtip" hidden></div>
     <button class="isl-btn isl-back" id="islBack" aria-label="離開全螢幕，回到今日進度"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
     ${views}
-    <div class="isl-ctl"><button class="isl-btn" id="simPause"></button><button class="isl-btn" id="simFs" aria-label="全螢幕"></button><button class="isl-btn" id="simFsRot" aria-label="切換直向或橫向" hidden><svg viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="13" rx="1.5"/><path d="M4 14v3a3 3 0 0 0 3 3h4"/><path d="M9 18l2 2-2 2"/></svg></button><button class="isl-btn isl-rot" id="simRot" aria-label="轉回正面" title="轉回正面" hidden><svg viewBox="0 0 24 24"><path d="M12 3l4 9h-8z" fill="#FF6B5B" stroke="#FF6B5B"/><path d="M12 21l-4-9h8z" fill="#fff" stroke="#fff"/></svg></button>${(SITE.floors||[]).length?'<button class="isl-btn" id="simCut" aria-label="剖開看各層" title="剖開看各層"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>':''}${(SITE.drawings||[]).length?'<button class="isl-btn" id="simDocs" aria-label="圖說" title="圖說"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></button>':''}</div>
+    <div class="isl-ctl"><button class="isl-btn" id="simPause"></button><button class="isl-btn" id="simFs" aria-label="全螢幕"></button><button class="isl-btn" id="simFsRot" aria-label="切換直向或橫向" hidden><svg viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="13" rx="1.5"/><path d="M4 14v3a3 3 0 0 0 3 3h4"/><path d="M9 18l2 2-2 2"/></svg></button><button class="isl-btn isl-rot" id="simRot" aria-label="轉回正面" title="轉回正面" hidden><svg viewBox="0 0 24 24"><path d="M12 3l4 9h-8z" fill="#FF6B5B" stroke="#FF6B5B"/><path d="M12 21l-4-9h8z" fill="#fff" stroke="#fff"/></svg></button>${(SITE.floors||[]).length?'<button class="isl-btn" id="simCut" aria-label="剖開看各層" title="剖開看各層"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></button><button class="isl-btn" id="simBPrev" aria-label="預覽蓋樓" title="預覽蓋樓" aria-pressed="'+(SIM.bPrev!=null)+'"><svg viewBox="0 0 24 24"><path d="M5 21V8l7-4 7 4v13"/><path d="M3 21h18"/><path d="M9 21v-4h6v4"/><path d="M9 10h.01M15 10h.01M9 13.5h.01M15 13.5h.01"/></svg></button>':''}${(SITE.drawings||[]).length?'<button class="isl-btn" id="simDocs" aria-label="圖說" title="圖說"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg></button>':''}</div>
     <div class="isl-date2"><div class="pldate2" id="islCap"></div></div>
     <div id="islTop">${islTopHTML(r)}</div>
     <div class="isl-legend" id="islLegend" aria-label="工地上的工班" hidden></div>
@@ -1553,8 +1553,9 @@ function renderIsland(){
       </div>
       <div class="pleditbar" id="islEditBar" hidden></div></div></div>`;
   $('#islBack').onclick=()=>go('today');
-  { const b=$('#islBPrev'); if(b) b.onclick=()=>{ SIM.bPrev=null; b.remove(); }; }
+  { const b=$('#islBPrev'); if(b) b.onclick=()=>{ SIM.bPrev=null; b.remove(); const p=$('#simBPrev'); if(p) p.setAttribute('aria-pressed','false'); }; }
   { const b=$('#simDocs'); if(b) b.onclick=()=>openDocs(); }
+  { const b=$('#simBPrev'); if(b) b.onclick=()=>{ if(SIM.bPrev!=null){ SIM.bPrev=null; renderIsland(); return; } islStop(); SIM.cut=null; selDate=TODAY; SIM.bPrev=-1; renderIsland(); toast('預覽：照樓層一層一層蓋起來'); }; }
   { const b=$('#simCut'); if(b) b.onclick=()=>cutSet(SIM.cut!=null?null:(SIM.cutLast||0)); cutShow(); $$('#islCut [data-cut]').forEach(x=>x.onclick=()=>{ const d=x.dataset.cut; cutSet(d==='x'?null:Math.max(0,Math.min((SITE.floors||[]).length-1,(SIM.cut||0)+(+d)))); }); }
   $$('#p-island [data-iv]').forEach(b=>b.onclick=()=>{ islStop(); ISL.view=b.dataset.iv; renderIsland(); });
   islBindTop();
