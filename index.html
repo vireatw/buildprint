@@ -1039,14 +1039,14 @@ async function init(){
   ASSETS=await useCap('assets');
   loadTimer=setTimeout(()=>{ showBanner('資料讀取比預期久，畫面可能不是最新的。'); },10000);
   DB.doc('site/info').onSnapshot(s=>{
-    if(s.exists) SITES.main=Object.assign(normalizeSite(s.data()),{id:'main'}); else delete SITES.main;
+    if(siteBusy('main')){ /* our own newer edits are still being saved: keep them (see siteBusy) */ } else if(s.exists) SITES.main=Object.assign(normalizeSite(s.data()),{id:'main'}); else delete SITES.main;
     sitesArrived.main=true; if(!s.metadata.fromCache) sitesArrived.mainLive=true; pickSite();
   }, e=>{ clearTimeout(loadTimer); showBanner('無法讀取工地資料（'+e.code+'）。'); });
   try{ DB.collection('punch').onSnapshot(s=>{ const P={}; s.docs.forEach(d=>{ const v=d.data()||{}; const id=d.id||v.id; if(id) P[id]=Object.assign({},v,{id}); }); PUNCH=P; if(page==='today'||page==='island') renderAll(false); }, ()=>{}); }catch(e){}
   try{ DB.collection('visits').onSnapshot(s=>{ VISITS=s.docs.map(d=>d.data()||{}); if(page==='settings'&&!settingsFocused()) renderSettings(); }, ()=>{ VISITS=null; if(page==='settings'&&!settingsFocused()) renderSettings(); }); }catch(e){ VISITS=null; }
   DB.collection('sites').onSnapshot(s=>{
-    Object.keys(SITES).forEach(k=>{ if(k!=='main') delete SITES[k]; });
-    s.docs.forEach(d=>{ const v=d.data()||{}; const id=d.id||v.id; if(id) SITES[id]=Object.assign(normalizeSite(v),{id}); });
+    Object.keys(SITES).forEach(k=>{ if(k!=='main'&&!siteBusy(k)) delete SITES[k]; });
+    s.docs.forEach(d=>{ const v=d.data()||{}; const id=d.id||v.id; if(id&&!siteBusy(id)) SITES[id]=Object.assign(normalizeSite(v),{id}); });
     sitesArrived.others=true; if(!s.metadata.fromCache) sitesArrived.othersLive=true; pickSite();
   }, e=>{ sitesArrived.others=true; sitesArrived.othersLive=true; pickSite(); });
   if(!CAN_WRITE) showBanner(READONLY_REASON,true);
@@ -1125,13 +1125,17 @@ function writeFailed(e){
   return '儲存失敗，請稍後再試';
 }
 // site writes are serialized and coalesced
-let siteQ=Promise.resolve(), sitePending={};
+let siteQ=Promise.resolve(), sitePending={}, siteFlight={};
+// While a save of this site is queued or on its way, what is on screen is newer than anything the server sends back: a snapshot that arrives
+// then (the acknowledgement of the previous save) must not replace it, or an edit made in the meantime (a second 回填 tapped right after the
+// first, on a slow connection) would vanish and the queued save would then write the old state.
+function siteBusy(id){ return !!(sitePending[id]||siteFlight[id]); }
 function saveSite(idArg){
   const id=idArg||CUR;
   if(MODE==='local'){ if(!idArg&&CUR) SITES[CUR]=SITE; renderAll(false); return Promise.resolve(); }
   if(!id) return siteQ;
   if(sitePending[id]) return siteQ; sitePending[id]=true;
-  siteQ=siteQ.then(async()=>{ sitePending[id]=false; const src=SITES[id]; if(!src) return; const body=JSON.parse(JSON.stringify(src)); if(body.drawing) delete body.drawing.src; body.id=id; try{ await DB.doc(sitePath(id)).set(body); }catch(e){ toast(writeFailed(e)); } });
+  siteQ=siteQ.then(async()=>{ const src=SITES[id]; siteFlight[id]=(siteFlight[id]||0)+1; sitePending[id]=false; if(!src){ siteFlight[id]--; return; } const body=JSON.parse(JSON.stringify(src)); if(body.drawing) delete body.drawing.src; body.id=id; try{ await DB.doc(sitePath(id)).set(body); }catch(e){ toast(writeFailed(e)); } finally{ siteFlight[id]--; } });
   return siteQ;
 }
 // what changed between two versions of a report, in short readable phrases
@@ -4915,7 +4919,6 @@ function fillCell(st,px,py,band){ const segs=[]; st.props.forEach(o=>{ if(o.beam
   if(segs.some(g=>inPolyS([(g[0]+g[2])/2,(g[1]+g[3])/2],poly))) return null;   // swallowed a beam: the cell is not closed here
   let ar=0; for(let j=0;j<poly.length;j++){ const A=poly[j], C=poly[(j+1)%poly.length]; ar+=A[0]*C[1]-C[0]*A[1]; } if(Math.abs(ar)/2>GW*GH*0.35||Math.abs(ar)/2<0.02) return null;
   return poly.map(q=>({x:q[0],y:q[1]})); }
-window.__bpDump=()=>JSON.stringify({fills:SITE.fills,report:REPORTS[selDate]||null,date:selDate,st:SIM.st?{n:(SIM.st.fills||[]).length,ids:(SIM.st.fills||[]).map(f=>f.id),zones:SIM.st.zones.map(z=>[z.name,z.pit||0,!!z.pitPts,z.doing,z.txt]),beams:SIM.st.props.filter(o=>o.beam).length,snapped:SIM.st.snapped}:null,chk:SIM.st?(SITE.fills||[]).filter(f=>f.band).map(f=>{ const g=SIM.st.toG(+f.x,+f.y); return [f.id,+g.x.toFixed(2),+g.y.toFixed(2),SIM.st.pitAt(g.x,g.y),!!fillCell(SIM.st,g.x,g.y,true),soilOn(f,SIM.st.date)]; }):null});
 if(location.protocol==='file:') window.__gd={machZones:st=>machZones(st),segsOf:st=>{ const segs=[]; st.props.forEach(o=>{ if(o.beam) segs.push([o.ax,o.ay,o.bx,o.by,(o.wd||0.34)/2]); }); return segs; },fillCell:(...a)=>fillCell(...a),SIM:()=>SIM,simGround:(...a)=>simGround(...a),SP:(...a)=>SP(...a),FILL_H};
 function fillsBuild(st){ if(!st||!st.toG) return; st.fills=[]; ((SITE&&SITE.fills)||[]).forEach(f=>{ if(!soilOn(f,st.date)) return; const g=st.toG(+f.x,+f.y), poly=fillCell(st,g.x,g.y,!!f.band); if(poly) st.fills.push({id:f.id,poly,pit:st.pitAt?st.pitAt(g.x,g.y):0}); }); SIM.bgKey=null; }
 function drawFill(c,f){ const P=f.poly, n=P.length; let cx=0, cy=0; P.forEach(p=>{ cx+=p.x/n; cy+=p.y/n; });
