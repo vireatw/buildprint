@@ -4889,8 +4889,11 @@ function fillCell(st,px,py){ const segs=[]; st.props.forEach(o=>{ if(o.beam) seg
   for(let k=0;k<N;k++){ const a=k/N*Math.PI*2, dx=Math.cos(a), dy=Math.sin(a); let bt=1e9, bi=-1, bu=0;
     segs.forEach((g,i)=>{ const ex=g[2]-g[0], ey=g[3]-g[1], den=dx*ey-dy*ex; if(Math.abs(den)<1e-9) return; const tol=0.6/(Math.hypot(ex,ey)||1); const t=((g[0]-px)*ey-(g[1]-py)*ex)/den, u=((g[0]-px)*dy-(g[1]-py)*dx)/den; if(t>1e-4&&u>=-tol&&u<=1+tol&&t<bt){ bt=t; bi=i; bu=u; } });
     if(bi>=0){ if(bu>=0&&bu<=1) hit.add(bi); } else open++; }
-  if(open>N*0.18||hit.size<3) return null;   // mostly open: not a cell of the beam grid
-  let poly=B.length>2?B.map(p=>[p.x,p.y]):[[-1,-1],[GW+1,-1],[GW+1,GH+1],[-1,GH+1]];
+  let band=null;
+  if(open>N*0.18||hit.size<3){   // mostly open: not a cell of the beam grid…
+    // …unless it is the dug strip outside the outer 地樑 (the edge of the excavation): that is backfilled too, bounded by the beams it faces and by the edge of the pit
+    band=hit.size>=1?(st.zones||[]).find(z=>z.pit&&z.pitPts&&inPolyS([px,py],z.pitPts.map(q=>[q.x,q.y]))):null; if(!band) return null; }
+  let poly=band?band.pitPts.map(q=>[q.x,q.y]):B.length>2?B.map(p=>[p.x,p.y]):[[-1,-1],[GW+1,-1],[GW+1,GH+1],[-1,GH+1]];
   const clip=(ax,ay,bx,by,off)=>{ let nx=-(by-ay), ny=bx-ax; const L=Math.hypot(nx,ny)||1; nx/=L; ny/=L; if((px-ax)*nx+(py-ay)*ny<0){ nx=-nx; ny=-ny; }
     const side=(x,y)=>(x-ax)*nx+(y-ay)*ny-off, out=[];
     for(let j=0;j<poly.length;j++){ const A=poly[j], C=poly[(j+1)%poly.length], sa=side(A[0],A[1]), sc=side(C[0],C[1]);
