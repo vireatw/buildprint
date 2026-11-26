@@ -412,6 +412,8 @@ textarea{min-height:84px;resize:vertical}
 .form-total .num{font-size:30px}
 .trow{display:grid;grid-template-columns:auto minmax(0,1fr) 110px 130px 36px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .trow .seg button{padding:5px 10px;font-size:13px}
+.trow .seg button.th{margin-left:auto;border-style:dashed;color:var(--mute,#6B7680)}
+.trow .seg button.th.on{border-style:solid;border-color:var(--ink);color:var(--ink);font-weight:600}
 .trow .seg button[aria-pressed="true"].s-done{background:var(--done);border-color:var(--done);color:#fff}
 .trow .seg button[aria-pressed="true"].s-doing{background:var(--doing);border-color:var(--doing);color:#fff}
 .trow .seg button[aria-pressed="true"].s-next{background:var(--next);border-color:var(--next);color:#fff}
@@ -2037,9 +2039,13 @@ function pickZones(cur,onChange){
   const close=()=>{ sh.hidden=true; sh.querySelectorAll('[data-zsclose]').forEach(b=>b.onclick=null); };
   sh.querySelectorAll('[data-zsclose]').forEach(b=>b.onclick=close);
   draw(); sh.hidden=false; }
+// 時段 of one 工作事項: chosen on its row (全天／上午／下午／晚上), else read from its words (「上午模板進料」). The 工地動畫 shows it only in that half of the day
+const T_HALF=[['','全天'],['am','上午'],['pm','下午'],['ng','晚上']];
+function taskHalf(t){ if(t.half&&t.half!=='all') return t.half; const x=t.text||''; return /上午|早上/.test(x)&&!/下午/.test(x)?'am':/下午/.test(x)&&!/上午|早上/.test(x)?'pm':/晚上|夜間|夜班/.test(x)?'ng':''; }
+const halfName=h=>(T_HALF.find(x=>x[0]===h)||T_HALF[0])[1];
 function taskRow(t,inCrew){
   return `<div class="trow${inCrew?' tin':''}" data-t="${t.id}">
-    <div class="seg">${['done','doing'].map(s=>`<button type="button" class="s-${s}" data-s="${s}" aria-pressed="${t.status===s}">${STATUS[s]}</button>`).join('')}</div>
+    <div class="seg">${['done','doing'].map(s=>`<button type="button" class="s-${s}" data-s="${s}" aria-pressed="${t.status===s}">${STATUS[s]}</button>`).join('')}<button type="button" class="th${taskHalf(t)?' on':''}" data-th aria-label="時段：${halfName(taskHalf(t))}（點一下切換）">${halfName(taskHalf(t))}</button></div>
     <input type="text" class="ti" value="${esc(t.text)}" placeholder="例如：地樑拆模" aria-label="工作內容">
     ${zoneBtnHTML(t)}
     ${inCrew?'':`<select class="tw" aria-label="負責工種">${twOpts(t)}</select>`}
@@ -2187,7 +2193,9 @@ function wireTaskRows(){
     if(row.dataset.wired) return; row.dataset.wired='1';
     const t=draft.tasks.find(x=>x.id===row.dataset.t); if(!t) return;
     row.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ t.status=b.dataset.s; markDirty(); row.querySelectorAll('[data-s]').forEach(x=>x.setAttribute('aria-pressed',x===b)); });
-    row.querySelector('.ti').oninput=e=>{ t.text=e.target.value; markDirty(); };
+    const thb=row.querySelector('[data-th]'), thDraw=()=>{ if(!thb) return; const h=taskHalf(t); thb.textContent=halfName(h); thb.classList.toggle('on',!!h); thb.setAttribute('aria-label','時段：'+halfName(h)+'（點一下切換）'); };
+    if(thb) thb.onclick=()=>{ const i=T_HALF.findIndex(x=>x[0]===taskHalf(t)); t.half=T_HALF[(i+1)%T_HALF.length][0]||'all'; markDirty(); thDraw(); };
+    row.querySelector('.ti').oninput=e=>{ t.text=e.target.value; markDirty(); thDraw(); };
     { const zb=row.querySelector('button.tz'); zb.onclick=()=>pickZones(t.zone,v=>{ t.zone=v; markDirty(); zb.innerHTML=zoneBtnInner(t); zb.classList.toggle('none',!zoneName(v)); zb.setAttribute('aria-label','區域：'+(zoneName(v)||'不指定')); }); }
     { const tw=row.querySelector('select.tw'); if(tw) tw.onchange=e=>{ if(e.target.value===NEW_CREW){ e.target.value=t.trade||''; askNewCrew(nm=>{ if(nm){ t.trade=nm; markDirty(); } refreshCrewPickers(); }); return; } t.trade=e.target.value; markDirty(); }; }
     row.querySelector('.x').onclick=()=>{ draft.tasks=draft.tasks.filter(x=>x!==t); markDirty(); row.remove(); };
@@ -3248,6 +3256,8 @@ function simBuild(r){
     r=Object.assign({date:TODAY,tasks:[]},r||{},{workers:w0,vendors:Object.assign({},(r&&r.vendors)||{},{[et]:here.map(p=>p.name).join(',')})});
   } else if(SITE&&r&&r.date!==TODAY) r=engFill(r);   // past days: who was there, if the report didn't list engineers
   const rng=rngOf((r?r.date:'x')+(SITE.name||''));
+  { const curH=(r?r.date:selDate)===TODAY?(SIM.todayHalf||nowHalf()):(SIM.half||'all');   // the half of the day on screen: a 工作事項 set to 上午／下午／晚上 shows only then
+    if(r&&curH!=='all') r=Object.assign({},r,{tasks:(r.tasks||[]).filter(t=>t.status==='next'||!taskHalf(t)||taskHalf(t)===curH)}); }
   const all=(r?r.tasks:[]);
   const tasks=all.filter(t=>t.status!=='next');
   // today: crews leave once their work is done; after 「下班」 everyone leaves and the gate closes
@@ -5092,7 +5102,7 @@ function setSimBtns(){ const zb=document.getElementById('simZoom'), pb=document.
   if(pb){ pb.innerHTML=SIM.paused?ICO.play:ICO.pause; pb.setAttribute('aria-label',SIM.paused?'播放動畫':'暫停動畫'); } }
 function simMount(r){
   const cv=document.getElementById('sim'); if(!cv) return;
-  const key=CUR+"|"+JSON.stringify(wxAuto(r?r.date:selDate)||0)+"|"+(SIM.half||'all')+"|"+(SIM.todayHalf||'')+"|"+gateState()+"|"+todayPunches().map(p=>p.id+(p.out?'o':'i')).join(',')+"|"+(r?punchesOn(r.date).map(p=>p.id+(p.out||'')).join(',')+'|':'')+(r?r.date+'|'+(r.at||'')+'|'+JSON.stringify(r.workers)+'|'+r.tasks.length:'none')+'|'+JSON.stringify(SITE.zones||[])+JSON.stringify(SITE.beams||[])+JSON.stringify(SITE.gate||{})+JSON.stringify(SITE.boundary||{})+JSON.stringify(SITE.office||{})+((SITE.drawing&&SITE.drawing.id)||'')+'|'+(layoutData()?((SITE.layout&&SITE.layout.id)||'L'):'')+'|'+JSON.stringify((SITE.mpos||{})['@haul']||0);
+  const key=CUR+"|"+nowHalf()+"|"+JSON.stringify((r&&r.tasks||[]).map(t=>t.half||""))+"|"+JSON.stringify(wxAuto(r?r.date:selDate)||0)+"|"+(SIM.half||'all')+"|"+(SIM.todayHalf||'')+"|"+gateState()+"|"+todayPunches().map(p=>p.id+(p.out?'o':'i')).join(',')+"|"+(r?punchesOn(r.date).map(p=>p.id+(p.out||'')).join(',')+'|':'')+(r?r.date+'|'+(r.at||'')+'|'+JSON.stringify(r.workers)+'|'+r.tasks.length:'none')+'|'+JSON.stringify(SITE.zones||[])+JSON.stringify(SITE.beams||[])+JSON.stringify(SITE.gate||{})+JSON.stringify(SITE.boundary||{})+JSON.stringify(SITE.office||{})+((SITE.drawing&&SITE.drawing.id)||'')+'|'+(layoutData()?((SITE.layout&&SITE.layout.id)||'L'):'')+'|'+JSON.stringify((SITE.mpos||{})['@haul']||0);
   if(key!==SIM.key){ SIM.st=simBuild(r); SIM.key=key; SIM.selZone=null; } else { soilProps(SIM.st); fillsBuild(SIM.st); }
   rotCentre(SIM.st); setRot(SIM.rot||0); rotBtn();
   SIM.cv=cv; SIM.ctx=cv.getContext('2d'); g3Mount();
