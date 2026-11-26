@@ -1649,17 +1649,26 @@ function islEditBar(){ const bar=$('#islEditBar'); if(!bar||!ISL.edit) return;
   if(!it&&ISL.mode==='fill'){ bar.innerHTML=`<span class="eb-tip">點地樑格子回填<br><small>再點一次取消</small></span><button type="button" class="eb-ok" id="ebFillDone">回填完成</button>`;
     $('#ebFillDone').onclick=()=>{ ISL.mode=null; islEditBar(); }; return; }
   $('#ebDone').onclick=()=>islEditMode(false); }
-function islToggleFill(sx,sy){ const st=SIM.st; if(!st||!st.toN) return; const g=simGround(sx,sy);
-  // a backfilled cell is drawn raised to the beam tops, so hit-test it where it is drawn on screen (not on the ground below it)
-  const fl=st.fills||[];
-  let cur=fl.slice().reverse().find(f=>inPolyS([sx,sy],f.poly.map(p=>SP(p.x,p.y,FILL_H))))||fl.find(f=>inPolyS([g.x,g.y],f.poly.map(p=>[p.x,p.y])));
+function islToggleFill(sx,sy){ const st=SIM.st; if(!st||!st.toN) return; let g=simGround(sx,sy);
+  // the excavation is drawn PIT_D below ground, so what is tapped on screen is the pit floor (or the top of the fill), not the ground plane above it:
+  // hit-test a backfilled cell where it is drawn, and for an empty one take the point on the pit floor under the finger
+  const fl=st.fills||[], pit=(x,y)=>st.pitAt?st.pitAt(x,y):0, atZ=z=>simGround(sx,sy+z*SIM.S*0.5);
+  const topOf=f=>{ let cx=0, cy=0; f.poly.forEach(p=>{ cx+=p.x/f.poly.length; cy+=p.y/f.poly.length; }); return FILL_H-pit(cx,cy); };
+  let cur=fl.slice().reverse().find(f=>{ const z=topOf(f); return inPolyS([sx,sy],f.poly.map(p=>SP(p.x,p.y,z))); });
+  if(!cur){   // candidates: on the pit floor, at beam-top level in the pit, on the ground; then a little around each (small cells between close beams)
+    const C=[]; [-PIT_D,FILL_H-PIT_D,0].forEach(z=>{ const q=atZ(z); if(z===0||pit(q.x,q.y)>0) C.push(q); });
+    const ring=[[0,0]]; [0.18,0.36].forEach(r=>{ for(let k=0;k<8;k++) ring.push([Math.cos(k*Math.PI/4)*r,Math.sin(k*Math.PI/4)*r]); });
+    let found=null; for(const o of ring){ for(const q of C){ const x=q.x+o[0], y=q.y+o[1]; if(fillCell(st,x,y)){ found={x,y}; break; } } if(found) break; }
+    if(found){ g=found; cur=fl.find(f=>inPolyS([g.x,g.y],f.poly.map(p=>[p.x,p.y]))); }
+    else cur=fl.find(f=>inPolyS([g.x,g.y],f.poly.map(p=>[p.x,p.y]))); }
   if(cur){ islSnap();
     // remove every fill in that cell (earlier taps could have left two in one cell)
     const poly=cur.poly.map(p=>[p.x,p.y]);
     const same=(SITE.fills||[]).filter(f=>soilOn(f,selDate)&&(f.id===cur.id||inPolyS((()=>{ const q=st.toG(+f.x,+f.y); return [q.x,q.y]; })(),poly)));
     same.forEach(it=>{ if(it.from&&it.from<selDate) it.to=selDate; else SITE.fills=SITE.fills.filter(x=>x!==it); });
     toast(same.some(it=>it.to)?'已取消回填（從 '+fmtShort(selDate)+' 起，之前的日子還看得到）':'已取消回填'); }
-  else { const cell=fillCell(st,g.x,g.y); if(!cell){ toast('請點在地樑圍起來的格子裡'); return; } islSnap(); const n=st.toN(g.x,g.y); SITE.fills=(SITE.fills||[]).concat([{id:'f'+uid(),x:n.x,y:n.y,from:selDate}]); }
+  else { const cell=fillCell(st,g.x,g.y); if(!cell){ toast('請點在地樑圍起來的格子裡'); return; } islSnap(); let cx=0, cy=0; cell.forEach(p=>{ cx+=p.x/cell.length; cy+=p.y/cell.length; }); const mid=fillCell(st,cx,cy)?{x:cx,y:cy}:g, n=st.toN(mid.x,mid.y);   // keep the middle of the cell: it stays inside if the beams are nudged later
+    SITE.fills=(SITE.fills||[]).concat([{id:'f'+uid(),x:n.x,y:n.y,from:selDate}]); }
   saveSite(); fillsBuild(st); simDraw(); }
 // remove one machine from this day's report (one unit; the last one removes the entry)
 async function islMachDelete(v){ const k=v.mk, r0=REPORTS[selDate];
@@ -4901,7 +4910,6 @@ function fillCell(st,px,py){ const segs=[]; st.props.forEach(o=>{ if(o.beam) seg
   if(segs.some(g=>inPolyS([(g[0]+g[2])/2,(g[1]+g[3])/2],poly))) return null;   // swallowed a beam: the cell is not closed here
   let ar=0; for(let j=0;j<poly.length;j++){ const A=poly[j], C=poly[(j+1)%poly.length]; ar+=A[0]*C[1]-C[0]*A[1]; } if(Math.abs(ar)/2>GW*GH*0.35||Math.abs(ar)/2<0.02) return null;
   return poly.map(q=>({x:q[0],y:q[1]})); }
-window.__bpDump=()=>JSON.stringify({site:Object.assign({},SITE,{drawing:null,drawings:null}),report:REPORTS[selDate]||null,date:selDate});
 if(location.protocol==='file:') window.__gd={machZones:st=>machZones(st),segsOf:st=>{ const segs=[]; st.props.forEach(o=>{ if(o.beam) segs.push([o.ax,o.ay,o.bx,o.by,(o.wd||0.34)/2]); }); return segs; },fillCell:(...a)=>fillCell(...a),SIM:()=>SIM,simGround:(...a)=>simGround(...a),SP:(...a)=>SP(...a),FILL_H};
 function fillsBuild(st){ if(!st||!st.toG) return; st.fills=[]; ((SITE&&SITE.fills)||[]).forEach(f=>{ if(!soilOn(f,st.date)) return; const g=st.toG(+f.x,+f.y), poly=fillCell(st,g.x,g.y); if(poly) st.fills.push({id:f.id,poly}); }); SIM.bgKey=null; }
 function drawFill(c,f){ const P=f.poly, n=P.length; let cx=0, cy=0; P.forEach(p=>{ cx+=p.x/n; cy+=p.y/n; });
