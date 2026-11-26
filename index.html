@@ -151,9 +151,6 @@ button.tz::after{content:'';flex:none;width:7px;height:7px;border-right:2px soli
 .pe-hint .grow{flex:1;min-width:180px;color:#DCE6EE}
 .pe-hint button{padding:7px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.35);color:#fff;font-size:14px}
 .pe-hint button:disabled{opacity:.4}
-.pe-hint .pe-sz{display:inline-flex;align-items:center;gap:6px;color:#DCE6EE;font-size:14px}
-.pe-hint .pe-sz select{padding:7px 8px;border-radius:8px;border:1px solid #2E4458;background:#0C1824;color:#fff;font-size:16px;min-width:72px}
-.pe-hint .pe-u{color:#A9BAC8;font-size:13px}
 #peHint input{background:#0C1824!important;color:#fff!important;border:1px solid #2E4458!important}
 .pe-hint .pe-zhelp{flex:1 1 100%;font-size:13px;color:#A9BAC8;min-width:0;order:9}
 .pe-hint input{flex:1;min-width:120px;padding:8px 10px;border-radius:8px;border:1px solid #2E4458;background:#0C1824;color:#fff;font-size:16px}
@@ -415,8 +412,6 @@ textarea{min-height:84px;resize:vertical}
 .form-total .num{font-size:30px}
 .trow{display:grid;grid-template-columns:auto minmax(0,1fr) 110px 130px 36px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .trow .seg button{padding:5px 10px;font-size:13px}
-.trow .seg button.th{margin-left:auto;border-style:dashed;color:var(--mute,#6B7680)}
-.trow .seg button.th.on{border-style:solid;border-color:var(--ink);color:var(--ink);font-weight:600}
 .trow .seg button[aria-pressed="true"].s-done{background:var(--done);border-color:var(--done);color:#fff}
 .trow .seg button[aria-pressed="true"].s-doing{background:var(--doing);border-color:var(--doing);color:#fff}
 .trow .seg button[aria-pressed="true"].s-next{background:var(--next);border-color:var(--next);color:#fff}
@@ -432,13 +427,6 @@ textarea{min-height:84px;resize:vertical}
 .crewq-add{margin:-2px 0 8px}
 .crewq-none{margin:4px 0 8px}
 .ctasks{margin-top:4px;padding-top:8px;border-top:1px dashed var(--line)}
-.dsz:empty{display:none}
-.dsz{margin-top:4px;padding-top:8px;border-top:1px dashed var(--line);display:grid;gap:6px}
-.dsz .dszr{display:flex;align-items:center;gap:10px}
-.dsz .sl{flex:none;min-width:52px;font-size:13px;color:var(--mute,#6B7680)}
-.dsz .seg{flex:1;flex-wrap:nowrap;gap:6px}
-.dsz .seg button{flex:1;width:auto;height:34px;padding:0 4px;font-size:14px;line-height:1;border-radius:999px;background:var(--panel);font-family:inherit;white-space:nowrap}
-.dsz .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
 .ctasks button,.ctasks input,.ctasks select{width:auto;height:auto;font-family:inherit;font-size:15px;font-weight:400;text-align:left;line-height:1.3}
 .ctasks .trow .seg button{width:auto;height:auto;padding:5px 12px;font-size:13px;white-space:nowrap;background:var(--panel);border-radius:999px}
 .ctasks .trow .ti,.ctasks .trow .tz,.ctasks .ctadd input{width:100%;padding:8px 10px;border-radius:10px;font-size:16px}
@@ -844,16 +832,6 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
     <div class="actions"><button type="button" class="btn primary grow" id="icOk">加到日報</button><button type="button" class="btn danger" id="icRm" hidden>從這天移除</button></div>
   </div>
 </div>
-<div class="sheet" id="teamSheet" hidden role="dialog" aria-modal="true" aria-labelledby="tmTitle">
-  <div class="sheet-bg" data-tmclose></div>
-  <div class="sheet-in">
-    <div class="sheet-hd"><h2 id="tmTitle">一起合作？</h2><button type="button" class="mini" data-tmclose aria-label="關閉">✕</button></div>
-    <p class="note" id="tmWho" style="margin:0 0 10px;font-size:15px;color:inherit"></p>
-    <div class="field"><label for="tmText">一起做的工作事項</label><input type="text" id="tmText" placeholder="例如：基礎開挖" autocomplete="off"></div>
-    <p class="note" id="tmMsg"></p>
-    <div class="actions"><button type="button" class="btn primary grow" id="tmOk">一起合作</button><button type="button" class="btn" data-tmclose>不用</button></div>
-  </div>
-</div>
 <div class="sheet" id="crewSheet" hidden role="dialog" aria-modal="true" aria-labelledby="ncTitle">
   <div class="sheet-bg" data-ncclose></div>
   <div class="sheet-in">
@@ -1128,7 +1106,7 @@ function switchSite(id){
 function normalizeSite(s){
   s=JSON.parse(JSON.stringify(s||{}));
   s.trades=Array.isArray(s.trades)&&s.trades.length?s.trades:TRADES_DEFAULT.slice();
-  s.zones=Array.isArray(s.zones)?s.zones:[]; s.stages=Array.isArray(s.stages)?s.stages:[]; s.beams=Array.isArray(s.beams)?s.beams:[]; s.cols=Array.isArray(s.cols)?s.cols:[];
+  s.zones=Array.isArray(s.zones)?s.zones:[]; s.stages=Array.isArray(s.stages)?s.stages:[]; s.beams=Array.isArray(s.beams)?s.beams:[];
   return s;
 }
 function showBanner(t,keep){ const b=$('#banner'); b.textContent=t; b.hidden=false; if(keep) b.dataset.keep='1'; }
@@ -1228,8 +1206,7 @@ function dayHighlights(r){
     add(vd||k,{crew:(vd?'':'')+cnt(k,false)}); tasks.filter(t=>t.trade===k).forEach(t=>{ add(vd||k,{task:t}); used.add(t); }); });
   Object.entries(machinesOf(r)).forEach(([k])=>{ const vd=V[k]||''; add(vd||k,{crew:`${esc(k)} ${cnt(k,true)}`}); });
   tasks.filter(t=>!used.has(t)&&t.trade&&!/工程師|監工|主任/.test(t.trade)).forEach(t=>{ add(V[t.trade]||t.trade,{task:t}); used.add(t); });
-  groups.forEach((g,key)=>{ { const seen=new Set(); g.tasks=g.tasks.filter(t=>{ const k=(t.text||'').replace(/\s+/g,'')+'|'+(t.zone||'')+'|'+t.status; if(seen.has(k)) return false; seen.add(k); return true; }); }   // crews and machines sharing one 工作事項 (合作): say it once
-    const doing=g.tasks.some(t=>t.status==='doing');
+  groups.forEach((g,key)=>{ const doing=g.tasks.some(t=>t.status==='doing');
     work.push(li(`<b>${vset.has(key)?'（'+esc(key)+'）':esc(key)}</b>${g.crews.length?' '+g.crews.join('・'):''}${g.tasks.length?'：'+g.tasks.map(txt).join('、'):''}`, doing?'doing':'')); });
   const rest=tasks.filter(t=>!used.has(t)); if(rest.length) work.push(li(rest.map(txt).join('、'),rest.some(t=>t.status==='doing')?'doing':''));
   (r.tasks||[]).filter(t=>t.status==='next').forEach(t=>next.push(li(`${esc(taskLabel(t))}${t.trade?`（${esc(V[t.trade]||t.trade)}）`:''}`)));
@@ -1649,10 +1626,8 @@ function islEditMode(on,quiet){ ISL.edit=!!on&&CAN_WRITE; if(!ISL.edit){ ISL.soi
   $('#p-island .isl-full').classList.toggle('editing',ISL.edit); islUndoBtn(); const ub=$('#islUndo'); if(ub) ub.onclick=islUndo; islSync(); if(SIM.paused) simDraw(); }
 function islEditBar(){ const bar=$('#islEditBar'); if(!bar||!ISL.edit) return;
   const mv=ISL.machSel&&SIM.st&&SIM.st.vehicles.find(v=>v.key===ISL.machSel);
-  if(mv){ const hl=!!machHaul(mv), grp=machGroup(mv).length>1||hl, mov=machMovable(mv)||grp;
-    const dgz=mv.type==='digger'&&isDigName(mv.mk);
-    bar.innerHTML=dgz?`<span class="eb-seg ebsz" role="radiogroup" aria-label="${esc(mv.mk)} 尺寸">${DIG_SIZES.map(([c,l,sh])=>`<button type="button" role="radio" data-dsz="${c}" aria-pressed="${(mv.dsz||'m')===c}" aria-label="${l}">${sh}</button>`).join('')}</span>${mov&&!grp?`<button type="button" class="eb-back" id="ebTurn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>轉向</button>`:''}<button type="button" class="eb-del" id="ebMDel">刪除</button><button type="button" class="eb-ok" id="ebDone">完成</button>`:`<span class="eb-tip">${esc(mv.mk)}${mv.vendor?`<small>（${esc(mv.vendor)}）</small>`:''}<br><small>${hl?'拖曳移動這一台；太遠時另一台會靠過來':mov?'拖曳移動；疊到別台或工班上＝合作':'拖到別台機具或工班上＝合作'}</small></span>${mov&&!grp?`<button type="button" class="eb-back" id="ebTurn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>轉向</button>`:''}<button type="button" class="eb-del" id="ebMDel">刪除</button><button type="button" class="eb-ok" id="ebDone">完成</button>`;
-    bar.querySelectorAll('[data-dsz]').forEach(b=>b.onclick=()=>islDigSize(mv,b.dataset.dsz));
+  if(mv){ const grp=machGroup(mv).length>1, mov=machMovable(mv)||grp;
+    bar.innerHTML=`<span class="eb-tip">${esc(mv.mk)}${mv.vendor?`<small>（${esc(mv.vendor)}）</small>`:''}<br><small>${grp?'拖曳：一起作業的機具整組移動':mov?'拖曳移動位置':'行駛中，不能拖曳'}</small></span>${mov&&!grp?`<button type="button" class="eb-back" id="ebTurn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>轉向</button>`:''}<button type="button" class="eb-del" id="ebMDel">刪除</button><button type="button" class="eb-ok" id="ebDone">完成</button>`;
     const tn=$('#ebTurn'); if(tn) tn.onclick=()=>{ machSetAng(mv,machAng(mv)+Math.PI/2); machSave(mv); if(SIM.paused) simDraw(); };
     $('#ebMDel').onclick=e=>{ const b=e.currentTarget; if(b.dataset.arm!=='1'){ b.dataset.arm='1'; b.textContent='再按一次'; setTimeout(()=>{ if(b.isConnected){ b.dataset.arm=''; b.textContent='刪除'; } },3000); return; } islMachDelete(mv); };
     $('#ebDone').onclick=()=>{ ISL.machSel=null; islEditBar(); if(SIM.paused) simDraw(); }; return; }
@@ -1680,11 +1655,7 @@ function islToggleFill(sx,sy){ const st=SIM.st; if(!st||!st.toN) return; const g
     const same=(SITE.fills||[]).filter(f=>soilOn(f,selDate)&&(f.id===cur.id||inPolyS((()=>{ const q=st.toG(+f.x,+f.y); return [q.x,q.y]; })(),poly)));
     same.forEach(it=>{ if(it.from&&it.from<selDate) it.to=selDate; else SITE.fills=SITE.fills.filter(x=>x!==it); });
     toast(same.some(it=>it.to)?'已取消回填（從 '+fmtShort(selDate)+' 起，之前的日子還看得到）':'已取消回填'); }
-  else { // the floor of the dig is drawn below ground level, so what the finger points at down there is not the ground point straight under it:
-    // look first where the tap lands on the dig's floor, then on the ground
-    let hit=null; const C=[]; if(st.pitAt){ [PIT_D,PIT_D*0.5].forEach(d0=>{ let q=simGround(sx,sy-d0*SIM.S*0.5); const d=st.pitAt(q.x,q.y); if(d>0){ q=simGround(sx,sy-d*SIM.S*0.5); if(st.pitAt(q.x,q.y)>0) C.push(q); } }); } C.push(g);
-    for(const q of C){ const cell=fillCell(st,q.x,q.y); if(cell){ hit=q; break; } }
-    if(!hit){ toast('請點在地樑圍起來的格子，或地樑和開挖邊緣之間'); return; } islSnap(); const n=st.toN(hit.x,hit.y); SITE.fills=(SITE.fills||[]).concat([{id:'f'+uid(),x:n.x,y:n.y,from:selDate}]); }
+  else { const cell=fillCell(st,g.x,g.y); if(!cell){ toast('請點在地樑圍起來的格子裡'); return; } islSnap(); const n=st.toN(g.x,g.y); SITE.fills=(SITE.fills||[]).concat([{id:'f'+uid(),x:n.x,y:n.y,from:selDate}]); }
   saveSite(); fillsBuild(st); simDraw(); }
 // remove one machine from this day's report (one unit; the last one removes the entry)
 async function islMachDelete(v){ const k=v.mk, r0=REPORTS[selDate];
@@ -1987,7 +1958,6 @@ function crewStepper(k,isMach){
     <span class="cstot" data-tot>${cstotHTML(x,isMach)}</span></div>
     <div class="split3 s4">${[['f','整日'],['am','上午'],['pm','下午'],['ng','晚上']].map(([sk,t])=>`<div class="sp1"><span class="sl">${t}</span><span class="sg"><button type="button" data-s="-1" data-sk="${sk}" aria-label="${e} ${t}減一">−</button><input type="number" inputmode="numeric" min="0" step="1" data-cnt="${sk}" value="${fmtN(x[sk])}" aria-label="${e} ${t}${isMach?'台數':'人數'}"><button type="button" data-s="1" data-sk="${sk}" aria-label="${e} ${t}加一">+</button></span></div>`).join('')}</div>
     ${isEngT(k)&&!isMach?`<div class="names" data-names="${e}">${namesHTML(k)}</div>`:''}
-    ${isMach&&isDigName(k)?`<div class="dsz" data-dzbox="${e}">${digSzHTML(k)}</div>`:''}
     ${isMach||!isEngT(k)?`<div class="ctasks" data-ctasks="${e}" ${(headsOf(x)>0)||draft.tasks.some(t=>t.trade===k&&t.status!=='next')?'':'hidden'}>${crewTasksHTML(k)}</div>`:''}
   </div>`; }
 function twOpts(t){ const ks=[...new Set([...(SITE.trades||[]),...Object.keys((draft&&draft.workers)||{}),...Object.keys((draft&&draft.machines)||{})])];
@@ -2046,13 +2016,9 @@ function pickZones(cur,onChange){
   const close=()=>{ sh.hidden=true; sh.querySelectorAll('[data-zsclose]').forEach(b=>b.onclick=null); };
   sh.querySelectorAll('[data-zsclose]').forEach(b=>b.onclick=close);
   draw(); sh.hidden=false; }
-// 時段 of one 工作事項: chosen on its row (全天／上午／下午／晚上), else read from its words (「上午模板進料」). The 工地動畫 shows it only in that half of the day
-const T_HALF=[['','全天'],['am','上午'],['pm','下午'],['ng','晚上']];
-function taskHalf(t){ if(t.half&&t.half!=='all') return t.half; const x=t.text||''; return /上午|早上/.test(x)&&!/下午/.test(x)?'am':/下午/.test(x)&&!/上午|早上/.test(x)?'pm':/晚上|夜間|夜班/.test(x)?'ng':''; }
-const halfName=h=>(T_HALF.find(x=>x[0]===h)||T_HALF[0])[1];
 function taskRow(t,inCrew){
   return `<div class="trow${inCrew?' tin':''}" data-t="${t.id}">
-    <div class="seg">${['done','doing'].map(s=>`<button type="button" class="s-${s}" data-s="${s}" aria-pressed="${t.status===s}">${STATUS[s]}</button>`).join('')}<button type="button" class="th${taskHalf(t)?' on':''}" data-th aria-label="時段：${halfName(taskHalf(t))}（點一下切換）">${halfName(taskHalf(t))}</button></div>
+    <div class="seg">${['done','doing'].map(s=>`<button type="button" class="s-${s}" data-s="${s}" aria-pressed="${t.status===s}">${STATUS[s]}</button>`).join('')}</div>
     <input type="text" class="ti" value="${esc(t.text)}" placeholder="例如：地樑拆模" aria-label="工作內容">
     ${zoneBtnHTML(t)}
     ${inCrew?'':`<select class="tw" aria-label="負責工種">${twOpts(t)}</select>`}
@@ -2087,10 +2053,8 @@ function wireReport(){
     const drawNames=()=>{ if(!nb) return; const old=[...nb.querySelectorAll('[data-nm]')].map(i=>i.value); nb.innerHTML=namesHTML(k); nb.querySelectorAll('[data-nm]').forEach((i,j)=>{ if(old[j]!=null) i.value=old[j]; i.oninput=saveNames; }); saveNames(); };
     if(nb) nb.querySelectorAll('[data-nm]').forEach(i=>i.oninput=saveNames);
     const tot=card.querySelector('[data-tot]'), u=isM?'台':'人';
-    const ctb=card.querySelector('[data-ctasks]'), dzb=card.querySelector("[data-dzbox]");
-    const drawDz=()=>{ if(!dzb) return; dzb.innerHTML=digSzHTML(k); dzb.querySelectorAll('[data-dz]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.dz, n=Math.min(4,headsOf(splitD(k,true))), L=Array.from({length:Math.max(n,i+1)},(_,j)=>digSizeOf(draft,k,j)); L[i]=b.dataset.dv; draft.msize=Object.assign({},draft.msize||{}); draft.msize[k]=L.join(','); markDirty(); drawDz(); }); };
-    drawDz();
-    const after=()=>{ apply(k,isM); const x=splitD(k,isM); tot.innerHTML=cstotHTML(x,isM); drawNames(); drawDz();
+    const ctb=card.querySelector('[data-ctasks]');
+    const after=()=>{ apply(k,isM); const x=splitD(k,isM); tot.innerHTML=cstotHTML(x,isM); drawNames();
       if(ctb){ const show=(headsOf(x)>0)||draft.tasks.some(t=>t.trade===k&&t.status!=='next'); if(show&&ctb.hidden){ ctb.hidden=false; } else if(!show) ctb.hidden=true; } };
     if(ctb){ const inp=ctb.querySelector('.ctin');
       const add=()=>{ const v=inp.value.trim(); if(!v) return; const zn=zoneFromText(v);
@@ -2200,9 +2164,7 @@ function wireTaskRows(){
     if(row.dataset.wired) return; row.dataset.wired='1';
     const t=draft.tasks.find(x=>x.id===row.dataset.t); if(!t) return;
     row.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ t.status=b.dataset.s; markDirty(); row.querySelectorAll('[data-s]').forEach(x=>x.setAttribute('aria-pressed',x===b)); });
-    const thb=row.querySelector('[data-th]'), thDraw=()=>{ if(!thb) return; const h=taskHalf(t); thb.textContent=halfName(h); thb.classList.toggle('on',!!h); thb.setAttribute('aria-label','時段：'+halfName(h)+'（點一下切換）'); };
-    if(thb) thb.onclick=()=>{ const i=T_HALF.findIndex(x=>x[0]===taskHalf(t)); t.half=T_HALF[(i+1)%T_HALF.length][0]||'all'; markDirty(); thDraw(); };
-    row.querySelector('.ti').oninput=e=>{ t.text=e.target.value; markDirty(); thDraw(); };
+    row.querySelector('.ti').oninput=e=>{ t.text=e.target.value; markDirty(); };
     { const zb=row.querySelector('button.tz'); zb.onclick=()=>pickZones(t.zone,v=>{ t.zone=v; markDirty(); zb.innerHTML=zoneBtnInner(t); zb.classList.toggle('none',!zoneName(v)); zb.setAttribute('aria-label','區域：'+(zoneName(v)||'不指定')); }); }
     { const tw=row.querySelector('select.tw'); if(tw) tw.onchange=e=>{ if(e.target.value===NEW_CREW){ e.target.value=t.trade||''; askNewCrew(nm=>{ if(nm){ t.trade=nm; markDirty(); } refreshCrewPickers(); }); return; } t.trade=e.target.value; markDirty(); }; }
     row.querySelector('.x').onclick=()=>{ draft.tasks=draft.tasks.filter(x=>x!==t); markDirty(); row.remove(); };
@@ -2470,7 +2432,6 @@ const PE_TOOLS=[
   {k:'office',t:'工務所',ic:'<path d="M4 20V9h16v11z"/><path d="M4 9l2-4h12l2 4M10 20v-5h4v5"/>'},
   {k:'gate',t:'大門',ic:'<path d="M5 20V5M19 20V5M5 8h14"/><path d="M9 8v12M15 8v12"/>'},
   {k:'beam',t:'地樑',ic:'<path d="M3 8h18M3 16h18M8 3v18M16 3v18"/>'},
-  {k:'col',t:'柱',ic:'<path d="M7 7h10v10H7z"/><path d="M7 7l10 10M17 7L7 17"/>'},
   {k:'erase',t:'刪除',ic:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'},
 ];
 const PE_HINT={
@@ -2481,8 +2442,7 @@ const PE_HINT={
   office:'在工務所的位置拖曳出一個方框。',
   gate:'沿著圍籬拖曳，標出大門的寬度。',
   beam:'沿著圖上的地樑拖曳畫線，一次一支。會自動對齊水平、垂直和其他地樑。兩指拖曳可以移動畫面。',
-  col:'在圖上有柱子的位置點一下放一支柱，會自動對齊地樑的交點和端點。',
-  erase:'點一下要刪除的地樑、柱、分區、空地、工務所、大門或圍籬。',
+  erase:'點一下要刪除的地樑、分區、空地、工務所、大門或圍籬。',
 };
 const PE_MOVE_HINT={
   boundary:'拖曳圍籬上的白點移動角，拖曳＋多加一個角。要整個重畫請按左上角「重畫」。',
@@ -2490,12 +2450,8 @@ const PE_MOVE_HINT={
   yard:'點空地選取它，再拖曳調整形狀或整塊移動。',
   office:'拖曳工務所移動位置，拖曳四個角調整大小。',
   gate:'沿著圍籬拖曳大門移動位置，拖曳兩端調整寬度。',
-  beam:'點一支地樑選取它，可以改尺寸，再拖曳兩端或中間。要畫新的地樑請按左上角「新增」。',
-  col:'點一支柱選取它，可以改尺寸或刪除，直接拖曳可以移動。要放新的柱請按左上角「新增」。',
+  beam:'點一支地樑選取它，再拖曳兩端或中間。要畫新的地樑請按左上角「新增」。',
 };
-// sizes in cm, as on the structural drawings. 地樑: 寬 × 深; 柱: 寬（圖上左右）× 深（圖上上下）
-const PE_BW=[20,25,30,35,40,45,50,60,70,80,100,120], PE_BD=[40,50,60,70,80,90,100,120,150,180,200,250], PE_CS=[30,40,50,60,70,80,90,100,120,150,180,200];
-const peSzSel=(id,L,v,lab,def)=>`<label class="pe-sz">${lab}<select id="${id}" aria-label="${lab}（公分）">${def?`<option value="0" ${v?'':'selected'}>預設</option>`:''}${(L.includes(+v)||!v?L:L.concat([+v]).sort((a,b)=>a-b)).map(x=>`<option value="${x}" ${+v===x?'selected':''}>${x}</option>`).join('')}</select></label>`;
 const PE_DRAG={beam:1,office:1,gate:1};
 const PE_POLY={boundary:1,zone:1,yard:1};
 const isYardName=n=>/空地|停車|車道/.test(n||'');
@@ -2542,22 +2498,21 @@ function peLoadGeo(){
     office:s.office?{X:s.office.x*PE.A*1000,Y:s.office.y*1000,W:s.office.w*PE.A*1000,H:s.office.h*1000}:null,
     gate:s.gate&&s.gate.x1!=null?{a:peW({x:s.gate.x1,y:s.gate.y1}),b:peW({x:s.gate.x2,y:s.gate.y2})}:null,
     zones:(s.zones||[]).filter(z=>z.pts||z.w).map(z=>({id:z.id,name:z.name,pts:zonePts(z).map(peW)})),
-    beams:(s.beams||[]).map(b=>({a:peW({x:b.x1,y:b.y1}),b:peW({x:b.x2,y:b.y2}),w:+b.w||0,d:+b.d||0})),
-    cols:(s.cols||[]).map(c=>({p:peW({x:c.x,y:c.y}),w:+c.w||60,d:+c.d||60})) };
+    beams:(s.beams||[]).map(b=>({a:peW({x:b.x1,y:b.y1}),b:peW({x:b.x2,y:b.y2})})) };
 }
 function pePush(){ PE.undo.push(JSON.stringify(PE.g)); if(PE.undo.length>80) PE.undo.shift(); PE.dirty=true; }
 function peUndo(){ if(!PE) return; if(PE.poly.length){ PE.poly.pop(); peDraw(); peHint(); return; } const u=PE.undo.pop(); if(!u){ toast('沒有可以復原的步驟'); return; } PE.g=JSON.parse(u); PE.sel=null; peDraw(); peHint(); peToolMarks(); }
 const PE_ONE={boundary:1,office:1,gate:1,yard:1};   // only one of these: 「新增」 means 重畫
-function peHas(k){ const g=PE.g; if(!g) return false; return k==='boundary'?g.boundary.length>2:k==='zone'?g.zones.some(z=>!isYardName(z.name)):k==='yard'?g.zones.some(z=>isYardName(z.name)):k==='office'?!!g.office:k==='gate'?!!g.gate:k==='beam'?g.beams.length>0:k==='col'?(g.cols||[]).length>0:false; }
+function peHas(k){ const g=PE.g; if(!g) return false; return k==='boundary'?g.boundary.length>2:k==='zone'?g.zones.some(z=>!isYardName(z.name)):k==='yard'?g.zones.some(z=>isYardName(z.name)):k==='office'?!!g.office:k==='gate'?!!g.gate:k==='beam'?g.beams.length>0:false; }
 const peToolOf=z=>isYardName(z&&z.name)?'yard':'zone';
-function peSetTool(k,mode){ PE.tool=k; PE.mode=k==='erase'?'add':(mode||(peHas(k)?'move':'add')); PE.poly=[]; PE.drag=null; PE.sel=null; PE.bsel=null; PE.csel=null; PE.hover=null; PE.redraw=null; PE.vsel=null; PE.vdrag=null;
+function peSetTool(k,mode){ PE.tool=k; PE.mode=k==='erase'?'add':(mode||(peHas(k)?'move':'add')); PE.poly=[]; PE.drag=null; PE.sel=null; PE.bsel=null; PE.hover=null; PE.redraw=null; PE.vsel=null; PE.vdrag=null;
   $$('#peTools [data-pt]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.pt===k));
   $('#peStage').classList.toggle('panning',PE.mode==='move'); peModeUI(); peToolMarks(); peHint(); peDraw(); }
 function peModeUI(){ const m=$('#peMode'); if(!m) return; const t=PE.tool; if(t==='erase'){ m.hidden=true; return; } m.hidden=false;
   const has=peHas(t), addL=PE_ONE[t]&&has?'重畫':'新增';
   m.innerHTML=`<button type="button" data-pm="move" aria-pressed="${PE.mode==='move'}" ${has?'':'disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18"/><path d="M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>移動</button><button type="button" data-pm="add" aria-pressed="${PE.mode==='add'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>${addL}</button>`;
   m.querySelectorAll('[data-pm]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); peSetTool(PE.tool,b.dataset.pm); }); }
-function peToolMarks(){ const g=PE.g; if(!g) return; const done={boundary:g.boundary.length>2,zone:g.zones.some(z=>!isYardName(z.name)),yard:g.zones.some(z=>isYardName(z.name)),office:!!g.office,gate:!!g.gate,beam:g.beams.length>0,col:(g.cols||[]).length>0};
+function peToolMarks(){ const g=PE.g; if(!g) return; const done={boundary:g.boundary.length>2,zone:g.zones.some(z=>!isYardName(z.name)),yard:g.zones.some(z=>isYardName(z.name)),office:!!g.office,gate:!!g.gate,beam:g.beams.length>0};
   $$('#peTools [data-pt]').forEach(b=>b.classList.toggle('done',!!done[b.dataset.pt])); }
 function peHint(){
   const h=$('#peHint'); if(!h||!PE) return; const t=PE.tool;
@@ -2575,20 +2530,8 @@ function peHint(){
     h.innerHTML=`<span class="grow">重新點出「${esc(z?z.name:'')}」範圍的每個角，按「完成」就會取代原本的範圍。</span><button type="button" id="peReX">取消重畫</button>`;
     $('#peReX').onclick=()=>{ const id=PE.redraw; peSetTool(peToolOf(z),'move'); PE.sel=id; peDraw(); peHint(); }; return; }
   if(t==='beam'&&PE.mode==='move'&&PE.bsel!=null&&PE.g.beams[PE.bsel]){
-    const bm=PE.g.beams[PE.bsel];
-    h.innerHTML=`<span>地樑</span>${peSzSel('peBW',PE_BW,bm.w,'寬',true)}${peSzSel('peBD',PE_BD,bm.d,'深',true)}<span class="pe-u">公分</span><button type="button" id="peBAll">全部地樑同尺寸</button><button type="button" id="peBDel">刪除這支</button><span class="grow pe-zhelp">拖曳兩端調整長度，拖曳中間整支移動。</span>`;
-    $('#peBW').onchange=e=>{ pePush(); bm.w=+e.target.value||0; PE.beamSz={w:bm.w,d:bm.d}; peDraw(); }; $('#peBD').onchange=e=>{ pePush(); bm.d=+e.target.value||0; PE.beamSz={w:bm.w,d:bm.d}; peDraw(); };
-    $('#peBAll').onclick=()=>{ pePush(); PE.g.beams.forEach(x=>{ x.w=bm.w; x.d=bm.d; }); PE.beamSz={w:bm.w,d:bm.d}; peDraw(); toast('全部地樑都改成這個尺寸'); };
+    h.innerHTML=`<span class="grow">已選一支地樑：拖曳兩端調整長度，拖曳中間整支移動。</span><button type="button" id="peBDel">刪除這支</button>`;
     $('#peBDel').onclick=()=>{ pePush(); PE.g.beams.splice(PE.bsel,1); PE.bsel=null; peDraw(); peHint(); peToolMarks(); peModeUI(); }; return; }
-  if(t==='col'){ const g=PE.g; g.cols=g.cols||[]; const c=PE.mode==='move'&&PE.csel!=null?g.cols[PE.csel]:null, z=c||PE.colSz||(PE.colSz={w:60,d:60});
-    h.innerHTML=`<span>${c?'這支柱':'新的柱'}</span>${peSzSel('peCW',PE_CS,z.w,'寬',false)}${peSzSel('peCD',PE_CS,z.d,'深',false)}<span class="pe-u">公分</span>${c?'<button type="button" id="peCAll">全部柱同尺寸</button><button type="button" id="peCDel">刪除這支</button>':'<button type="button" id="peCAuto">地樑交點自動放柱</button>'}<span class="grow pe-zhelp">${c?'直接拖曳可以移動。':PE.mode==='move'?PE_MOVE_HINT.col:PE_HINT.col}</span>`;
-    const set=(k,v)=>{ if(c){ pePush(); c[k]=v; } PE.colSz={w:k==='w'?v:z.w,d:k==='d'?v:z.d}; peDraw(); };
-    $('#peCW').onchange=e=>set('w',+e.target.value||60); $('#peCD').onchange=e=>set('d',+e.target.value||60);
-    const ca=$('#peCAll'); if(ca) ca.onclick=()=>{ pePush(); g.cols.forEach(x=>{ x.w=c.w; x.d=c.d; }); peDraw(); toast('全部柱都改成這個尺寸'); };
-    const cd=$('#peCDel'); if(cd) cd.onclick=()=>{ pePush(); g.cols.splice(PE.csel,1); PE.csel=null; peDraw(); peHint(); peToolMarks(); peModeUI(); };
-    const cu=$('#peCAuto'); if(cu) cu.onclick=()=>{ const P=[]; g.beams.forEach(b=>P.push(b.a,b.b)); for(let i=0;i<g.beams.length;i++) for(let j=i+1;j<g.beams.length;j++){ const I=segX(g.beams[i].a,g.beams[i].b,g.beams[j].a,g.beams[j].b,false); if(I) P.push(I); }
-      if(!P.length){ toast('先畫地樑，才有交點可以放柱'); return; } pePush(); let n=0; P.forEach(q=>{ if(g.cols.some(x=>pD(x.p,q)<8)) return; g.cols.push({p:{X:q.X,Y:q.Y},w:z.w,d:z.d}); n++; }); toast(n?`已在地樑的交點和端點放了 ${n} 支柱，不要的可以刪掉`:'交點上都已經有柱了'); peDraw(); peToolMarks(); peModeUI(); };
-    return; }
   if(PE.mode==='move'&&PE_MOVE_HINT[t]){ h.innerHTML=`<span class="grow">${PE_MOVE_HINT[t]}</span>`; return; }
   if(PE_POLY[t]&&PE.poly.length){
     h.innerHTML=`<span class="grow">已點 ${PE.poly.length} 個點${PE.poly.length<3?'，至少要 3 個點':'，點回第一個點或按「完成」'}。</span><button type="button" id="pePolyX">重畫</button><button type="button" class="pri" id="pePolyOk" ${PE.poly.length<3?'disabled':''}>完成</button>`;
@@ -2644,7 +2587,6 @@ function peFinishPoly(){
 function peHit(W){
   const g=PE.g, thr=12/PE.k;
   let best=null, bd=thr;
-  (g.cols||[]).forEach((c,i)=>{ const d=pD(c.p,W); if(d<bd*1.3){ bd=d/1.3; best={k:'col',i}; } }); if(best) return best;
   g.beams.forEach((b,i)=>{ const d=pD(projSeg(W,b.a,b.b),W); if(d<bd){ bd=d; best={k:'beam',i}; } });
   if(g.gate){ const d=pD(projSeg(W,g.gate.a,g.gate.b),W); if(d<bd*1.3){ bd=d; best={k:'gate'}; } }
   if(best) return best;
@@ -2671,7 +2613,6 @@ function peBodyAt(p){ if(PE.mode!=='move') return null; const g=PE.g, t=PE.tool,
   if(t==='office'&&g.office){ const o=g.office; if(W.X>=o.X&&W.X<=o.X+o.W&&W.Y>=o.Y&&W.Y<=o.Y+o.H) return {k:'ob'}; }
   if(t==='gate'&&g.gate&&pD(projSeg(W,g.gate.a,g.gate.b),W)<thr*1.4) return {k:'gb'};
   if(t==='beam'&&PE.bsel!=null&&g.beams[PE.bsel]){ const bm=g.beams[PE.bsel]; if(pD(projSeg(W,bm.a,bm.b),W)<thr) return {k:'bb'}; }
-  if(t==='col'){ let ci=null, bd=thr*1.3; (g.cols||[]).forEach((c,i)=>{ const d=pD(c.p,W); if(d<bd){ bd=d; ci=i; } }); if(ci!=null){ PE.csel=ci; return {k:'cb'}; } }   // a 柱 is picked up and moved in one go
   return null; }
 // snap while dragging, ignoring the thing being dragged
 function peSnapEx(W,ex,from){ const g=PE.g, keep={zones:g.zones,boundary:g.boundary,beams:g.beams,office:g.office};
@@ -2685,15 +2626,12 @@ function peTap(p){
     if(t==='zone'||t==='yard'){ const area=pts=>Math.abs(pts.reduce((s,p,i)=>{ const q=pts[(i+1)%pts.length]; return s+p.X*q.Y-q.X*p.Y; },0)/2);
       const zs=PE.g.zones.filter(z=>peToolOf(z)===t&&inPolyS([W.X,W.Y],z.pts.map(p=>[p.X,p.Y]))).sort((a,b)=>area(a.pts)-area(b.pts)); const ns=zs.length?zs[0].id:null; if(ns!==PE.sel) PE.vsel=null; PE.sel=ns; }
     else if(t==='beam'){ let bi=null, bd=14/PE.k; PE.g.beams.forEach((bm,i)=>{ const d=pD(projSeg(W,bm.a,bm.b),W); if(d<bd){ bd=d; bi=i; } }); PE.bsel=bi; }
-    else if(t==='col'){ let ci=null, bd=18/PE.k; (PE.g.cols||[]).forEach((c,i)=>{ const d=pD(c.p,W); if(d<bd){ bd=d; ci=i; } }); PE.csel=ci; }
     peDraw(); peHint(); return; }
   if(PE_POLY[t]&&PE.mode==='add'){ const from=PE.poly[PE.poly.length-1]||null; const S=peSnap(W,from);
     if(PE.poly.length>2&&pD(S,PE.poly[0])<16/PE.k){ peFinishPoly(); return; }
     PE.poly.push({X:S.X,Y:S.Y}); peDraw(); peHint(); return; }
-  if(t==='col'){ const g=PE.g; g.cols=g.cols||[]; const S=peSnap(W,null), z=PE.colSz||(PE.colSz={w:60,d:60}); if(g.cols.some(c=>pD(c.p,S)<6)){ toast('這裡已經有一支柱了'); return; }
-    pePush(); g.cols.push({p:{X:S.X,Y:S.Y},w:z.w,d:z.d}); peToolMarks(); peModeUI(); peDraw(); return; }
   if(t==='erase'){ const h=peHit(W); if(!h){ toast('這裡沒有東西可以刪'); return; } pePush(); const g=PE.g; let what='';
-    if(h.k==='col'){ g.cols.splice(h.i,1); what='柱'; } else if(h.k==='beam'){ g.beams.splice(h.i,1); what='地樑'; } else if(h.k==='gate'){ g.gate=null; what='大門'; } else if(h.k==='office'){ g.office=null; what='工務所'; }
+    if(h.k==='beam'){ g.beams.splice(h.i,1); what='地樑'; } else if(h.k==='gate'){ g.gate=null; what='大門'; } else if(h.k==='office'){ g.office=null; what='工務所'; }
     else if(h.k==='zone'){ const z=g.zones.find(z=>z.id===h.id); g.zones=g.zones.filter(z=>z.id!==h.id); what=z?'「'+z.name+'」':'分區'; } else if(h.k==='boundary'){ g.boundary=[]; what='圍籬範圍'; }
     toast('已刪除'+what+'，按「復原」可以救回來'); peToolMarks(); peDraw(); return; }
   if(PE_DRAG[t]) toast(t==='beam'?'按住拖曳來畫一支地樑':t==='gate'?'沿著圍籬拖曳標出大門':'拖曳出工務所的方框');
@@ -2707,7 +2645,7 @@ function peCommitDrag(){
   const len=pD(d.a,d.b), t=d.tool;
   if(len<14/PE.k){ peDraw(); return; }
   pePush();
-  if(t==='beam'){ const z=PE.beamSz||{w:0,d:0}; PE.g.beams.push({a:{X:d.a.X,Y:d.a.Y},b:{X:d.b.X,Y:d.b.Y},w:z.w||0,d:z.d||0}); }
+  if(t==='beam'){ PE.g.beams.push({a:{X:d.a.X,Y:d.a.Y},b:{X:d.b.X,Y:d.b.Y}}); }
   else if(t==='office'){ const X=Math.min(d.a.X,d.b.X), Y=Math.min(d.a.Y,d.b.Y); PE.g.office={X,Y,W:Math.abs(d.b.X-d.a.X),H:Math.abs(d.b.Y-d.a.Y)}; toast('已標出工務所'); peSetTool('office','move'); }
   else if(t==='gate'){ const [a,b]=peGateSnap(d.a,d.b); PE.g.gate={a,b}; toast('已標出大門'); peSetTool('gate','move'); }
   peToolMarks(); peModeUI(); peDraw();
@@ -2747,8 +2685,7 @@ function peWire(){
       else if(v.k==='ge'){ const a=v.i===0?W:o.gate.a, b=v.i===1?W:o.gate.b; const [A,B]=peGateSnap(a,b); g.gate={a:A,b:B}; }
       else if(v.k==='gb'){ const [A,B]=peGateSnap({X:o.gate.a.X+dX,Y:o.gate.a.Y+dY},{X:o.gate.b.X+dX,Y:o.gate.b.Y+dY}); g.gate={a:A,b:B}; }
       else if(v.k==='be'){ const bm=g.beams[PE.bsel], other=v.i===0?bm.b:bm.a; S=peSnapEx(W,{beam:PE.bsel},other); if(v.i===0) bm.a={X:S.X,Y:S.Y}; else bm.b={X:S.X,Y:S.Y}; }
-      else if(v.k==='bb'){ g.beams[PE.bsel]=Object.assign({},o.beam,{a:{X:o.beam.a.X+dX,Y:o.beam.a.Y+dY},b:{X:o.beam.b.X+dX,Y:o.beam.b.Y+dY}}); }
-      else if(v.k==='cb'&&g.cols[PE.csel]){ S=peSnap(W,null); g.cols[PE.csel].p={X:S.X,Y:S.Y}; }
+      else if(v.k==='bb'){ g.beams[PE.bsel]={a:{X:o.beam.a.X+dX,Y:o.beam.a.Y+dY},b:{X:o.beam.b.X+dX,Y:o.beam.b.Y+dY}}; }
       PE.hover=S&&S.snap?S:null; peDraw(); return; }
     if(PE.drag&&PE.ptrs.size===1){ const W=peToW(p); let S;
       if(PE.drag.tool==='office') S={X:W.X,Y:W.Y}; else S=peSnap(W,PE.drag.a);
@@ -2763,7 +2700,7 @@ function peWire(){
     if(!PE||!PE.g) return; const had=PE.ptrs.delete(e.pointerId);
     if(PE.pinch){ if(PE.ptrs.size<2){ PE.pinch=null; PE.down=null; PE.drag=null; PE.vdrag=null; } return; }
     if(!had) return;
-    if(PE.vdrag){ const v=PE.vdrag; PE.vdrag=null; PE.hover=null; if(!v.moved){ if(v.k==='zv') PE.vsel=v.ins?null:v.i; else if(v.k==='zb'||v.k==='bb'||v.k==='cb') peTap(peLocal(e)); } peDraw(); peHint(); return; }
+    if(PE.vdrag){ const v=PE.vdrag; PE.vdrag=null; PE.hover=null; if(!v.moved){ if(v.k==='zv') PE.vsel=v.ins?null:v.i; else if(v.k==='zb'||v.k==='bb') peTap(peLocal(e)); } peDraw(); peHint(); return; }
     if(PE.drag){ peCommitDrag(); PE.down=null; return; }
     if(PE.down&&!PE.down.moved&&e.type==='pointerup'){ peTap(peLocal(e)); }
     PE.down=null;
@@ -2781,9 +2718,8 @@ function peDraw(){
   if(g.boundary.length>2) h+=`<polygon points="${pts(g.boundary)}" fill="none" stroke="#D0342C" stroke-width="${u(3.2)}" stroke-linejoin="round"/>`;
   g.boundary.forEach(v=>{ h+=`<circle cx="${v.X.toFixed(1)}" cy="${v.Y.toFixed(1)}" r="${u(3.5)}" fill="#D0342C"/>`; });
   if(g.office){ const o=g.office; h+=`<rect x="${o.X.toFixed(1)}" y="${o.Y.toFixed(1)}" width="${o.W.toFixed(1)}" height="${o.H.toFixed(1)}" fill="rgba(47,109,181,.38)" stroke="#2F6DB5" stroke-width="${u(2.4)}"/>`; }
-  g.beams.forEach(b=>{ h+=`<line x1="${b.a.X.toFixed(1)}" y1="${b.a.Y.toFixed(1)}" x2="${b.b.X.toFixed(1)}" y2="${b.b.Y.toFixed(1)}" stroke="#24323C" stroke-opacity=".82" stroke-width="${u(Math.max(3,Math.min(11,5*(b.w||45)/45)))}" stroke-linecap="round"/>`; });
+  g.beams.forEach(b=>{ h+=`<line x1="${b.a.X.toFixed(1)}" y1="${b.a.Y.toFixed(1)}" x2="${b.b.X.toFixed(1)}" y2="${b.b.Y.toFixed(1)}" stroke="#24323C" stroke-opacity=".82" stroke-width="${u(5)}" stroke-linecap="round"/>`; });
   g.beams.forEach(b=>{ [b.a,b.b].forEach(v=>{ h+=`<circle cx="${v.X.toFixed(1)}" cy="${v.Y.toFixed(1)}" r="${u(3.4)}" fill="#F5B700" stroke="#24323C" stroke-width="${u(1.2)}"/>`; }); });
-  (g.cols||[]).forEach((c,i)=>{ const w=Math.max(8,Math.min(26,14*(c.w||60)/60))/k, d=Math.max(8,Math.min(26,14*(c.d||60)/60))/k, on=PE.tool==='col'&&PE.mode==='move'&&PE.csel===i; h+=`<rect x="${(c.p.X-w/2).toFixed(1)}" y="${(c.p.Y-d/2).toFixed(1)}" width="${w.toFixed(1)}" height="${d.toFixed(1)}" fill="${on?'#F5B700':'#5F6B75'}" stroke="${on?'#E07800':'#16222C'}" stroke-width="${u(on?3:1.6)}"/>`; });   // 柱: a square on the plan, a little bigger for a bigger column
   if(g.gate){ h+=`<line x1="${g.gate.a.X.toFixed(1)}" y1="${g.gate.a.Y.toFixed(1)}" x2="${g.gate.b.X.toFixed(1)}" y2="${g.gate.b.Y.toFixed(1)}" stroke="#1E9E52" stroke-width="${u(8)}" stroke-linecap="round"/>`; }
   // labels on top
   g.zones.forEach(z=>{ const c=z.pts.reduce((s,p)=>({X:s.X+p.X/z.pts.length,Y:s.Y+p.Y/z.pts.length}),{X:0,Y:0}); h+=lab(c.X,c.Y,z.name,isYardName(z.name)?'#3E454B':'#B35A00'); });
@@ -2819,8 +2755,7 @@ function peSave(){
   if(g.gate){ const a=peN(g.gate.a), b=peN(g.gate.b); SITE.gate={x1:a.x,y1:a.y,x2:b.x,y2:b.y}; } else if(SITE.gate&&SITE.gate.x1!=null) SITE.gate=null;
   SITE.zones=g.zones.map(z=>{ const P=z.pts.map(peN), xs=P.map(p=>p.x), ys=P.map(p=>p.y), x=Math.min(...xs), y=Math.min(...ys);
     return {id:z.id,name:z.name,pts:P,x,y,w:+(Math.max(...xs)-x).toFixed(4),h:+(Math.max(...ys)-y).toFixed(4)}; });
-  SITE.beams=g.beams.map(b=>{ const a=peN(b.a), c=peN(b.b), o={x1:a.x,y1:a.y,x2:c.x,y2:c.y}; if(b.w) o.w=b.w; if(b.d) o.d=b.d; return o; });
-  SITE.cols=(g.cols||[]).map(c=>{ const n=peN(c.p); return {x:n.x,y:n.y,w:c.w||60,d:c.d||60}; });
+  SITE.beams=g.beams.map(b=>{ const a=peN(b.a), c=peN(b.b); return {x1:a.x,y1:a.y,x2:c.x,y2:c.y}; });
   if(!SITE.drawing.aspect) SITE.drawing.aspect=+PE.A.toFixed(4);
   peClose(); saveSite().then(()=>{ renderAll(true); }); toast('平面圖已儲存，工地動畫會照這個畫');
 }
@@ -2911,7 +2846,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=28').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=26').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -3159,7 +3094,8 @@ function bldgState(st){
   if(cf){ const L=fit&&fit.fl[cf.name]; cut={name:cf.name,z0:(cf.z0<0.5&&onBeams)?0.07:Math.max(cf.z0,0.5),h:Math.min(cf.z1-cf.z0,1.2/B.mPer),s:L?L.s:null,v:L?L.v:[],t:L?L.t:[],key:(SITE.layout&&SITE.layout.id||'')+':'+cf.name+':'+(L?1:0)}; }
   // where the foundation was dug, the 地樑 tops lie a little under ground level: the whole building sits down onto them, so the ground-floor slab rests on the beams
   const lift=onBeams?FILL_H-PIT_D:0;
-  return {F,clad,zA,top:cf?cut.z0+cut.h:top.z1,cut,fac:(fit&&fit.fac)||null,zk:1/100/B.mPer,zb:base,lift};
+  const mdl=LD&&LD.model&&Array.isArray(LD.model.parts)&&LD.model.parts.length&&B.fit&&!SITE.noModel?{id:SITE.layout.id,parts:LD.model.parts,f:B.fit.f}:null;   // SketchUp 模型 carried in the 平面配置 file
+  return {F,clad,zA,top:cf?cut.z0+cut.h:top.z1,cut,fac:(fit&&fit.fac)||null,zk:1/100/B.mPer,zb:base,lift,mdl};
 }
 // ---- 平面配置 (walls of each floor from the 完成圖 DXF, cm along A→H): loaded once, fitted onto the building footprint ----
 let LAYOUT=null, LAYOUT_LOADING=null;
@@ -3290,8 +3226,6 @@ function simBuild(r){
     r=Object.assign({date:TODAY,tasks:[]},r||{},{workers:w0,vendors:Object.assign({},(r&&r.vendors)||{},{[et]:here.map(p=>p.name).join(',')})});
   } else if(SITE&&r&&r.date!==TODAY) r=engFill(r);   // past days: who was there, if the report didn't list engineers
   const rng=rngOf((r?r.date:'x')+(SITE.name||''));
-  { const curH=(r?r.date:selDate)===TODAY?(SIM.todayHalf||nowHalf()):(SIM.half||'all');   // the half of the day on screen: a 工作事項 set to 上午／下午／晚上 shows only then
-    if(r&&curH!=='all') r=Object.assign({},r,{tasks:(r.tasks||[]).filter(t=>t.status==='next'||!taskHalf(t)||taskHalf(t)===curH)}); }
   const all=(r?r.tasks:[]);
   const tasks=all.filter(t=>t.status!=='next');
   // today: crews leave once their work is done; after 「下班」 everyone leaves and the gate closes
@@ -3433,24 +3367,17 @@ function simBuild(r){
     const TH=0.34, CH=0.23;   // beam width; half the column size (columns a little wider than the beams)
     const pick=mode=>{ let m=mode; if(m==='strip') m='form'; if(m==='rebar'&&rng()<0.3) m='form'; return m; };
     const fillOf=(z,md)=>{ if(!z) return 'empty'; if(md==='strip') return 'full'; if(/(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing+' '+z.txt)) return 'dyn'; return 'empty'; };
-    // sizes from the plan (cm) are drawn against the model's own beam (45 wide × 60 deep) and column (60 × 60)
-    const beamPiece=(ax,ay,bx,by,m,fl,zn,A)=>{ if(slabOn) return; const wk=(A&&A.wk)||1, hk=(A&&A.hk)||1, TW=TH*wk; if(zn) zn.bh=Math.max(zn.bh||0,0.56*hk);
-      if(m==='rebar') props.push({beam:true,ax,ay,bx,by,wd:TW,h:0.42*hk,col:SC.rebar,cage:true});
-      else if(m==='form'){ const st0=modeOf(zn)==='strip'; props.push({beam:true,ax,ay,bx,by,wd:TW+0.12,h:0.56*hk,col:SC.ply,ply:true,form:true,fill:fl,filled:fl==='full',zn,strip:st0,stripped:st0&&rng()<0.3}); }   // 拆模: boards come off one by one (stripStep)
-      else props.push({beam:true,ax,ay,bx,by,wd:TW,h:0.46*hk,col:m==='fresh'?SC.fresh:SC.concrete});
+    const beamPiece=(ax,ay,bx,by,m,fl,zn)=>{ if(slabOn) return;
+      if(m==='rebar') props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.42,col:SC.rebar,cage:true});
+      else if(m==='form'){ const st0=modeOf(zn)==='strip'; props.push({beam:true,ax,ay,bx,by,wd:TH+0.12,h:0.56,col:SC.ply,ply:true,form:true,fill:fl,filled:fl==='full',zn,strip:st0,stripped:st0&&rng()<0.3}); }   // 拆模: boards come off one by one (stripStep)
+      else props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.46,col:m==='fresh'?SC.fresh:SC.concrete});
     };
-    const segs=fenceClamp(beamSnap(SITE.beams.map(b=>({x1:MX(+b.x1),y1:MY(+b.y1),x2:MX(+b.x2),y2:MY(+b.y2),wk:Math.max(0.4,Math.min(2.7,(+b.w||45)/45)),hk:Math.max(0.6,Math.min(2.6,(+b.d||60)/60))})).map(g=>Object.assign(g,{len:Math.hypot(g.x2-g.x1,g.y2-g.y1)})).filter(g=>g.len>0.1),beamTL,beamTL?150*bldg.fit.k:0),BND);   // on the drawing's beam lines, and never through the fence
+    const segs=fenceClamp(beamSnap(SITE.beams.map(b=>({x1:MX(+b.x1),y1:MY(+b.y1),x2:MX(+b.x2),y2:MY(+b.y2)})).map(g=>Object.assign(g,{len:Math.hypot(g.x2-g.x1,g.y2-g.y1)})).filter(g=>g.len>0.1),beamTL,beamTL?150*bldg.fit.k:0),BND);   // on the drawing's beam lines, and never through the fence
     const cross=(A,B)=>{ const dx1=A.x2-A.x1, dy1=A.y2-A.y1, dx2=B.x2-B.x1, dy2=B.y2-B.y1, den=dx1*dy2-dy1*dx2; if(Math.abs(den)<1e-9) return null;
       const t=((B.x1-A.x1)*dy2-(B.y1-A.y1)*dx2)/den, u=((B.x1-A.x1)*dy1-(B.y1-A.y1)*dx1)/den, ta=0.25/A.len, tb=0.25/B.len;
       if(t<-ta||t>1+ta||u<-tb||u>1+tb) return null; const tc=Math.max(0,Math.min(1,t)); return {t:tc,x:A.x1+dx1*tc,y:A.y1+dy1*tc}; };
     const joints=[]; const addJ=(x,y)=>{ if(!joints.some(j=>Math.hypot(j.x-x,j.y-y)<0.3)) joints.push({x,y}); };
     segs.forEach((A,i)=>{ A.ts=[0,1]; segs.forEach((B,j)=>{ if(i===j) return; const r=cross(A,B); if(r){ A.ts.push(r.t); addJ(r.x,r.y); } }); addJ(A.x1,A.y1); addJ(A.x2,A.y2); });
-    // 柱: placed on the plan → only those stand (each at its own size); none placed → one at every joint, as before
-    const COLS=(SITE.cols||[]).length?SITE.cols.map(c=>{ let x=MX(+c.x), y=MY(+c.y); const j=joints.slice().sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y))[0]; if(j&&Math.hypot(j.x-x,j.y-y)<0.6){ x=j.x; y=j.y; }
-      return {x,y,cw:0.46*Math.max(0.4,Math.min(3.4,(+c.w||60)/60)),cd:0.46*Math.max(0.4,Math.min(3.4,(+c.d||60)/60))}; }):null;
-    const colAt=(x,y)=>COLS?COLS.find(c=>Math.hypot(c.x-x,c.y-y)<0.3):null;
-    const endE=(x,y,ux,uy,A)=>{ if(!COLS) return CH/Math.max(Math.abs(ux),Math.abs(uy)); const c=colAt(x,y); if(!c) return -TH*(A.wk||1)*0.5;   // no column there: the beams run on into each other
-      return Math.min(c.cw/2/Math.max(Math.abs(ux),1e-6),c.cd/2/Math.max(Math.abs(uy),1e-6)); };
     segs.forEach(A=>{
       const ts=A.ts.sort((p,q)=>p-q).filter((v,k,arr)=>k===0||v-arr[k-1]>0.3/A.len);
       if(ts[ts.length-1]<1) ts.push(1);
@@ -3462,11 +3389,12 @@ function simBuild(r){
           const a=t0+(t1-t0)*q/n, b=t0+(t1-t0)*(q+1)/n;
           let ax=A.x1+(A.x2-A.x1)*a, ay=A.y1+(A.y2-A.y1)*a, bx=A.x1+(A.x2-A.x1)*b, by=A.y1+(A.y2-A.y1)*b;
           // beams stop at the column faces so they meet each column squarely (and depth-sort cleanly)
-          if(q===0){ const e=endE(ax,ay,ux,uy,A); ax+=ux*e; ay+=uy*e; } if(q===n-1){ const e=endE(bx,by,ux,uy,A); bx-=ux*e; by-=uy*e; }
+          const e=CH/Math.max(Math.abs(ux),Math.abs(uy));
+          if(q===0){ ax+=ux*e; ay+=uy*e; } if(q===n-1){ bx-=ux*e; by-=uy*e; }
           if((bx-ax)*ux+(by-ay)*uy<0.05) continue;
           const mx=(ax+bx)/2, my=(ay+by)/2;
           const z=zoneAt(mx-uy*0.4,my+ux*0.4)||zoneAt(mx+uy*0.4,my-ux*0.4)||zoneAt(mx,my)||zoneNear(mx,my,0.5);
-          if(started(z)){ const md=modeOf(z); beamPiece(ax,ay,bx,by,pick(md),fillOf(z,md),z,A); }
+          if(started(z)){ const md=modeOf(z); beamPiece(ax,ay,bx,by,pick(md),fillOf(z,md),z); }
         }
       }
       const axTag=Math.abs(uy)<0.08?'h':Math.abs(ux)<0.08?'v':'d';
@@ -3475,10 +3403,10 @@ function simBuild(r){
     // 開挖: a work zone whose 地樑 have been started is dug down, so the beams sit below ground level (GL±0)
     // the dig is a little wider than the zone (0.45), so a beam drawn along the zone's edge is down in it with the rest
     const grow=(P,d)=>{ let A=0; P.forEach((p,i)=>{ const q=P[(i+1)%P.length]; A+=p.x*q.y-q.x*p.y; }); const sg=A>0?1:-1; return P.map((p,i)=>{ const a=P[(i-1+P.length)%P.length], b=P[(i+1)%P.length], l1=Math.hypot(p.x-a.x,p.y-a.y)||1, l2=Math.hypot(b.x-p.x,b.y-p.y)||1, n1={x:(p.y-a.y)/l1*sg,y:-(p.x-a.x)/l1*sg}, n2={x:(b.y-p.y)/l2*sg,y:-(b.x-p.x)/l2*sg}, k=Math.min(2,1/Math.max(0.25,1+n1.x*n2.x+n1.y*n2.y)); return {x:p.x+(n1.x+n2.x)*k*d,y:p.y+(n1.y+n2.y)*k*d}; }); };
-    zones.forEach(z=>{ if(z.beamPts&&z.beamPts.length&&started(z)&&!z.isYard&&!z.isStore&&!z.isGate){ z.pit=Math.max(PIT_D,(z.bh||0)+0.16); z.pitPts=grow(z.pts||[{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}],0.45); } });
-    if(!slabOn) (COLS||joints).forEach(j=>{ const cw=j.cw||CH*2, cd=j.cd||CH*2, hk=Math.max(1,...segs.filter(g=>segDist(j.x,j.y,g.x1,g.y1,g.x2,g.y2)<0.3).map(g=>g.hk||1)); const z=zoneAt(j.x+0.3,j.y+0.3)||zoneAt(j.x-0.3,j.y-0.3)||zoneAt(j.x+0.3,j.y-0.3)||zoneAt(j.x-0.3,j.y+0.3); if(!started(z)) return; const m=modeOf(z);
+    zones.forEach(z=>{ if(z.beamPts&&z.beamPts.length&&started(z)&&!z.isYard&&!z.isStore&&!z.isGate){ z.pit=PIT_D; z.pitPts=grow(z.pts||[{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}],0.45); } });
+    if(!slabOn) joints.forEach(j=>{ const z=zoneAt(j.x+0.3,j.y+0.3)||zoneAt(j.x-0.3,j.y-0.3)||zoneAt(j.x+0.3,j.y-0.3)||zoneAt(j.x-0.3,j.y+0.3); if(!started(z)) return; const m=modeOf(z);
       const fl=fillOf(z,m); const mm=m==='strip'?'form':m;
-      box(j.x-cw/2,j.y-cd/2,cw,cd,0.56*hk,mm==='rebar'?SC.rebar:mm==='form'?SC.ply:SC.fresh,{cage:mm==='rebar',ply:mm==='form',form:mm==='form',fill:fl,filled:fl==='full',cx:j.x,cy:j.y,zn:z,strip:m==='strip',stripped:m==='strip'&&rng()<0.3}); });
+      box(j.x-CH,j.y-CH,CH*2,CH*2,0.56,mm==='rebar'?SC.rebar:mm==='form'?SC.ply:SC.fresh,{cage:mm==='rebar',ply:mm==='form',form:mm==='form',fill:fl,filled:fl==='full',cx:j.x,cy:j.y,zn:z,strip:m==='strip',stripped:m==='strip'&&rng()<0.3}); });
   }
   // unzoned curing / pouring → apply to beam zones
   if(unz.some(t=>/養護|灑水/.test(t.text)&&t.status==='doing')) work.forEach(z=>{ if((z.beamXs||z.beamPts)&&!sprays.find(s=>s.x===z.cx)) sprays.push({x:z.cx,y:z.cy,r:Math.min(z.w,z.h)*0.45}); });
@@ -3499,7 +3427,6 @@ function simBuild(r){
     const h=todayView?SIM.todayHalf:(SIM.half||'all'); return h==='am'?f+x.am:h==='pm'?f+x.pm:h==='ng'?x.ng:f+x.am+x.pm+x.ng; };   // past days: 上午／下午 picked on the 工地 screen
   const MM={}; Object.entries(machinesOf(r)).forEach(([k,v])=>{ const n=present(k,v,true); if(n>0) MM[k]=n; }); const machN=Object.values(MM).reduce((s,v)=>s+(+v||0),0);
   const cnt=re=>Object.entries(MM).filter(([k])=>re.test(k)).reduce((s,[,v])=>s+(+v||0),0);
-  const digName=Object.keys(MM).find(k=>/怪手|挖/.test(k))||'怪手', dSz=i=>digSizeOf(r,digName,i), dSc=i=>DIG_SC[dSz(i)]||1, DS=dSc(0);   // 怪手 sizes, per unit (the first one is the one that loads the truck)
   const nCraneTruck=cnt(/吊卡/), nHaul=cnt(/卡車|土車|土方車|傾卸|砂石|貨車|未分類/)-cnt(/吊卡/)+nCraneTruck, nCrane=Object.entries(MM).filter(([k])=>/吊車|起重/.test(k)&&!/吊卡/.test(k)).reduce((s,[,v])=>s+(+v||0),0), nDig=cnt(/怪手|挖/),
         nMix=cnt(/預拌|攪拌/), nPump=cnt(/泵浦|幫浦|押送/), nSkid=cnt(/山貓/), nSmall=cnt(/堆高|鏟|高空/)-cnt(/山貓.*鏟|鏟.*山貓/), nOther=Math.max(0,machN-nHaul-nCrane-nDig-nMix-nPump-nSmall-nSkid);
   // free parking spots inside the yard (or along the road when there is no yard)
@@ -3527,24 +3454,22 @@ function simBuild(r){
     const q=innerSpots().find(p=>far(p,2.4))||innerSpots().find(p=>far(p,1.6));
     if(q){ const p={x:q.x,y:q.y}; used.push(p); return p; }
     const k=used.length+1; const p={x:gateOut.x+GT.t.x*2.6*k,y:gateOut.y+GT.t.y*2.6*k}; used.push(p); return p; };
-  const delivs=(offNow||allDone)?[]:tasks.filter(t=>isDeliv(t.text)).sort((a,b)=>(b.status==='doing')-(a.status==='doing')).map(t=>({text:t.text,mat:matOf(t.text),trade:t.trade||''}));
-  const transport=(offNow||allDone)?null:(tasks.find(t=>/運出|載出|清運|載運|運走|載走|運離|出車/.test(t.text)&&!isDeliv(t.text)) || (nHaul>0 ? tasks.find(t=>t.status==='doing'&&/拆模/.test(t.text)) : null));
+  const transport=(offNow||allDone)?null:(tasks.find(t=>/運出|載出|清運|載運|運走|載走|運離|出車/.test(t.text)) || (nHaul>0 ? tasks.find(t=>t.status==='doing'&&/拆模/.test(t.text)) : null));
   const tdir=Math.atan2(GT.t.y,GT.t.x);
   // 怪手 and 土車 on the same job (the same 工作事項, or soil to be hauled away): the 怪手 stands by a soil pile with the truck beside it, clear of the soil, and loads it bucket by bucket
   let haul=null;
-  const deliver=!transport&&delivs.length?delivs[0]:null;   // nothing to take away today, something coming in
   if(transport&&nDig>0&&nHaul>0&&(/土|砂石|廢方|棄方/.test(transport.text)||((r&&r.tasks)||[]).some(t=>t.status!=='next'&&/怪手|挖/.test(t.trade||'')&&(t.text||'').trim()===(transport.text||'').trim()))){
     // how it is done on site: the truck backs in beside the pile, the 怪手 stands square to the truck's bed, a boom's length off its side, with the pile within reach on its other hand.
     // It digs, lifts, swings a quarter turn or so, tips over the side of the bed and swings back. Neither machine stands on soil, and the two never touch
     const dSolid=(x,y)=>{ let m=1e9; soilP.forEach(o=>{ m=Math.min(m,Math.hypot(x-o.x,y-o.y)-o.r); }); props.forEach(o=>{ if(o.beam||o.mound) return; m=Math.min(m,Math.hypot(Math.max(o.x-x,0,x-o.x-o.w),Math.max(o.y-y,0,y-o.y-o.d))); }); return m; };   // the 怪手 may stand among the 地樑 (it works there anyway), but not on soil, stacks or the office
-    const digOk=(x,y)=>[[0,0],[1,0],[-1,0],[0,1],[0,-1],[0.8,0.8],[-0.8,0.8],[0.8,-0.8],[-0.8,-0.8]].every(([a,b])=>inSite(x+a*0.75*DS,y+b*0.75*DS))&&dSolid(x,y)>0.6*Math.min(1,DS+0.2);
+    const digOk=(x,y)=>[[0,0],[1,0],[-1,0],[0,1],[0,-1],[0.8,0.8],[-0.8,0.8],[0.8,-0.8],[-0.8,-0.8]].every(([a,b])=>inSite(x+a*0.75,y+b*0.75))&&dSolid(x,y)>0.6;
     const trkOk=(q,h)=>[-1.0,-0.5,0,0.5,1.0].every(k=>{ const x=q.x+h.x*k, y=q.y+h.y*k; return inSite(x,y)&&inSite(x-h.y*0.5,y+h.x*0.5)&&inSite(x+h.y*0.5,y-h.x*0.5)&&dProp(x,y)>0.44; })&&Math.hypot(q.x-GT.G.x,q.y-GT.G.y)>1.6;
     const wayIn=q=>{ const L=Math.hypot(q.x-gateIn.x,q.y-gateIn.y), n=Math.max(1,Math.ceil(L/0.3)); for(let i=0;i<=n;i++){ if(dProp(gateIn.x+(q.x-gateIn.x)*i/n,gateIn.y+(q.y-gateIn.y)*i/n)<0.48) return false; } return true; };   // a truck's width of clear ground all the way from the gate
     const seg=(a,b)=>{ const L=Math.hypot(b.x-a.x,b.y-a.y), n=Math.max(1,Math.ceil(L/0.3)); for(let i=0;i<=n;i++){ const x=a.x+(b.x-a.x)*i/n, y=a.y+(b.y-a.y)*i/n; if(!inSite(x,y)||dProp(x,y)<0.46) return false; } return true; };
     const pair=(q,needPile,ang)=>{ const h={x:Math.cos(ang),y:Math.sin(ang)}; if(!trkOk(q,h)) return null; const via={x:q.x+h.x*1.3,y:q.y+h.y*1.3}; if(!seg(gateIn,via)||!seg(via,q)) return null;   // it backs in from a point ahead of its place, so its nose ends up toward the way out
       const bed={x:q.x-h.x*0.35,y:q.y-h.y*0.35}; let out=null, od=1e9;
-      [1,-1].forEach(sd=>{ let got=false; [2.7,2.4,2.15].map(o=>digOff(o,DS)).filter((o,i,A)=>A.indexOf(o)===i).forEach(off=>{ if(got) return; const n={x:-h.y*sd,y:h.x*sd}, dg={x:bed.x+n.x*off,y:bed.y+n.y*off}; if(!digOk(dg.x,dg.y)) return;   // as far off the truck's side as the boom still reaches
-        soilP.forEach(pl=>{ const vx=pl.x-dg.x, vy=pl.y-dg.y, d=Math.hypot(vx,vy), gap=d-pl.r; if(gap<Math.max(0.9*DS,0.6)||gap>Math.max(1.8*DS,1.2)) return; const ux=vx/d, uy=vy/d; if(-(ux*n.x+uy*n.y)>0.75) return;   // the pile is not on the truck's side
+      [1,-1].forEach(sd=>{ let got=false; [2.7,2.4,2.15].forEach(off=>{ if(got) return; const n={x:-h.y*sd,y:h.x*sd}, dg={x:bed.x+n.x*off,y:bed.y+n.y*off}; if(!digOk(dg.x,dg.y)) return;   // as far off the truck's side as the boom still reaches
+        soilP.forEach(pl=>{ const vx=pl.x-dg.x, vy=pl.y-dg.y, d=Math.hypot(vx,vy), gap=d-pl.r; if(gap<0.9||gap>1.8) return; const ux=vx/d, uy=vy/d; if(-(ux*n.x+uy*n.y)>0.75) return;   // the pile is not on the truck's side
           got=true; if(gap-off<od){ od=gap-off; out={dig:{x:dg.x,y:dg.y,u:{x:ux,y:uy}},park:q,bed,via,ang,r:gap+0.6,off}; } });
         if(!got&&!needPile&&od>50-off){ od=50-off; out={dig:{x:dg.x,y:dg.y,u:{x:n.x,y:n.y}},park:q,bed,via,ang,off}; } }); });   // no pile within reach here: it digs the ground on its far side
       return out; };
@@ -3553,13 +3478,12 @@ function simBuild(r){
       for(let pass=0;pass<2&&!best;pass++) for(let yy=Math.min(...ys)+0.4; yy<Math.max(...ys); yy+=0.4) for(let xx=Math.min(...xs)+0.4; xx<Math.max(...xs); xx+=0.4){ const q={x:xx,y:yy}, d=Math.hypot(xx-gateIn.x,yy-gateIn.y); if(d>12) continue; if(yard&&pass===0&&!inZone(yard,xx,yy)) continue; for(let a=0;a<16;a++){ const c=pair(q,pass===0&&soilP.length>0,a*Math.PI/8); if(c){ const sc=d-c.off*2; if(sc<bd){ bd=sc; best=c; } } } } }   // near the gate, but room between the two machines counts for more
     { const ho=machPosOn('@haul',r?r.date:selDate);   // the pair was put somewhere by hand (dragged together in 編輯): it stays as placed
       if(ho){ const q={x:MX(+ho.x),y:MY(+ho.y)}, dg={x:MX(+ho.gx),y:MY(+ho.gy)}, h={x:Math.cos(+ho.a),y:Math.sin(+ho.a)};
-        if(inSite(q.x,q.y)&&inSite(dg.x,dg.y)){ const v1={x:q.x+h.x*1.3,y:q.y+h.y*1.3}, via=inSite(v1.x,v1.y)?v1:q, bed={x:q.x-h.x*0.35,y:q.y-h.y*0.35}; { const dd=Math.hypot(dg.x-bed.x,dg.y-bed.y)||1, t=digOff(2.4,DS); if(dd<digOff(2.15,DS)-0.25||dd>Math.max(3.2*DS,t+0.5)){ dg.x=bed.x+(dg.x-bed.x)/dd*t; dg.y=bed.y+(dg.y-bed.y)/dd*t; } }   // its size was changed since: back within the boom's reach
-          let u={x:Math.cos(+ho.ga),y:Math.sin(+ho.ga)}, rr=2;
+        if(inSite(q.x,q.y)&&inSite(dg.x,dg.y)){ const v1={x:q.x+h.x*1.3,y:q.y+h.y*1.3}, via=inSite(v1.x,v1.y)?v1:q, bed={x:q.x-h.x*0.35,y:q.y-h.y*0.35}; let u={x:Math.cos(+ho.ga),y:Math.sin(+ho.ga)}, rr=2;
           soilP.forEach(pl=>{ const vx=pl.x-dg.x, vy=pl.y-dg.y, d=Math.hypot(vx,vy), gap=d-pl.r; if(gap>0.3&&gap<2.2&&gap<rr+0.2){ u={x:vx/d,y:vy/d}; rr=gap+0.6; } });   // a pile within reach: it digs from that
           best={dig:{x:dg.x,y:dg.y,u},park:q,bed,via,ang:+ho.a,r:rr,off:2.4,manual:true}; } } }
     if(best){ haul=best; park=best.park; } }
-  if(transport||deliver){
-    const nT=deliver?Math.max(1,Math.min(2,nHaul||1,delivs.length>1?2:1)):Math.max(1,Math.min(2,nHaul||1));
+  if(transport){
+    const nT=Math.max(1,Math.min(2,nHaul||1));
     const span=GW+GH;
     for(let i=0;i<nT;i++){
       let pk=park;
@@ -3568,7 +3492,7 @@ function simBuild(r){
       // a truck that comes to take something away backs in: it drives past the gate on the road, reverses through it to its place, and afterwards pulls straight out, cab first
       const mid=haul?[haul.via]:[], P={x:gateOut.x+GT.t.x*2.6,y:gateOut.y+GT.t.y*2.6}, last=mid.length?mid[mid.length-1]:gateIn;
       const inPath=[A,P,gateOut,gateIn,...mid,pk], outPath=[...mid.slice().reverse(),gateIn,gateOut,B];
-      vehicles.push({type:'truck',crane:i<nCraneTruck||(!!deliver&&nHaul===0&&/吊卡/.test(deliver.text)),earth:!!haul,deliver:!!deliver,dl:deliver?delivs:null,trip:i,mat:deliver?delivs[i%delivs.length].mat:(haul?null:(transport&&matOf(transport.text)!=='box'?matOf(transport.text):'ply')),cargo:deliver&&!i?3:0,hang:haul?haul.ang:null,park:pk,inPath,outPath,rev:2,wp:0,x:i?A.x:pk.x,y:i?A.y:pk.y,phase:i?'away':'load',wait:i?11:7,loaded:!!deliver&&!i,hidden:i>0,dir:Math.atan2(last.y-pk.y,last.x-pk.x)});
+      vehicles.push({type:'truck',crane:i<nCraneTruck,earth:!!haul,hang:haul?haul.ang:null,park:pk,inPath,outPath,rev:2,wp:0,x:i?A.x:pk.x,y:i?A.y:pk.y,phase:i?'away':'load',wait:i?11:7,loaded:false,hidden:i>0,dir:Math.atan2(last.y-pk.y,last.x-pk.x)});
     }
     // 待運的料: what the crew brings over is set down in one stack beside the truck (never in its way); the truck loads from that stack and nothing else
     if(haul) z_loadPt=null; else { const lx=park.x-gateIn.x, ly=park.y-gateIn.y, ll=Math.hypot(lx,ly)||1, nx=-ly/ll, ny=lx/ll, wz=work, tgt=wz.length?{x:wz.reduce((s,z)=>s+z.cx,0)/wz.length,y:wz.reduce((s,z)=>s+z.cy,0)/wz.length}:{x:GW/2,y:GH/2};
@@ -3578,7 +3502,7 @@ function simBuild(r){
       const room=(q,r)=>[[0,0],[0.5,0.4],[-0.5,0.4],[0.5,-0.4],[-0.5,-0.4]].every(([a,b])=>inSite(q.x+a,q.y+b))&&dProp(q.x,q.y)>r;
       const stand=q=>[[q.x-park.x,q.y-park.y],[ux,uy],[-ux,-uy],[nx,ny],[-nx,-ny]].map(([a,b])=>{ const l=Math.hypot(a,b)||1; return {x:q.x+a/l*0.85,y:q.y+b/l*0.85}; }).find(c=>inSite(c.x,c.y)&&dProp(c.x,c.y)>0.5&&Math.hypot(c.x-park.x,c.y-park.y)>1.3);
       let q=C.find(c=>room(c,0.85)&&stand(c))||C.find(c=>room(c,0.55)&&stand(c))||C[0], sp0=stand(q)||{x:q.x+nx*sd0*0.85,y:q.y+ny*sd0*0.85};
-      drop={x:q.x-0.45,y:q.y-0.35,w:0.9,d:0.7,h:0.02,col:SC.ply,z0:0,ply:true,pile:true,n:0,mat:deliver?deliver.mat:(transport&&matOf(transport.text)!=='box'?matOf(transport.text):'ply'),mats:[]}; props.push(drop);
+      drop={x:q.x-0.45,y:q.y-0.35,w:0.9,d:0.7,h:0.02,col:SC.ply,z0:0,ply:true,pile:true,n:0}; props.push(drop);
       z_loadPt=sp0; }
   } else {
     z_loadPt=null;
@@ -3640,22 +3564,22 @@ function simBuild(r){
     const digT=((r&&r.tasks)||[]).filter(t=>t.status!=='next'&&t.zone&&/怪手|挖/.test(t.trade||'')).sort((x,y)=>(x.status==='done')-(y.status==='done'));
     const digZ=[]; digT.forEach(t=>{ const c=zonesOfTask(t); if(t.zone===ZONE_ALL){ if(c.length) digZ.push({t,z:c[Math.floor(rng()*c.length)]}); } else c.forEach(z=>digZ.push({t,z})); });
     for(let i=0;i<Math.min(2,nDig);i++){ let spot=null;
-      if(i===0&&haul){ vehicles.push({type:'digger',sc:DS,dsz:dSz(0),x:haul.dig.x,y:haul.dig.y,u:haul.dig.u,dig:true,loadTo:haul.bed,manual:!!haul.manual,digR:haul.r||2,ph:0,dir:Math.atan2(haul.dig.u.y,haul.dig.u.x)}); continue; }
+      if(i===0&&haul){ vehicles.push({type:'digger',x:haul.dig.x,y:haul.dig.y,u:haul.dig.u,dig:true,loadTo:haul.bed,manual:!!haul.manual,digR:haul.r||2,ph:0,dir:Math.atan2(haul.dig.u.y,haul.dig.u.x)}); continue; }
       const dz=digZ.length?digZ[i%digZ.length]:null;
-      if(dz){ for(const pl of piles.filter(pl=>inZone(dz.z,pl.x,pl.y))){ for(const [ux,uy] of [[-1,0],[0,-1],[1,0],[0,1]]){ const x=pl.x-ux*(pl.r+1.6*dSc(i)), y=pl.y-uy*(pl.r+1.6*dSc(i)); if(clear(x,y)){ spot={x,y,u:{x:ux,y:uy},dig:true}; break; } } if(spot) break; }
+      if(dz){ for(const pl of piles.filter(pl=>inZone(dz.z,pl.x,pl.y))){ for(const [ux,uy] of [[-1,0],[0,-1],[1,0],[0,1]]){ const x=pl.x-ux*(pl.r+1.6), y=pl.y-uy*(pl.r+1.6); if(clear(x,y)){ spot={x,y,u:{x:ux,y:uy},dig:true}; break; } } if(spot) break; }
         for(let k=0;k<30&&!spot;k++){ const q=randIn(dz.z,rng); if(clear(q.x,q.y)){ const dx=dz.z.cx-q.x, dy=dz.z.cy-q.y; spot={x:q.x,y:q.y,u:Math.abs(dx)>Math.abs(dy)?{x:Math.sign(dx)||1,y:0}:{x:0,y:Math.sign(dy)||1},dig:/挖|土|回填|整地/.test(dz.t.text||'')}; } } }
-      if(!spot) for(const pl of piles.slice(i).concat(piles.slice(0,i))){ for(const [ux,uy] of [[-1,0],[0,-1],[1,0],[0,1]]){ const x=pl.x-ux*(pl.r+1.6*dSc(i)), y=pl.y-uy*(pl.r+1.6*dSc(i)); if(clear(x,y)){ spot={x,y,u:{x:ux,y:uy},dig:true}; break; } } if(spot) break; }
+      if(!spot) for(const pl of piles.slice(i).concat(piles.slice(0,i))){ for(const [ux,uy] of [[-1,0],[0,-1],[1,0],[0,1]]){ const x=pl.x-ux*(pl.r+1.6), y=pl.y-uy*(pl.r+1.6); if(clear(x,y)){ spot={x,y,u:{x:ux,y:uy},dig:true}; break; } } if(spot) break; }
       if(!spot&&yard){ for(let k=0;k<20&&!spot;k++){ const q=randIn(yard,rng); if(clear(q.x,q.y)){ const dx=GW/2-q.x, dy=GH/2-q.y; spot=Math.abs(dx)>Math.abs(dy)?{x:q.x,y:q.y,u:{x:Math.sign(dx)||1,y:0}}:{x:q.x,y:q.y,u:{x:0,y:Math.sign(dy)||1}}; } } }
       if(!spot){ const z=work.find(z=>z.status==='doing')||work[0]; if(z){ const q=randIn(z,rng); spot={x:q.x,y:q.y,u:{x:1,y:0}}; } }
       const earth=((r&&r.tasks)||[]).some(t=>t.status==='doing'&&/怪手|挖/.test(t.trade||'')&&/挖|土|回填|整地|開挖/.test(t.text||''));
-      if(spot) vehicles.push({type:'digger',sc:dSc(i),dsz:dSz(i),x:spot.x,y:spot.y,u:spot.u,dig:!!spot.dig||earth,ph:rng()*6,dir:Math.atan2(spot.u.y,spot.u.x)}); } }
+      if(spot) vehicles.push({type:'digger',x:spot.x,y:spot.y,u:spot.u,dig:!!spot.dig||earth,ph:rng()*6,dir:Math.atan2(spot.u.y,spot.u.x)}); } }
   { const haulL=[]; Object.keys(MM).forEach(k=>{ if(/卡車|土車|土方車|傾卸|砂石|貨車|未分類/.test(k)&&!/吊卡/.test(k)) for(let i=0;i<(+MM[k]||0);i++) haulL.push(k); }); let hi=0;   // 卡車 and 土車 on the same day: each truck takes its own name, in turn
     const mkFor=v=>{ if(v.mk0) return v.mk0; if(v.type==='truck'&&!v.crane&&haulL.length) return haulL[hi++%haulL.length]; const re=v.type==='truck'?(v.crane?/吊卡/:/卡車|土車|土方車|傾卸|砂石|貨車|未分類|吊卡/):v.type==='mcrane'?/吊車|起重/:v.type==='mixer'?/預拌|攪拌/:v.type==='pump'?/泵浦|幫浦|押送/:v.type==='digger'?/怪手|挖/:v.type==='skid'?/山貓/:v.type==='small'?/堆高|鏟|高空/:/./;
       return Object.keys(MM).find(k=>re.test(k)&&!(v.type==='mcrane'&&/吊卡/.test(k)))||({truck:v.crane?'吊卡車':'卡車',mcrane:'吊車',mixer:'預拌車',pump:'押送車',digger:'怪手',skid:'山貓',small:'機具'})[v.type]; };
     vehicles.forEach(v=>{ v.mk=mkFor(v); v.vendor=((r&&r.vendors)||{})[v.mk]||''; v.count=MM[v.mk]||''; v.shift=shiftText(r||{},v.mk);
       v.job= v.type==='pump'?`泵送混凝土${pumpV&&pumpV.zone?'至'+pumpV.zone.name:''}`
            : v.type==='mixer'?(v.feeding?'將混凝土倒入押送車':'等待卸料')
-           : v.type==='truck'?(v.static?'待命':v.deliver?v.dl[v.trip%v.dl.length].text:(transport&&/模板|拆模/.test(transport.text)?'載運拆下的模板':(transport?transport.text:'載運')))
+           : v.type==='truck'?(v.static?'待命':(transport&&/模板|拆模/.test(transport.text)?'載運拆下的模板':(transport?transport.text:'載運')))
            : v.type==='mcrane'?'吊掛作業' : v.type==='digger'?(v.dig?'挖土、整理土方':'待命') : v.type==='skid'?(v.work?'搬運土方':'待命') : (SMALL_JOB[v.sk]||'作業中');
       // what the 日報 says this machine is doing wins over the generic label
       const mt=((r&&r.tasks)||[]).filter(t=>t.trade===v.mk&&t.status!=='next'&&(t.text||'').trim()).sort((x,y)=>(x.status==='done')-(y.status==='done'));
@@ -3664,7 +3588,7 @@ function simBuild(r){
     vehicles.forEach(v=>{ if(!v.mk) return; seen[v.mk]=(seen[v.mk]||0)+1; v.key=v.mk+'#'+seen[v.mk]; if(!machMovable(v)) return;
       const e=machPosOn(v.key,day); if(!e) return;
       if(v.loadTo) return;   // loading the truck: it keeps the place worked out for it beside the truck, so the two never touch — to move it, the pair is dragged together
-      v.x=MX(+e.x); v.y=MY(+e.y); if(e.a!=null) machSetAng(v,+e.a); if(e.soil&&e.a!=null){ v.dir=+e.a; v.u={x:Math.cos(+e.a),y:Math.sin(+e.a)}; if(v.type==='digger') v.dig=true; } if(v.type==='skid'){ v.stay=true; v.hx=v.x; v.hy=v.y; v.fa=e.a!=null?+e.a:null; } }); }   // a 山貓 put somewhere by hand works from there (loads where it was put), it does not run off to the 怪手
+      v.x=MX(+e.x); v.y=MY(+e.y); if(e.a!=null) machSetAng(v,+e.a); }); }
   // 合作: whoever shares one 工作事項 on the 日報 (the very same words) works together — machine with machine, crew with machine, crew with crew.
   // Machines draw up beside the one that stays put (a truck, a pump); crews gather round their machine, or, with no machine, round one spot in the task's zone
   const normT=x=>(x||'').replace(/\s+/g,''), teams={};
@@ -3672,22 +3596,11 @@ function simBuild(r){
   Object.keys(teams).forEach(k=>{ const T=teams[k]; if(T.names.size<2){ delete teams[k]; return; } T.veh=vehicles.filter(v=>v.mk&&T.names.has(v.mk)); T.veh.forEach(v=>{ v.tm=k; }); });
   { const fixed=v=>v.type==='truck'||v.type==='pump'||v.type==='mixer', day=r?r.date:selDate;
     Object.values(teams).forEach(T=>{ if(!T.veh.length) return; const A=T.veh.find(fixed)||T.veh.find(v=>v.loadTo)||T.veh[0]; T.anchor=A; const c=A.park||A; if(T.veh.length<2) return;
-      const eA=machPosOn(A.key,day); if(eA&&eA.from===day&&machMovable(A)) return;   // the one they gather round was moved by hand today: the others keep their own places
       T.veh.forEach(v=>{ if(v===A||fixed(v)||v.loadTo||v.type==='skid'||!machMovable(v)) return; const e=machPosOn(v.key,day); if(e&&e.from===day) return;   // put somewhere by hand today: it stays there
         if(Math.hypot(v.x-c.x,v.y-c.y)<4) return;
         for(let b=0;b<16;b++){ const a=b*Math.PI/8, q={x:c.x+Math.cos(a)*3,y:c.y+Math.sin(a)*3};
           if(inSite(q.x,q.y)&&inSite(q.x+0.9,q.y+0.9)&&inSite(q.x-0.9,q.y-0.9)&&inSite(q.x+0.9,q.y-0.9)&&inSite(q.x-0.9,q.y+0.9)&&dProp(q.x,q.y)>0.7&&!vehicles.some(o=>o!==v&&o!==A&&Math.hypot((o.park||o).x-q.x,(o.park||o).y-q.y)<2.4)&&Math.hypot(q.x-gateIn.x,q.y-gateIn.y)>2.5){
             v.x=q.x; v.y=q.y; v.still=true; if(v.type==='digger'){ v.u={x:-Math.cos(a),y:-Math.sin(a)}; v.dir=a+Math.PI; } else machSetAng(v,a+Math.PI); break; } } }); }); }
-  { // nothing stands in anything else: the machines that can move give way (山貓 first, then small ones, then 怪手 and 吊車); trucks, pumps and mixers keep their places
-    const tmp={vehicles}, rank=v=>v.type==='skid'?0:v.type==='small'?1:v.type==='digger'&&!v.loadTo?2:v.type==='mcrane'?3:9;
-    const okAt=(x,y)=>inSite(x,y)&&inSite(x+0.6,y+0.6)&&inSite(x-0.6,y-0.6)&&inSite(x+0.6,y-0.6)&&inSite(x-0.6,y+0.6)&&dProp(x,y)>0.5;
-    const lanes=vehicles.filter(t=>t.inPath).map(t=>t.inPath.filter(q=>inSite(q.x,q.y)));   // and off the way the trucks come in
-    const offLanes=(v,x,y)=>lanes.every(L=>{ for(let i=1;i<L.length;i++){ const a=L[i-1], b=L[i], n=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)/0.4)); for(let j=0;j<=n;j++){ const qx=a.x+(b.x-a.x)*j/n, qy=a.y+(b.y-a.y)*j/n; if(vBody(v,x,y).some(c=>Math.hypot(c.x-qx,c.y-qy)<c.r+0.85)) return false; } } return true; });
-    vehicles.filter(v=>v.type==='digger'&&v.dig&&!v.loadTo).forEach(v=>{ const a=v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0), room=sd=>{ const b=a+sd*1.55, qx=v.x+Math.cos(b)*2, qy=v.y+Math.sin(b)*2; return (inSite(qx,qy)?2:0)+Math.min(3,dProp(qx,qy))+Math.min(3,...vehicles.filter(o=>o!==v&&!o.hidden).map(o=>Math.hypot(o.x-qx,o.y-qy)),9); }; v.dumpSide=room(-1)>room(1)?-1:1; });   // the 怪手 tips its bucket on the side with room
-    vehicles.filter(v=>rank(v)<9&&!v.hidden).sort((a,b)=>rank(a)-rank(b)).forEach(v=>{
-      const hit=vehicles.some(o=>o!==v&&!vPair(v,o)&&(!o.hidden||o.park)&&vClash(vBody(v),vBodyAt(o)))||!offLanes(v,v.x,v.y); if(!hit) return;
-      const q=vFreeSpot(tmp,v,v.x,v.y,(x,y)=>okAt(x,y)&&offLanes(v,x,y))||vFreeSpot(tmp,v,v.x,v.y,okAt); if(!q) return;
-      v.x=q.x; v.y=q.y; if(v.type==='skid'){ v.hx=q.x; v.hy=q.y; } }); }
   const teamFor=(trade,text)=>{ const T=teams[normT(text)]; return T&&T.names.has(trade)?T:null; };
   // the flagger always stands out on the street, just beside the gate opening
   let sigPt=null;
@@ -3735,7 +3648,6 @@ function simBuild(r){
       else if(kind==='conc' && pumpV && !pumpV.parked){ w.role='pour'; w.pv=pumpV; w.task='管尾、震實'; w.zone=pumpV.zone||w.zone; const a=(pumpV.crew=(pumpV.crew||0)+1)*2.4; w.off={x:Math.cos(a)*(0.38+0.08*(pumpV.crew%2)),y:Math.sin(a)*(0.38+0.08*(pumpV.crew%2))}; }
       else if(willSig){ w.role='signal'; w.sig=sigPt; w.task=sigTask?sigTask.text:'指揮交通'; w.atSig=true; signaller=true; sigUsed=true; }
       else if(w.act==='pipe' && pipePt()){ w.role='pipe'; w.pipeAt=st_pipePt; w.pipe=i%2===0; }
-      else if(deliver && z_loadPt && kind!=='eng' && ((task&&task.trade===trade&&isDeliv(task.text))||(delivs.some(d=>MAT_KIND[d.mat]===kind)&&i%3===2))){ w.role='carry'; w.rev=true; if(!(task&&isDeliv(task.text))) w.task=(delivs.find(d=>MAT_KIND[d.mat]===kind)||deliver).text; }   // 進料: off the stack by the truck, over to where it is used
       else if(kind==='labor' && task && /運出|載出|清運|搬|運走|載走/.test(task.text) && z_loadPt) w.role='carry';
       else if(kind==='form' && transport && /模板|拆模/.test(transport.text) && z_loadPt && stacks.length && i%3===2){ w.role='carry'; w.task=transport.text; }
       else w.role='work';
@@ -3788,12 +3700,6 @@ function simBuild(r){
 }
 let z_loadPt=null, st_pipePt=null;
 function inZone(z,x,y){ if(z.pts) return inPolyS([x,y],z.pts.map(p=>[p.x,p.y])); return x>=z.x-0.05&&x<=z.x+z.w+0.05&&y>=z.y-0.05&&y<=z.y+z.h+0.05; }
-// 進料: a 工作事項 that says material comes in (吊卡模板進料、鋼筋進場、鋼構卸料…). The truck arrives loaded, the material is set down in a stack beside it,
-// the truck leaves empty, and the crew that uses it carries it off the stack. What the material looks like comes from the words
-function matOf(t){ t=t||''; return /模板|拆模|夾板|角材|木料|木材|木心板/.test(t)?'ply':/鋼筋|箍筋|鐵線|鋼絲網|點焊/.test(t)?'rebar':/鋼構|鋼骨|鋼樑|鋼梁|鋼柱|型鋼|鋼板|鐵件|鋼承板|C型鋼|桁架/.test(t)?'steel':/鷹架|施工架|支撐架|系統架|鋼管架|踏板/.test(t)?'scaf':/管|PVC|線槽|電纜|電線|風管/i.test(t)?'pipe':/磚|石材|大理石|花崗|空心磚|預鑄/.test(t)?'block':/水泥|砂|砂漿|石膏|防水|油漆|塗料|袋/.test(t)?'bag':/玻璃|門|窗|帷幕|隔間|矽酸鈣|石膏板|板材/.test(t)?'glass':'box'; }
-const DELIV_RE=/進料|卸料|卸貨|下料|到料|到貨|送料|送貨|交貨|吊料|進貨|材料吊運|材料進/;
-const isDeliv=t=>DELIV_RE.test(t||'')||(/進場|到場|入場/.test(t||'')&&matOf(t)!=='box');   // 「怪手進場」 is not a delivery; 「鋼筋進場」 is
-const MAT_KIND={ply:'form',rebar:'rebar',pipe:'mep'};   // whose material it is: some of that crew fetch it from the stack
 function randIn(z,rng){
   if(z.pts){ for(let i=0;i<40;i++){ const p={x:z.x+0.3+rng()*(z.w-0.6), y:z.y+0.3+rng()*(z.h-0.6)}; if(inZone(z,p.x,p.y)&&inZone(z,p.x+0.35,p.y)&&inZone(z,p.x-0.35,p.y)&&inZone(z,p.x,p.y+0.35)&&inZone(z,p.x,p.y-0.35)) return p; } return {x:z.cx,y:z.cy}; } const m=Math.min(0.45,z.w/4,z.h/4); return {x:z.x+m+rng()*(z.w-2*m), y:z.y+m+rng()*(z.h-2*m)}; }
 function pickTarget(w,zones,anyZones,rng,stacks){
@@ -3808,13 +3714,12 @@ function pickTarget(w,zones,anyZones,rng,stacks){
     else { w.tx=w.pipeAt.x+(rng()-.5)*0.7; w.ty=w.pipeAt.y+0.42+(rng()-.5)*0.15; }
     return;
   }
-  if(w.role==='carry'&&w.rev){ if(w.carry){ const z=w.zone&&!w.zone.isGate?w.zone:anyZones[0], q=z?randIn(z,rng):{x:w.x,y:w.y}; w.tx=q.x; w.ty=q.y; } else { const lp=w.loadPt; w.tx=lp.x+(rng()-.5)*0.6; w.ty=lp.y+(rng()-.5)*0.6; } return; }
   if(w.role==='carry'){
     if(w.carry){ const lp=w.loadPt; w.tx=lp.x+(rng()-.5)*0.6; w.ty=lp.y+(rng()-.5)*0.6; }
     else { const near=stacks.length?stacks[Math.floor(rng()*stacks.length)]:{x:w.zone.cx,y:w.zone.cy}; w.tx=near.x+(rng()-.5)*0.6; w.ty=near.y+0.7+(rng()-.5)*0.3; }
     return;
   }
-  if(w.mate||w.spot){ const c=w.mate?(w.mate.park||w.mate):w.spot, r0=w.mate?(w.mate.type==='digger'?1+1.5*(w.mate.sc||1):w.mate.type==='mcrane'?2.5:1.5):0.45, r1=w.mate?r0+0.9:1.6;   // clear of a swinging boom   // 合作: beside the machine, or round the crew's one spot
+  if(w.mate||w.spot){ const c=w.mate?(w.mate.park||w.mate):w.spot, r0=w.mate?(w.mate.type==='digger'||w.mate.type==='mcrane'?2.5:1.5):0.45, r1=w.mate?r0+0.9:1.6;   // clear of a swinging boom   // 合作: beside the machine, or round the crew's one spot
     for(let k=0;k<14;k++){ const a=rng()*Math.PI*2, d=r0+rng()*(r1-r0), q={x:c.x+Math.cos(a)*d,y:c.y+Math.sin(a)*d}; if(!w.okTeam||w.okTeam(q)){ w.tx=q.x; w.ty=q.y; return; } } }
   const z=w.zone;
   if(w.wash && z.beamPts && z.beamPts.length){   // hosing rebar: stand inside the site, beside a beam, spraying toward it
@@ -4523,7 +4428,7 @@ function simUpdate(dt){
       if(d>0.12){ const v=Math.min(d,(d>0.6?1.6:0.9)*dt); w.x+=dx/d*v; w.y+=dy/d*v; w.state=d>0.35?'walk':'hold'; } else w.state='hold'; return; }
     if(w.state==='walk'){
       const dx=w.tx-w.x, dy=w.ty-w.y, d=Math.hypot(dx,dy);
-      if(d<0.05){ w.state='work'; w.t=w.role==='carry'?0.8+st.rng()*0.8:w.role==='signal'?5+st.rng()*4:w.role==='pour'?1.5+st.rng()*2:2+st.rng()*4; if(w.role==='carry'&&w.rev){ if(w.carry) w.carry=false; else { const D=st.drop; if(D&&D.n>0){ D.n--; D.h=Math.max(0.02,D.n*0.07); if(D.mats) D.mats.length=Math.min(D.mats.length,D.n); w.carry=true; } } } else if(w.role==='carry'){ if(w.carry){ w.carry=false; const D=st.drop; if(D){ D.n=Math.min(10,D.n+1); D.h=Math.max(0.02,D.n*0.07); } } else { const P=st.pile; if(!P||P.n>0){ w.carry=true; if(P) P.taken++; } } }   /* one board off the 拆模 pile, one more on the stack by the truck */ if(w.role==='pipe'){ w.pipe=!w.pipe; w.t=w.pipe?0.8+st.rng()*0.6:2.5+st.rng()*2.5; } }
+      if(d<0.05){ w.state='work'; w.t=w.role==='carry'?0.8+st.rng()*0.8:w.role==='signal'?5+st.rng()*4:w.role==='pour'?1.5+st.rng()*2:2+st.rng()*4; if(w.role==='carry'){ if(w.carry){ w.carry=false; const D=st.drop; if(D){ D.n=Math.min(10,D.n+1); D.h=Math.max(0.02,D.n*0.07); } } else { const P=st.pile; if(!P||P.n>0){ w.carry=true; if(P) P.taken++; } } }   /* one board off the 拆模 pile, one more on the stack by the truck */ if(w.role==='pipe'){ w.pipe=!w.pipe; w.t=w.pipe?0.8+st.rng()*0.6:2.5+st.rng()*2.5; } }
       else {
         // not getting any closer for a while (blocked by a machine): give up and pick another spot
         if(w.bestD==null||d<w.bestD-0.05){ w.bestD=d; w.stuckT=0; } else if((w.stuckT=(w.stuckT||0)+dt)>1.5){ w.bestD=null; w.stuckT=0; w.state='work'; w.t=0.4+st.rng()*0.6; return; }
@@ -4531,7 +4436,6 @@ function simUpdate(dt){
     } else { w.t-=dt; if(w.t<=0){ pickTarget(w,st.zones,st.anyZones,st.rng,st.stacks); if(w.role==='work'&&/拆模/.test(w.task||'')&&st.rng()<0.8) stripTarget(st,w); if(climbTop(st,w.tx,w.ty)>0){ for(let k=0;k<16;k++){ const a=k*2.4, r=0.35+k*0.06, x=w.tx+Math.cos(a)*r, y=w.ty+Math.sin(a)*r; if(!climbTop(st,x,y)){ w.tx=x; w.ty=y; break; } } }   // work beside a beam, not on top of it
       w.state='walk'; w.bestD=null; w.stuckT=0; } }
   });
-  st.vehicles.forEach(v=>{ v._px=v.x; v._py=v.y; v._ph=v.hidden; v._pu=v.u; v._pd=v.dir; });
   st.vehicles.forEach(v=>{
     if(v.type==='skid'){ if(!st.lunch) skidStep(v,dt,st); return; }
     if(v.type==='mixer'&&v.cycle){ if(!st.lunch) mixerStep(v,dt); return; }
@@ -4539,12 +4443,6 @@ function simUpdate(dt){
     const busyGate=st.vehicles.some(o=>o!==v&&o.type==='truck'&&!o.static&&(o.phase==='arrive'||o.phase==='leave'));   // one truck at a time through the gate, so two never meet
     if(v.phase==='load'){ // the truck takes only what is in the stack beside it: the 吊卡 lifts it on a bundle at a time, and it leaves when it is full
       const D=st.drop; v.loadT=(v.loadT||0)+dt; v.cargo=v.cargo||0;
-      if(v.deliver){ // 進料: a bundle at a time off the bed onto the stack beside it; empty, it drives off and the next load comes
-        if(v.lift){ if(SIM.clock-v.lift.t0>=3.3){ v.lift=null; if(D){ D.mats=D.mats||[]; for(let k=0;k<2&&D.n<10;k++){ D.mats[D.n]=v.mat; D.n++; } } } }
-        else if(v.cargo>0&&!st.lunch&&(!D||D.n<=8)){ v.cargo--; v.lift={t0:SIM.clock,h:D?D.h:0.1,out:true}; }
-        if(D&&!st.lunch&&!st.workers.some(w=>w.rev)&&D.n>=6){ if((v.autoT=(v.autoT||0)+dt)>5){ v.autoT=0; D.n--; } }   // no crew listed to fetch it: it still gets used up
-        if(D){ D.h=Math.max(0.02,D.n*0.07); if(D.mats) D.mats.length=Math.min(D.mats.length,D.n); }
-        v.loaded=v.cargo>0; if(!v.lift&&(v.cargo<=0||v.loadT>90)){ v.phase='leave'; v.wp=0; v.loadT=0; } return; }
       if(v.earth){ const CY=9; if(!st.lunch&&st.vehicles.some(o=>o.loadTo)){ v.eT=(v.eT||0)+dt; if(v.eT>=CY*0.64&&!v.eD){ v.eD=true; v.cargo++; v.loaded=true; }   // the bucket tips at this point of the 怪手's round (animVehicle)
           if(v.eT>=CY){ v.eT=0; v.eD=false; if(v.cargo>=3){ v.phase='leave'; v.wp=0; v.loadT=0; } } }
         if(v.loadT>120){ v.phase='leave'; v.wp=0; v.loadT=0; v.eT=0; v.eD=false; } return; }
@@ -4553,7 +4451,7 @@ function simUpdate(dt){
       else if(D&&D.n>=2&&v.cargo<3&&!st.lunch){ D.n-=2; v.lift={t0:SIM.clock,h:D.h}; }
       if(D) D.h=Math.max(0.02,D.n*0.07);
       if(!v.lift&&(v.cargo>=3||v.loadT>60)){ v.phase='leave'; v.wp=0; v.loadT=0; } return; }
-    if(v.phase==='away'){ v.wait-=dt; if(v.wait<=0&&st.vehicles.some(o=>o!==v&&o.type==='truck'&&!o.static&&o.phase!=='away')) v.wait=1.5; if(v.wait<=0){ v.x=v.inPath[0].x; v.y=v.inPath[0].y; v.loaded=false; v.cargo=0; v.lift=null; if(v.deliver){ v.trip=(v.trip||0)+(st.vehicles.filter(o=>o.deliver).length); v.mat=v.dl[v.trip%v.dl.length].mat; v.job=v.dl[v.trip%v.dl.length].text; v.cargo=3; v.loaded=true; } v.phase='arrive'; v.wp=1; } else { v.hidden=true; return; } }
+    if(v.phase==='away'){ v.wait-=dt; if(v.wait<=0&&st.vehicles.some(o=>o!==v&&o.type==='truck'&&!o.static&&o.phase!=='away')) v.wait=1.5; if(v.wait<=0){ v.x=v.inPath[0].x; v.y=v.inPath[0].y; v.loaded=false; v.cargo=0; v.lift=null; v.phase='arrive'; v.wp=1; } else { v.hidden=true; return; } }
     const path=v.phase==='arrive'?v.inPath:v.outPath; const target=path[Math.min(v.wp,path.length-1)];
     const dx=target.x-v.x, dy=target.y-v.y, d=Math.hypot(dx,dy);
     if(d<0.05){ v.wp++; if(v.wp>=path.length){ if(v.phase==='arrive'){ v.phase='load'; v.wait=10; } else { v.phase='away'; v.wait=4; v.hidden=true; } } return; }
@@ -4561,11 +4459,6 @@ function simUpdate(dt){
     const sp=(back?0.95:v.phase==='arrive'&&v.wp>=path.length-2?1.1:1.7)*dt; v.x+=dx/d*Math.min(sp,d); v.y+=dy/d*Math.min(sp,d); v.dir=back?Math.atan2(-dy,-dx):Math.atan2(dy,dx);
     v.hidden = v.x<-2.2||v.x>GW+2.2||v.y<-2.2||v.y>GH+2.2;
   });
-  // a machine that would run into another stops where it was and waits (the 山貓 finds another way, see skidStep)
-  { const V=st.vehicles.filter(v=>!v.hidden);
-    const pen=(v,B)=>V.reduce((m,o)=>o===v||vPair(v,o)?m:Math.max(m,vPen(B,vBody(o),0.05)),0);
-    V.forEach(v=>{ if(v._ph||(v.x===v._px&&v.y===v._py&&v.u===v._pu&&v.dir===v._pd)) return; const now=pen(v,vBody(v)); if(now<=0) return;
-      const a0=v._pu?Math.atan2(v._pu.y,v._pu.x):(v._pd||0), was=pen(v,vBody(v,v._px,v._py,a0)); if(now>=was-1e-6){ v.x=v._px; v.y=v._py; v.u=v._pu; v.dir=v._pd; } }); }   // moving or turning into another is undone; moving out of an overlap is allowed
   if(st.dog) dogStep(st.dog,dt,st);
   if(!st.lunch) stripStep(st,dt);
   // dust kicked up behind anything driving (not in the rain)
@@ -4575,28 +4468,11 @@ function simUpdate(dt){
 }
 // people never stand in or walk through a machine: each machine keeps a small clear area (its body, and the 怪手's bucket);
 // anyone inside is eased out to its edge, and a walking target inside is moved out too
-// every machine is solid: its body as a few circles (site units). A digging 怪手 creeps back and forth (sim3d), so all of that stretch counts
-function vBody(v,x,y,a){ x=x==null?v.x:x; y=y==null?v.y:y; if(a==null) a=v.type==='truck'&&v.hidden&&v.hang!=null?v.hang:v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0); const ux=Math.cos(a), uy=Math.sin(a), o=[];
-  if(v.type==='digger'){ const k=v.sc||1; o.push({x,y,r:1.2*k}); if(!v.loadTo){ o.push({x:x+ux*1.9*k,y:y+uy*1.9*k,r:0.6*k}); if(v.dig){ const b=a+(v.dumpSide||1)*1.55; o.push({x:x+Math.cos(b)*1.9*k,y:y+Math.sin(b)*1.9*k,r:0.6*k}); } } }   // its arm reaches out in front and swings to the dump side
-  else if(v.type==='truck'||v.type==='mixer'||v.type==='pump') [-0.9,0,0.9].forEach(k=>o.push({x:x+ux*k,y:y+uy*k,r:0.72}));
-  else if(v.type==='skid'){ o.push({x,y,r:0.72}); o.push({x:x+ux*0.8,y:y+uy*0.8,r:0.5}); }
-  else if(v.type==='mcrane') o.push({x,y,r:1.0});
-  else o.push({x,y,r:0.72});
-  return o; }
-const vPair=(a,b)=>(a.feeding&&a.feeding===b)||(b.feeding&&b.feeding===a)||(a.loadTo&&b.earth)||(b.loadTo&&a.earth);   // a 預拌車 backed up to its pump, a 怪手 loading its 土車: they meet on purpose
-function vPen(A,B,gap){ let m=0; for(const p of A) for(const q of B){ m=Math.max(m,p.r+q.r+gap-Math.hypot(p.x-q.x,p.y-q.y)); } return m; }   // how far two bodies overlap (0 = clear)
-function vClash(A,B,gap){ gap=gap==null?0.15:gap; for(const p of A) for(const q of B){ if(Math.hypot(p.x-q.x,p.y-q.y)<p.r+q.r+gap) return true; } return false; }
-const vBodyAt=o=>o.hidden&&o.park?vBody(o,o.park.x,o.park.y):vBody(o);   // a truck still on its way counts where it will stand
-// where a machine would stand clear of all the others (nearest first); null if nowhere near
-function vFreeSpot(st,v,x,y,ok,a){ const OB=st.vehicles.filter(o=>o!==v&&!vPair(v,o)&&(!o.hidden||o.park)).map(vBodyAt), free=(qx,qy)=>(!ok||ok(qx,qy))&&OB.every(B=>!vClash(vBody(v,qx,qy,a),B));
-  if(free(x,y)) return {x,y};
-  for(let r=0.3;r<7;r+=0.3){ const n=Math.max(8,Math.round(r*10)); for(let k=0;k<n;k++){ const t=k/n*Math.PI*2, qx=x+Math.cos(t)*r, qy=y+Math.sin(t)*r; if(free(qx,qy)) return {x:qx,y:qy}; } }
-  return null; }
 function machZones(st){ const out=[];
   st.vehicles.forEach(v=>{ if(v.hidden) return;
     const a=v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0), ux=Math.cos(a), uy=Math.sin(a);
     // the 怪手's area covers the whole stretch it creeps along, so it never moves into someone standing beside it
-    if(v.type==='digger'){ const c=v.sc||1; out.push({x:v.x,y:v.y,r:0.45+1.2*c,dig:true}); out.push({x:v.x+ux*1.95*c,y:v.y+uy*1.95*c,r:0.25+0.6*c,dig:true}); if(v.dig&&!v.loadTo){ const b=a+(v.dumpSide||1)*1.55; out.push({x:v.x+Math.cos(b)*1.95*c,y:v.y+Math.sin(b)*1.95*c,r:0.25+0.6*c,dig:true}); } }   // people keep clear of the body and of where the arm reaches and swings
+    if(v.type==='digger'){ (v.dig?[-0.75,0,0.75]:[0]).forEach(k=>{ out.push({x:v.x+ux*k,y:v.y+uy*k,r:1.65,dig:true}); out.push({x:v.x+ux*(k+1.95),y:v.y+uy*(k+1.95),r:0.85,dig:true}); }); }
     else if(v.type==='truck'||v.type==='mixer'||v.type==='pump'){ [-0.75,0,0.75].forEach(o=>out.push({x:v.x+ux*o,y:v.y+uy*o,r:0.9})); }
     else if(v.type==='mcrane') out.push({x:v.x,y:v.y,r:0.95});
     else if(v.type==='skid'){ out.push({x:v.x,y:v.y,r:0.95}); const u=v.u||{x:1,y:0}; out.push({x:v.x+u.x*0.85,y:v.y+u.y*0.85,r:0.7}); }
@@ -4610,32 +4486,30 @@ function skidStep(v,dt,st){
   const setDir=(dx,dy)=>{ if(Math.abs(dx)+Math.abs(dy)<1e-4) return; const ax=Math.abs(dx)>=Math.abs(dy); v.u=ax?{x:Math.sign(dx),y:0}:{x:0,y:Math.sign(dy)}; v.dir=Math.atan2(v.u.y,v.u.x); };
   // the 山貓 (body + bucket ≈ 0.95) never enters any 怪手's working area, anywhere along its route
   const DZ=machZones(st).filter(z=>z.dig), free=q=>DZ.every(z=>Math.hypot(q.x-z.x,q.y-z.y)>z.r+1.0);
-  const lineFree=(P,Q)=>{ const L=Math.hypot(Q.x-P.x,Q.y-P.y), n=Math.max(1,Math.ceil(L/0.25)); for(let i=0;i<=n;i++){ const q={x:P.x+(Q.x-P.x)*i/n,y:P.y+(Q.y-P.y)*i/n}; if(v.stay&&Math.hypot(q.x-v.hx,q.y-v.hy)<1.6) continue; if(!free(q)||!v.ok(q)) return false; } return true; };   // put there by hand: it may pull away from its own spot even if that is close to something
-  if(!v.run){ // load beside the nearest 怪手's bucket (else at its own spot); put somewhere by hand: it loads right there
-    let A=v.stay?{x:v.hx,y:v.hy}:null, best=1e9;
-    if(!A) digs.forEach(d=>{ const u=d.u||{x:1,y:0}, n={x:-u.y,y:u.x}; [1,-1].forEach(sg=>[2.6,3.0,3.4].forEach(off=>[2.0,2.6,1.2].forEach(fw=>{ const q={x:d.x+u.x*fw+n.x*sg*off,y:d.y+u.y*fw+n.y*sg*off}; const dd=Math.hypot(q.x-v.hx,q.y-v.hy)+off*0.5; if(v.ok(q)&&free(q)&&dd<best&&!st.vehicles.some(o=>o!==v&&!o.hidden&&vClash(vBody(v,q.x,q.y),vBodyAt(o),0.25))){ best=dd; A=q; } }))); });
-    if(!A){ for(let k=0;k<60&&!A;k++){ const a=st.rng()*Math.PI*2, d=k*0.08, q={x:v.hx+Math.cos(a)*d,y:v.hy+Math.sin(a)*d}; if(v.ok(q)&&free(q)&&!st.vehicles.some(o=>o!==v&&!o.hidden&&vClash(vBody(v,q.x,q.y),vBodyAt(o),0.25))) A=q; } }
+  const lineFree=(P,Q)=>{ const L=Math.hypot(Q.x-P.x,Q.y-P.y), n=Math.max(1,Math.ceil(L/0.25)); for(let i=0;i<=n;i++){ const q={x:P.x+(Q.x-P.x)*i/n,y:P.y+(Q.y-P.y)*i/n}; if(!free(q)||!v.ok(q)) return false; } return true; };
+  if(!v.run){ // load beside the nearest 怪手's bucket (else at its own spot)
+    let A=null, best=1e9;
+    digs.forEach(d=>{ const u=d.u||{x:1,y:0}, n={x:-u.y,y:u.x}; [1,-1].forEach(sg=>[2.6,3.0,3.4].forEach(off=>[2.0,2.6,1.2].forEach(fw=>{ const q={x:d.x+u.x*fw+n.x*sg*off,y:d.y+u.y*fw+n.y*sg*off}; const dd=Math.hypot(q.x-v.hx,q.y-v.hy)+off*0.5; if(v.ok(q)&&free(q)&&dd<best){ best=dd; A=q; } }))); });
+    if(!A){ for(let k=0;k<60&&!A;k++){ const a=st.rng()*Math.PI*2, d=k*0.08, q={x:v.hx+Math.cos(a)*d,y:v.hy+Math.sin(a)*d}; if(v.ok(q)&&free(q)) A=q; } }
     if(!A){ v.work=false; return; }   // no room to work: park
     v.run={A,phase:'load',t:1.4+st.rng()*0.6,path:[],i:0}; v.x=A.x; v.y=A.y; v.loaded=false; }
   const R=v.run;
-  const pickB=()=>{ for(let k=0;k<30;k++){ const a=st.rng()*Math.PI*2, d=2.4+st.rng()*2.8, q={x:R.A.x+Math.cos(a)*d,y:R.A.y+Math.sin(a)*d}, cor={x:q.x,y:R.A.y}; if(st.vehicles.some(o=>o!==v&&!o.hidden&&vClash(vBody(v,q.x,q.y),vBody(o),0.3))) continue;
+  const pickB=()=>{ for(let k=0;k<30;k++){ const a=st.rng()*Math.PI*2, d=2.4+st.rng()*2.8, q={x:R.A.x+Math.cos(a)*d,y:R.A.y+Math.sin(a)*d}, cor={x:q.x,y:R.A.y};
       if(lineFree(R.A,cor)&&lineFree(cor,q)) return [cor,q];
       const cor2={x:R.A.x,y:q.y}; if(lineFree(R.A,cor2)&&lineFree(cor2,q)) return [cor2,q]; } return [{x:R.A.x,y:R.A.y}]; };
-  if(R.phase==='load'){ if(v.stay&&v.fa!=null){ v.dir=v.fa; v.u={x:Math.cos(v.fa),y:Math.sin(v.fa)}; } ease('bz',0.04,4); R.t-=dt; if(R.t<0.6) v.loaded=true; if(R.t<=0){ R.path=pickB(); R.i=0; R.phase='go'; } return; }
+  if(R.phase==='load'){ ease('bz',0.04,4); R.t-=dt; if(R.t<0.6) v.loaded=true; if(R.t<=0){ R.path=pickB(); R.i=0; R.phase='go'; } return; }
   if(R.phase==='dump'){ ease('bz',1.0,3); R.t-=dt; if(R.t<0.5) v.loaded=false; if(R.t<=0){ R.path=R.path.slice(0,-1).reverse().concat([{x:R.A.x,y:R.A.y}]); R.i=0; R.phase='back'; } return; }
   // driving: bucket carried mid-height when loaded, low when empty; stop for anyone standing just ahead
   ease('bz',v.loaded?0.45:0.18,3);
   const tg=R.path[R.i]; if(!tg){ R.phase=R.phase==='go'?'dump':'load'; R.t=R.phase==='dump'?1.3:1.4+st.rng()*0.6; return; }
   const dx=tg.x-v.x, dy=tg.y-v.y, d=Math.hypot(dx,dy); setDir(dx,dy);
-  const nx=v.x+dx/Math.max(d,1e-6)*Math.min(d,0.5), ny=v.y+dy/Math.max(d,1e-6)*Math.min(d,0.5), NB=vBody(v,nx,ny);
-  const ahead=st.workers.some(w=>{ const ox=w.x-v.x, oy=w.y-v.y, fw=ox*v.u.x+oy*v.u.y, side=Math.abs(ox*v.u.y-oy*v.u.x); return fw>0.2&&fw<1.5&&side<0.75; })||st.vehicles.some(o=>o!==v&&!o.hidden&&vClash(NB,vBody(o),0.1));
-  if(ahead){ R.wait=(R.wait||0)+dt; R.blk=(R.blk||0)+dt; if(R.blk>5&&R.phase==='back'&&!v.stay){ v.run=null; return; }   // still can't get back after a while: load somewhere else
-    if(R.wait<1.6) return;   // waited long enough: someone is standing there, go another way
+  const ahead=st.workers.some(w=>{ const ox=w.x-v.x, oy=w.y-v.y, fw=ox*v.u.x+oy*v.u.y, side=Math.abs(ox*v.u.y-oy*v.u.x); return fw>0.2&&fw<1.5&&side<0.75; });
+  if(ahead){ R.wait=(R.wait||0)+dt; if(R.wait<1.6) return;   // waited long enough: someone is standing there, go another way
     R.wait=0; const here={x:v.x,y:v.y};
     if(R.phase==='go'){ const P=pickB(), q=P[P.length-1], c1={x:here.x,y:q.y}, c2={x:q.x,y:here.y}; R.path=lineFree(here,c1)&&lineFree(c1,q)?[c1,q]:lineFree(here,c2)&&lineFree(c2,q)?[c2,q]:R.path; }
     else { const c1={x:here.x,y:R.A.y}, c2={x:R.A.x,y:here.y}; R.path=lineFree(here,c1)&&lineFree(c1,R.A)?[c1,{x:R.A.x,y:R.A.y}]:lineFree(here,c2)&&lineFree(c2,R.A)?[c2,{x:R.A.x,y:R.A.y}]:R.path; }
     R.i=0; return; }
-  R.wait=0; R.blk=0;
+  R.wait=0;
   const sp=1.15*dt; if(d<=sp){ v.x=tg.x; v.y=tg.y; R.i++; } else { v.x+=dx/d*sp; v.y+=dy/d*sp; }
 }
 // nobody on the crews walks out past the fence (only the 交通指揮 粗工 at his post outside the gate): anyone outside is put back just inside
@@ -4980,91 +4854,20 @@ function drawTree(c,q,t){
     c.fillStyle='rgba(255,255,255,.35)'; c.beginPath(); c.arc(cx-r*0.3,cy-r*0.52,r*0.12,0,Math.PI*2); c.fill();
   }
 }
-// 怪手 sizes (by operating weight): 微型 ≤1 t, 小型 1–6 t, 中型 6–20 t, 大型 20 t+. Drawn to scale against the 中型 (the model's own size).
-// Kept on the 日報 per machine name, one code per unit: r.msize={怪手:'m,s'}; a name that says its size (小怪手、微型怪手) sets the default
-const DIG_SIZES=[['xs','微型','微'],['s','小型','小'],['m','中型','中'],['l','大型','大']], DIG_SC={xs:0.6,s:0.82,m:1.1,l:1.38};
-const isDigName=k=>/怪手|挖/.test(k||'');
-function digSizeOf(r,k,i){ const c=(((r&&r.msize)||{})[k]||'').split(',')[i]; if(DIG_SC[c]) return c; return /微型|迷你/.test(k||'')?'xs':/小/.test(k||'')?'s':/大/.test(k||'')?'l':'m'; }
-const digSizeName=c=>(DIG_SIZES.find(x=>x[0]===c)||DIG_SIZES[2])[1];
-const digOff=(o,sc)=>Math.max(o*sc,0.75+0.9*sc);   // how far off the truck's bed a 怪手 of that size stands
-function digSzHTML(k){ const n=Math.min(4,headsOf(splitD(k,true))); if(!n) return '';
-  return Array.from({length:n},(_,i)=>{ const cur=digSizeOf(draft,k,i); return `<div class="dszr"><span class="sl">${n>1?'第 '+(i+1)+' 台':'尺寸'}</span><span class="seg" role="radiogroup" aria-label="${esc(k)}${n>1?' 第 '+(i+1)+' 台':''} 尺寸">${DIG_SIZES.map(([c,l])=>`<button type="button" role="radio" data-dz="${i}" data-dv="${c}" aria-pressed="${cur===c}">${l}</button>`).join('')}</span></div>`; }).join(''); }
-async function islDigSize(mv,code){ const r0=REPORTS[selDate], k=mv.mk, i=Math.max(0,(+(String(mv.key).split('#')[1])||1)-1); if(!r0){ toast('這一天還沒有日報'); return; }
-  const rep=JSON.parse(JSON.stringify(r0)), n=Math.max(i+1,Math.min(4,+((rep.machines||{})[k])||1)), L=Array.from({length:n},(_,j)=>digSizeOf(rep,k,j)); if(L[i]===code) return; L[i]=code; rep.msize=Object.assign({},rep.msize||{}); rep.msize[k]=L.join(',');
-  islSnap();
-  try{ await saveReport(rep); REPORTS[rep.date]=JSON.parse(JSON.stringify(rep)); if(draft&&draft.date===rep.date&&!draftDirty) draft=null; SIM.key=null; islSetDay(selDate,true); islEditBar(); }
-  catch(e){ toast(writeFailed(e)); } }
 // machines placed by hand in 編輯 (only the ones that stand still)
 const machMovable=v=>v.type==='digger'||v.type==='small'||v.type==='skid'||v.type==='mcrane'||!!v.static||!!v.parked||(v.type==='mixer'&&!v.cycle);
 function machPosOn(key,day){ const L=((SITE&&SITE.mpos)||{})[key]; if(!Array.isArray(L)) return null; return L.filter(e=>!e.from||e.from<=day).sort((a,b)=>(a.from||'').localeCompare(b.from||'')).pop()||null; }
 function machAng(v){ return v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0); }
 function machSetAng(v,a){ const q=Math.round(a/(Math.PI/2))*(Math.PI/2); v.dir=q; v.u={x:Math.round(Math.cos(q)),y:Math.round(Math.sin(q))}; }
 // machines working together are moved together: the 怪手 and the truck it loads, or the machines sharing one 工作事項
-function machHaul(v){ const V=(SIM.st&&SIM.st.vehicles)||[]; if(!(v.loadTo||(v.earth&&v.type==='truck'))) return null; const dg=V.find(o=>o.loadTo), tr=v.earth?v:V.find(o=>o.earth&&o.type==='truck'&&!o.hidden)||V.find(o=>o.earth&&o.type==='truck'); return dg&&tr?{dg,tr}:null; }
-// the 怪手 and its 土車 are moved one at a time; only when the one moved ends up out of the boom's reach (or on top of the other) is the other brought beside it
-function haulPlace(dg,tr,stay){ const st=SIM.st, B=(st.BND||[]).map(q=>[q.x,q.y]), ins=p=>!B.length||inPolyS([p.x,p.y],B); let q=tr.park||{x:tr.x,y:tr.y}, ang=tr.hang!=null?tr.hang:(tr.dir||0), g={x:dg.x,y:dg.y}; const HO=digOff(2.4,dg.sc||1);
-  const h={x:Math.cos(ang),y:Math.sin(ang)}; let bed={x:q.x-h.x*0.35,y:q.y-h.y*0.35};
-  if(stay===tr){ const n={x:-h.y,y:h.x}, sd=((g.x-bed.x)*n.x+(g.y-bed.y)*n.y)>=0?1:-1; g={x:bed.x+n.x*HO*sd,y:bed.y+n.y*HO*sd}; if(!ins(g)) g={x:bed.x-n.x*HO*sd,y:bed.y-n.y*HO*sd}; }
-  else if(stay===dg){ let c=null;
-    for(let k=0;k<16&&!c;k++){ const a=Math.atan2(q.y-g.y,q.x-g.x)+(k%2?1:-1)*Math.ceil(k/2)*Math.PI/8, n={x:Math.cos(a),y:Math.sin(a)}, b2={x:g.x+n.x*HO,y:g.y+n.y*HO}, hh={x:-n.y,y:n.x}, qq={x:b2.x+hh.x*0.35,y:b2.y+hh.y*0.35};
-      if(ins(qq)&&ins({x:qq.x+hh.x*1.3,y:qq.y+hh.y*1.3})&&ins({x:qq.x-hh.x*1.3,y:qq.y-hh.y*1.3})) c={q:qq,bed:b2,ang:Math.atan2(hh.y,hh.x)}; }
-    if(!c) return null; q=c.q; bed=c.bed; ang=c.ang; }
-  if(!ins(q)||!ins(g)) return null; const A=st.toN(q.x,q.y), G=st.toN(g.x,g.y);
-  return {from:selDate,x:A.x,y:A.y,a:+ang.toFixed(3),gx:G.x,gy:G.y,ga:+Math.atan2(g.y-bed.y,g.x-bed.x).toFixed(3)}; }
-function haulDrop(P,v){ const q=P.tr.park||P.tr, ang=P.tr.hang!=null?P.tr.hang:(P.tr.dir||0), bed={x:q.x-Math.cos(ang)*0.35,y:q.y-Math.sin(ang)*0.35}, d=Math.hypot(P.dg.x-bed.x,P.dg.y-bed.y), ks=P.dg.sc||1, ok=d>=digOff(2.15,ks)-0.25&&d<=Math.max(3.2*ks,digOff(2.4,ks)+0.5);
-  const e=haulPlace(P.dg,P.tr,ok?null:v); if(ISL.edit) islSnap();
-  if(e){ SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos['@haul']||[]).filter(x=>x.from!==selDate); L.push(e); SITE.mpos['@haul']=L; saveSite(); if(!ok) toast(v===P.dg?'離土車太遠（或太近）裝不到，土車停到怪手旁邊':'怪手搆不到車斗，怪手靠到土車旁邊'); }
-  else toast('這裡放不下，位置沒有變');
-  try{ simMount(REPORTS[selDate]||null); }catch(err){ console.error(err); } }
-function machGroup(v){ return [v]; }   // 編輯: one machine at a time (Danny: dragging one must never move the others)
+function machGroup(v){ const V=(SIM.st&&SIM.st.vehicles)||[]; if(v.loadTo||v.earth){ const g=V.filter(o=>o.loadTo||(o.earth&&o.type==='truck')); if(g.length>1) return g; } if(v.tm){ const g=V.filter(o=>o.tm===v.tm&&machMovable(o)); if(g.length>1&&g.includes(v)) return g; } return [v]; }
 function machGroupSave(G){ const st=SIM.st, dg=G.find(o=>o.loadTo), tr=G.find(o=>o.earth&&o.type==='truck');
   if(dg&&tr){ if(ISL.edit) islSnap(); const a=st.toN(tr.park.x,tr.park.y), b=st.toN(dg.x,dg.y); SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos['@haul']||[]).filter(e=>e.from!==selDate);
     L.push({from:selDate,x:a.x,y:a.y,a:+(tr.hang!=null?tr.hang:(tr.dir||0)).toFixed(3),gx:b.x,gy:b.y,ga:+machAng(dg).toFixed(3)}); SITE.mpos['@haul']=L; saveSite(); try{ simMount(REPORTS[selDate]||null); }catch(e){ console.error(e); } return; }
   G.forEach(o=>{ if(machMovable(o)) machSave(o); }); }
-// 合作 by hand (編輯): something dropped on something else — machine on machine, crew on machine, crew on crew
-const teamKey=x=>(x||'').replace(/\s+/g,'');
-function crewAt(sx,sy){ const st=SIM.st; if(!st) return null; let best=null, bd=1e9;
-  st.workers.forEach(w=>{ if(w.inside||w.sx==null) return; const d=Math.hypot(w.sx-sx,w.sy-sy); if(d<Math.max(18,w.sr||0)&&d<bd){ bd=d; best=w; } }); crewAt.d=bd; return best; }
-function teamTarget(x,y,name,skip){ const st=SIM.st; if(!st) return null; let best=null, bd=1;
-  st.vehicles.forEach(v=>{ if(v.hidden||!v.mk||v.mk===name||(Array.isArray(skip)&&skip.includes(v))) return; const d=Math.hypot(v.x-x,v.y-y)/2.4; if(d<bd){ bd=d; best={name:v.mk,v}; } });
-  st.workers.forEach(w=>{ if(w.inside||!w.trade||w.trade===name||w===skip) return; const d=Math.hypot(w.x-x,w.y-y)/1.3; if(d<bd){ bd=d; best={name:w.trade,w}; } }); return best; }
-function soilNear(x,y){ const st=SIM.st; if(!st||!st.toG) return null; let best=null, bd=1e9;
-  (SITE.soil||[]).forEach(q=>{ if(!soilOn(q,selDate)) return; const g=st.toG(+q.x,+q.y), r=SOIL_R[q.s]||SOIL_R.m, d=Math.hypot(g.x-x,g.y-y)-r; if(d<0.5&&d<bd){ bd=d; best={x:g.x,y:g.y,r}; } }); return best; }
-// 土方合作: the machine draws up at the pile's edge, facing it, and its 工作事項 says so
-async function soilJoin(v,pl,text){ const st=SIM.st, r0=REPORTS[selDate], B=(st.BND||[]).map(q=>[q.x,q.y]), ins=p=>!B.length||inPolyS([p.x,p.y],B);
-  const a0=Math.atan2(v.y-pl.y,v.x-pl.x), R=pl.r+(v.type==='digger'?1.3*(v.sc||1):1.0); let at=null;
-  for(let k=0;k<16&&!at;k++){ const a=a0+(k%2?1:-1)*Math.ceil(k/2)*Math.PI/8, q={x:pl.x+Math.cos(a)*R,y:pl.y+Math.sin(a)*R}; if(ins(q)&&ins({x:q.x+0.8,y:q.y})&&ins({x:q.x-0.8,y:q.y})&&ins({x:q.x,y:q.y+0.8})&&ins({x:q.x,y:q.y-0.8})&&!st.vehicles.some(o=>o!==v&&!vPair(v,o)&&(!o.hidden||o.park)&&vClash(vBody(v,q.x,q.y,a+Math.PI),vBodyAt(o),0.2))) at={q,a:a+Math.PI}; }
-  if(!at){ toast('這堆土方旁邊沒有位置可以停'); return; }
-  islSnap(); const n=st.toN(at.q.x,at.q.y); SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos[v.key]||[]).filter(e=>e.from!==selDate); L.push({from:selDate,x:n.x,y:n.y,a:+at.a.toFixed(3),soil:1}); SITE.mpos[v.key]=L; saveSite();
-  try{ if(r0&&text&&!(r0.tasks||[]).some(t=>t.status!=='next'&&t.trade===v.mk&&teamKey(t.text)===teamKey(text))){ const rep=JSON.parse(JSON.stringify(r0)); rep.tasks=rep.tasks||[]; rep.tasks.push({id:uid(),text,zone:'',status:'doing',trade:v.mk});
-      await saveReport(rep); REPORTS[rep.date]=JSON.parse(JSON.stringify(rep)); if(draft&&draft.date===rep.date&&!draftDirty) draft=null; }
-    ISL.machSel=null; toast(`「${v.mk}」到土方旁邊作業`); SIM.key=null; islSetDay(selDate,true); islEditBar(); }
-  catch(e){ toast(writeFailed(e)); } }
-function teamAsk(a,b,ctx){ ctx=ctx||{}; const r0=REPORTS[selDate], sh=$('#teamSheet'); if(!r0||!sh){ toast('這一天還沒有日報，沒辦法設定合作'); return; }
-  const own=n=>(r0.tasks||[]).filter(t=>t.status!=='next'&&t.trade===n&&teamKey(t.text)), ta=own(a), tb=ctx.soil?[]:own(b);
-  if(!ctx.soil&&ta.some(t=>tb.some(u=>teamKey(u.text)===teamKey(t.text)))){ toast(`「${a}」和「${b}」已經在一起合作了`); return; }
-  const src=tb.find(t=>t.status==='doing')||tb[0]||ta.find(t=>t.status==='doing')||ta[0]||null;
-  $('#tmWho').innerHTML=ctx.soil?`讓「<b>${esc(a)}</b>」和這堆<b>土方</b>一起合作嗎？`:`讓「<b>${esc(a)}</b>」和「<b>${esc(b)}</b>」一起合作嗎？`; $('#tmText').value=src?src.text:ctx.soil?'挖土、整理土方':''; $('#tmMsg').textContent=ctx.soil?`機具會停到這堆土方旁邊作業，工作事項會寫進 ${fmtShort(selDate)} 的日報。`:`會寫進 ${fmtShort(selDate)} 的日報：兩邊的工作事項相同，動畫就會一起做。`;
-  const close=()=>{ sh.hidden=true; }; sh.querySelectorAll('[data-tmclose]').forEach(x=>x.onclick=close);
-  $('#tmOk').onclick=()=>{ const text=$('#tmText').value.trim(); if(!text){ $('#tmMsg').textContent='請填一起做的工作事項'; $('#tmText').focus(); return; } close(); if(ctx.soil) soilJoin(ctx.a,ctx.soil,text); else teamJoin(a,b,text,src?src.zone||'':'',ctx); };
-  sh.hidden=false; }
-async function teamJoin(a,b,text,zone,ctx){ ctx=ctx||{}; const r0=REPORTS[selDate]; if(!r0) return; const rep=JSON.parse(JSON.stringify(r0)), k=teamKey(text); rep.tasks=rep.tasks||[];
-  [a,b].forEach(n=>{ if(rep.tasks.some(t=>t.status!=='next'&&t.trade===n&&teamKey(t.text)===k)) return; const t={id:uid(),text,zone:zone||'',status:'doing',trade:n}, i=rep.tasks.findIndex(x=>x.trade===n&&x.status!=='next');
-    if(i<0) rep.tasks.push(t); else rep.tasks.splice(i,0,t); });   // ahead of their other work, so it is what the animation shows
-  islSnap();
-  { const M=Object.assign({},SITE.mpos||{}); let ch=false;   // placed by hand today: let go, so the two draw up beside each other
-    Object.keys(M).forEach(key=>{ const n=key.replace(/#\d+$/,''); if((n!==a&&n!==b)||!Array.isArray(M[key])) return; const L=M[key].filter(e=>e.from!==selDate); if(L.length!==M[key].length){ M[key]=L; ch=true; } });
-    // 怪手 with a 土車: the one dropped on stays where it is and the other draws up beside it (not sent off to a place by the gate)
-    const P=[ctx.a,ctx.b], dg=P.find(v=>v&&v.type==='digger'), tr=P.find(v=>v&&v.type==='truck'), st=SIM.st;
-    if(dg&&tr&&st&&st.toN){ const e=haulPlace(dg,tr,ctx.b===tr?tr:dg); if(e){ const L=(M['@haul']||[]).filter(x=>x.from!==selDate); L.push(e); M['@haul']=L; ch=true; } }
-    if(ch){ SITE.mpos=M; saveSite(); } }
-  try{ await saveReport(rep); REPORTS[rep.date]=JSON.parse(JSON.stringify(rep)); if(draft&&draft.date===rep.date&&!draftDirty) draft=null;
-    ISL.machSel=null; toast(`「${a}」和「${b}」一起做「${text}」，已寫進 ${fmtShort(rep.date)} 的日報`); SIM.key=null; islSetDay(selDate,true); islEditBar(); }
-  catch(e){ toast(writeFailed(e)); } }
 function machAt(sx,sy){ const st=SIM.st; if(!st) return null; let best=null, bd=1e9;
-  st.vehicles.forEach(v=>{ if(v.hidden||!v.key) return; const q=SP(v.x,v.y,0.5+(v.z||0)), d=Math.hypot(q[0]-sx,q[1]-sy); if(d<Math.max(26,SIM.S*1.1)&&d<bd){ bd=d; best=v; } }); machAt.d=bd; return best; }
-function machSave(v){ if(ISL.edit) islSnap();
-  { const B=(SIM.st.BND||[]).map(q=>[q.x,q.y]), ins=(x,y)=>!B.length||[[0,0],[0.6,0.6],[-0.6,-0.6],[0.6,-0.6],[-0.6,0.6]].every(([a,b])=>inPolyS([x+a,y+b],B)); const q=vFreeSpot(SIM.st,v,v.x,v.y,ins); if(q&&(q.x!==v.x||q.y!==v.y)){ v.x=q.x; v.y=q.y; toast('碰到別的機具了，往旁邊挪一點'); if(SIM.paused) simDraw(); } } if(v.type==='skid'){ v.hx=v.x; v.hy=v.y; v.run=null; v.stay=true; v.fa=machAng(v); } const n=SIM.st.toN(v.x,v.y); SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos[v.key]||[]).filter(e=>e.from!==selDate); L.push({from:selDate,x:n.x,y:n.y,a:+machAng(v).toFixed(3)}); SITE.mpos[v.key]=L; saveSite(); }
+  st.vehicles.forEach(v=>{ if(v.hidden||!v.key) return; const q=SP(v.x,v.y,0.5+(v.z||0)), d=Math.hypot(q[0]-sx,q[1]-sy); if(d<Math.max(26,SIM.S*1.1)&&d<bd){ bd=d; best=v; } }); return best; }
+function machSave(v){ if(ISL.edit) islSnap(); if(v.type==='skid'){ v.hx=v.x; v.hy=v.y; v.run=null; } const n=SIM.st.toN(v.x,v.y); SITE.mpos=Object.assign({},SITE.mpos||{}); const L=(SITE.mpos[v.key]||[]).filter(e=>e.from!==selDate); L.push({from:selDate,x:n.x,y:n.y,a:+machAng(v).toFixed(3)}); SITE.mpos[v.key]=L; saveSite(); }
 // 土方: piles placed by hand on the 工地 page (SITE.soil, plan coords 0–1); they show from the day added
 const SOIL_R={s:1.0,m:1.5,l:2.2};
 function soilOn(p,day){ return (!p.from||p.from<=day)&&(!p.to||day<p.to); }
@@ -5072,41 +4875,7 @@ function soilProps(st){ if(!st||!st.toG) return; st.props=st.props.filter(o=>!o.
   ((SITE&&SITE.soil)||[]).forEach(p=>{ if(!soilOn(p,st.date)) return; const g=st.toG(+p.x,+p.y); st.props.push({mound:true,soil:true,id:p.id,x:g.x,y:g.y,r:SOIL_R[p.s]||SOIL_R.m}); }); }
 // 回填: a beam cell filled flat. Stored as the tapped point (SITE.fills); the cell is worked out from the beams each time
 const FILL_H=0.46;   // level with the top of the beams
-// 回填 anywhere in the dig that the beams (and the sides of the dig) close off, whatever its shape — a narrow strip along the edge, an L round a corner:
-// flood out from the tap over a fine grid, stopped by beams, the edge of the excavation and the fence, then trace the outline of what was reached
-function fillFlood(st,px,py){ if(!st.pitAt||!(st.pitAt(px,py)>0)) return null; const H=0.07, segs=[]; st.props.forEach(o=>{ if(o.beam) segs.push([o.ax,o.ay,o.bx,o.by,(o.wd||0.34)/2]); });   // (column heads do not stop it: a strip runs on past them)
-  const B=(st.BND||[]).map(p=>[p.x,p.y]);
-  const blocked=(x,y)=>{ if(!(st.pitAt(x,y)>0)) return true; if(B.length>2&&!inPolyS([x,y],B)) return true;
-    for(const g of segs){ const ex=g[2]-g[0], ey=g[3]-g[1], L=Math.hypot(ex,ey)||1, e=0.3/L, t=Math.max(-e,Math.min(1+e,((x-g[0])*ex+(y-g[1])*ey)/(L*L))); if(Math.hypot(x-g[0]-ex*t,y-g[1]-ey*t)<g[4]+0.02) return true; } return false; };
-  if(blocked(px,py)) return null;
-  const key=(i,j)=>i*100003+j, seen=new Map(), Q=[[0,0]]; seen.set(key(0,0),[0,0]); let n=0;
-  while(Q.length){ const [i,j]=Q.pop(); if(++n>40000) return null;   // runs on and on: not closed off
-    [[1,0],[-1,0],[0,1],[0,-1]].forEach(([a,b])=>{ const k=key(i+a,j+b); if(seen.has(k)) return; if(blocked(px+(i+a)*H,py+(j+b)*H)) return; seen.set(k,[i+a,j+b]); Q.push([i+a,j+b]); }); }
-  if(n<6) return null;
-  // outline: every cell side that faces a cell not reached, joined end to end (reached cells kept on the left), the longest loop wins
-  const E=new Map(), ck=(i,j)=>i+','+j; seen.forEach(([i,j])=>{ const has=(a,b)=>seen.has(key(i+a,j+b));
-    if(!has(0,-1)) E.set(ck(i,j),[i+1,j]); if(!has(1,0)) E.set(ck(i+1,j),[i+1,j+1]); if(!has(0,1)) E.set(ck(i+1,j+1),[i,j+1]); if(!has(-1,0)) E.set(ck(i,j+1),[i,j]); });
-  const used=new Set(), loops=[];
-  E.forEach((to,k0)=>{ if(used.has(k0)) return; const loop=[]; let k=k0, guard=0; while(E.has(k)&&!used.has(k)&&guard++<80000){ used.add(k); const c=k.split(',').map(Number); loop.push(c); k=ck(E.get(k)[0],E.get(k)[1]); } if(loop.length>=4) loops.push(loop); });
-  if(!loops.length) return null;
-  const dp=(A,eps)=>{ if(A.length<3) return A; let md=0, mi=0; const a=A[0], b=A[A.length-1], L=Math.hypot(b.x-a.x,b.y-a.y)||1e-9; for(let i=1;i<A.length-1;i++){ const d=Math.abs((A[i].x-a.x)*(b.y-a.y)-(A[i].y-a.y)*(b.x-a.x))/L; if(d>md){ md=d; mi=i; } } return md>eps?dp(A.slice(0,mi+1),eps).slice(0,-1).concat(dp(A.slice(mi),eps)):[a,b]; };
-  // corners only; the stair steps a slanted beam leaves are smoothed (Douglas–Peucker on the closed outline)
-  const tidy=loop=>{ let P=loop.map(([i,j])=>({x:px+(i-0.5)*H,y:py+(j-0.5)*H})); P=P.filter((p,i)=>{ const a=P[(i-1+P.length)%P.length], b=P[(i+1)%P.length]; return Math.abs((p.x-a.x)*(b.y-p.y)-(p.y-a.y)*(b.x-p.x))>1e-9; });
-    if(P.length>8){ let fi=0, fd=-1; P.forEach((p,i)=>{ const d=Math.hypot(p.x-P[0].x,p.y-P[0].y); if(d>fd){ fd=d; fi=i; } }); P=dp(P.slice(0,fi+1),H*0.75).slice(0,-1).concat(dp(P.slice(fi).concat([P[0]]),H*0.75).slice(0,-1)); } return P; };
-  const areaOf=P=>{ let a=0; P.forEach((q,i)=>{ const c=P[(i+1)%P.length]; a+=q.x*c.y-c.x*q.y; }); return a/2; };
-  const L2=loops.map(tidy).filter(P=>P.length>=3).sort((a,b)=>Math.abs(areaOf(b))-Math.abs(areaOf(a))); if(!L2.length) return null;
-  // a strip that runs right round (the outline has holes: the beam grid inside it): each hole is joined to the outline by a slit, so it stays one polygon
-  let P=L2[0]; L2.slice(1).forEach(Hh=>{ if(Math.abs(areaOf(Hh))<0.05) return; let bi=0, bj=0, bd=1e9; P.forEach((a,i)=>Hh.forEach((b,j)=>{ const d=Math.hypot(a.x-b.x,a.y-b.y); if(d<bd){ bd=d; bi=i; bj=j; } }));
-    P=P.slice(0,bi+1).concat(Hh.slice(bj),Hh.slice(0,bj+1),P.slice(bi)); });
-  return P.length>=3?P:null; }
-function fillCell(st,px,py){ return fillCell0(st,px,py)||fillFlood(st,px,py); }
-function fillCell0(st,px,py){ const segs=[]; st.props.forEach(o=>{ if(o.beam) segs.push([o.ax,o.ay,o.bx,o.by,(o.wd||0.34)/2]); }); if(!segs.length) return null;
-  // the edge of the excavation bounds a cell too: the strip between the outermost 地樑 and the side of the dig can be backfilled (Danny, Nov 2026).
-  // Only the outer edge counts — where one zone's dig opens into the next there is no wall
-  if(st.pitAt&&st.pitAt(px,py)>0){ const Z=(st.zones||[]).filter(z=>z.pit&&z.pitPts&&z.pitPts.length>2);
-    Z.forEach(z=>{ const P=z.pitPts; P.forEach((a,i)=>{ const b=P[(i+1)%P.length], L=Math.hypot(b.x-a.x,b.y-a.y), n=Math.max(1,Math.ceil(L/0.5));
-      for(let k=0;k<n;k++){ const x1=a.x+(b.x-a.x)*k/n, y1=a.y+(b.y-a.y)*k/n, x2=a.x+(b.x-a.x)*(k+1)/n, y2=a.y+(b.y-a.y)*(k+1)/n, mx=(x1+x2)/2, my=(y1+y2)/2;
-        if(Z.some(o=>o!==z&&inPolyS([mx,my],o.pitPts.map(q=>[q.x,q.y])))) continue; const g=[x1,y1,x2,y2,0]; g.pit=true; segs.push(g); } }); }); }
+function fillCell(st,px,py){ const segs=[]; st.props.forEach(o=>{ if(o.beam) segs.push([o.ax,o.ay,o.bx,o.by,(o.wd||0.34)/2]); }); if(!segs.length) return null;
   const B=st.BND||[]; if(B.length>2&&!inPolyS([px,py],B.map(p=>[p.x,p.y]))) return null;
   // a tap on a beam or on a column (the gap where beam pieces meet) is not inside any cell
   if(segs.some(g=>{ const ex=g[2]-g[0], ey=g[3]-g[1], L=Math.hypot(ex,ey)||1, e=0.32/L; const t=Math.max(-e,Math.min(1+e,((px-g[0])*ex+(py-g[1])*ey)/(L*L))); return Math.hypot(px-g[0]-ex*t,py-g[1]-ey*t)<g[4]+0.06; })) return null;
@@ -5125,7 +4894,7 @@ function fillCell0(st,px,py){ const segs=[]; st.props.forEach(o=>{ if(o.beam) se
     poly=out; };
   hit.forEach(i=>{ const g=segs[i]; clip(g[0],g[1],g[2],g[3],g[4]); });   // stop at the inner face of each beam
   if(poly.length<3) return null;
-  if(segs.some(g=>!g.pit&&inPolyS([(g[0]+g[2])/2,(g[1]+g[3])/2],poly))) return null;   // swallowed a beam: the cell is not closed here
+  if(segs.some(g=>inPolyS([(g[0]+g[2])/2,(g[1]+g[3])/2],poly))) return null;   // swallowed a beam: the cell is not closed here
   let ar=0; for(let j=0;j<poly.length;j++){ const A=poly[j], C=poly[(j+1)%poly.length]; ar+=A[0]*C[1]-C[0]*A[1]; } if(Math.abs(ar)/2>GW*GH*0.35||Math.abs(ar)/2<0.02) return null;
   return poly.map(q=>({x:q[0],y:q[1]})); }
 if(location.protocol==='file:') window.__gd={machZones:st=>machZones(st),segsOf:st=>{ const segs=[]; st.props.forEach(o=>{ if(o.beam) segs.push([o.ax,o.ay,o.bx,o.by,(o.wd||0.34)/2]); }); return segs; },fillCell:(...a)=>fillCell(...a),SIM:()=>SIM,simGround:(...a)=>simGround(...a),SP:(...a)=>SP(...a),FILL_H};
@@ -5176,7 +4945,7 @@ function setSimBtns(){ const zb=document.getElementById('simZoom'), pb=document.
   if(pb){ pb.innerHTML=SIM.paused?ICO.play:ICO.pause; pb.setAttribute('aria-label',SIM.paused?'播放動畫':'暫停動畫'); } }
 function simMount(r){
   const cv=document.getElementById('sim'); if(!cv) return;
-  const key=CUR+"|"+nowHalf()+"|"+JSON.stringify((r&&r.tasks||[]).map(t=>t.half||""))+"|"+JSON.stringify(wxAuto(r?r.date:selDate)||0)+"|"+(SIM.half||'all')+"|"+(SIM.todayHalf||'')+"|"+gateState()+"|"+todayPunches().map(p=>p.id+(p.out?'o':'i')).join(',')+"|"+(r?punchesOn(r.date).map(p=>p.id+(p.out||'')).join(',')+'|':'')+(r?r.date+'|'+(r.at||'')+'|'+JSON.stringify(r.workers)+'|'+r.tasks.length:'none')+'|'+JSON.stringify(SITE.zones||[])+JSON.stringify(SITE.beams||[])+JSON.stringify(SITE.cols||[])+JSON.stringify(SITE.gate||{})+JSON.stringify(SITE.boundary||{})+JSON.stringify(SITE.office||{})+((SITE.drawing&&SITE.drawing.id)||'')+'|'+(layoutData()?((SITE.layout&&SITE.layout.id)||'L'):'')+'|'+JSON.stringify((SITE.mpos||{})['@haul']||0);
+  const key=CUR+"|"+JSON.stringify(wxAuto(r?r.date:selDate)||0)+"|"+(SIM.half||'all')+"|"+(SIM.todayHalf||'')+"|"+gateState()+"|"+todayPunches().map(p=>p.id+(p.out?'o':'i')).join(',')+"|"+(r?punchesOn(r.date).map(p=>p.id+(p.out||'')).join(',')+'|':'')+(r?r.date+'|'+(r.at||'')+'|'+JSON.stringify(r.workers)+'|'+r.tasks.length:'none')+'|'+JSON.stringify(SITE.zones||[])+JSON.stringify(SITE.beams||[])+JSON.stringify(SITE.gate||{})+JSON.stringify(SITE.boundary||{})+JSON.stringify(SITE.office||{})+((SITE.drawing&&SITE.drawing.id)||'')+'|'+(layoutData()?((SITE.layout&&SITE.layout.id)||'L'):'')+'|'+JSON.stringify((SITE.mpos||{})['@haul']||0);
   if(key!==SIM.key){ SIM.st=simBuild(r); SIM.key=key; SIM.selZone=null; } else { soilProps(SIM.st); fillsBuild(SIM.st); }
   rotCentre(SIM.st); setRot(SIM.rot||0); rotBtn();
   SIM.cv=cv; SIM.ctx=cv.getContext('2d'); g3Mount();
@@ -5189,25 +4958,22 @@ function simMount(r){
   const pts=new Map(); let drag=null, pinch=null, lastTap=0;
   cv.style.touchAction='none';
   const loc=e=>{ const b=cv.getBoundingClientRect(); return fsRot()?[e.clientY-b.top,b.right-e.clientX]:[e.clientX-b.left,e.clientY-b.top]; };   // the page may be turned a quarter turn (橫向全螢幕)
-  let sdrag=null, mdrag=null, rdrag=null, wdrag=null;
+  let sdrag=null, mdrag=null, rdrag=null;
   cv.onpointerdown=e=>{ try{cv.setPointerCapture(e.pointerId);}catch(_){}
     // 電腦：按住 Shift＋滑鼠左鍵左右拖曳 = 旋轉工地
     if(e.shiftKey&&e.pointerType==='mouse'&&e.button===0&&pts.size===0){ const p=loc(e); rdrag={x:p[0],rot:SIM.rot||0}; cv.style.cursor='ew-resize'; return; }
-    if(ISL.edit&&ISL.mode!=='fill'&&pts.size===0){ const p=loc(e), m=machAt(p[0],p[1]), wn=m&&crewAt(p[0],p[1]);
-      if(m&&!(wn&&crewAt.d<machAt.d)){ const g=simGround(p[0],p[1]); const G=machGroup(m); mdrag={v:m,G,haul:machHaul(m),g0:{x:g.x,y:g.y},o:G.map(o=>({x:o.x,y:o.y,px:o.park?o.park.x:0,py:o.park?o.park.y:0,lx:o.loadTo?o.loadTo.x:0,ly:o.loadTo?o.loadTo.y:0})),dx:m.x-g.x,dy:m.y-g.y,x:p[0],y:p[1],moved:false,fixed:!machMovable(m)&&G.length<2&&!machHaul(m)}; ISL.machSel=m.key; ISL.soilSel=null; islEditBar(); if(SIM.paused) simDraw(); return; } }
+    if(ISL.edit&&ISL.mode!=='fill'&&pts.size===0){ const p=loc(e), m=machAt(p[0],p[1]);
+      if(m){ const g=simGround(p[0],p[1]); const G=machGroup(m); mdrag={v:m,G,g0:{x:g.x,y:g.y},o:G.map(o=>({x:o.x,y:o.y,px:o.park?o.park.x:0,py:o.park?o.park.y:0,lx:o.loadTo?o.loadTo.x:0,ly:o.loadTo?o.loadTo.y:0})),dx:m.x-g.x,dy:m.y-g.y,x:p[0],y:p[1],moved:false,fixed:!machMovable(m)&&G.length<2}; ISL.machSel=m.key; ISL.soilSel=null; islEditBar(); if(SIM.paused) simDraw(); return; } }
     if(ISL.edit&&ISL.mode!=='fill'&&pts.size===0){ const p=loc(e), o=soilAt(p[0],p[1]); if(o){ ISL.machSel=null; const g=simGround(p[0],p[1]); sdrag={o,dx:o.x-g.x,dy:o.y-g.y,x:p[0],y:p[1],moved:false}; ISL.soilSel=o.id; islEditBar(); if(SIM.paused) simDraw(); return; } }
-    if(ISL.edit&&ISL.mode!=='fill'&&pts.size===0){ const p=loc(e), w=crewAt(p[0],p[1]); if(w){ const g=simGround(p[0],p[1]); wdrag={w,ox:w.x,oy:w.y,dx:w.x-g.x,dy:w.y-g.y,x:p[0],y:p[1],moved:false}; ISL.machSel=null; ISL.soilSel=null; islEditBar(); return; } }   // a crew is picked up only to be dropped on who it works with
     pts.set(e.pointerId,loc(e));
     if(pts.size===1){ const p=loc(e); drag={x:p[0],y:p[1],px:SIM.panX||0,py:SIM.panY||0,moved:false}; }
     if(pts.size===2){ const [a,b]=[...pts.values()]; pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])||1,z:SIM.zoom||1,mx:(a[0]+b[0])/2,my:(a[1]+b[1])/2,ang:Math.atan2(b[1]-a[1],b[0]-a[0]),rot:SIM.rot||0,rotOn:false}; drag=null; } };
   cv.onpointermove=e=>{ if(rdrag){ const p=loc(e); setRot(rdrag.rot-(p[0]-rdrag.x)*0.008); rotBtn(); if(SIM.paused) simDraw(); return; }
-    if(mdrag){ const p=loc(e); if(!mdrag.moved&&Math.hypot(p[0]-mdrag.x,p[1]-mdrag.y)<4) return; mdrag.moved=true; const g=simGround(p[0],p[1]), nx=g.x+mdrag.dx, ny=g.y+mdrag.dy, B=(SIM.st.BND||[]).map(q=>[q.x,q.y]);
+    if(mdrag){ const p=loc(e); if(!mdrag.moved&&Math.hypot(p[0]-mdrag.x,p[1]-mdrag.y)<4) return; mdrag.moved=true; if(mdrag.fixed) return; const g=simGround(p[0],p[1]), nx=g.x+mdrag.dx, ny=g.y+mdrag.dy, B=(SIM.st.BND||[]).map(q=>[q.x,q.y]);
       if(mdrag.G.length>1){ const ex=g.x-mdrag.g0.x, ey=g.y-mdrag.g0.y;   // the whole group moves as one, and only where every one of them stays inside the fence
         if(!B.length||mdrag.o.every((o,i)=>inPolyS([(mdrag.G[i].park?o.px:o.x)+ex,(mdrag.G[i].park?o.py:o.y)+ey],B))) mdrag.G.forEach((v,i)=>{ const o=mdrag.o[i]; if(v.park){ v.park={x:o.px+ex,y:o.py+ey}; if(v.phase==='load'){ v.x=v.park.x; v.y=v.park.y; } } else { v.x=o.x+ex; v.y=o.y+ey; } if(v.loadTo) v.loadTo={x:o.lx+ex,y:o.ly+ey}; });
         if(SIM.paused) simDraw(); return; }
-      if(!B.length||inPolyS([nx,ny],B)){ mdrag.v.x=nx; mdrag.v.y=ny; if(mdrag.haul&&mdrag.v.park) mdrag.v.park={x:nx,y:ny}; } if(SIM.paused) simDraw(); return; }
-    if(wdrag){ const p=loc(e); if(!wdrag.moved&&Math.hypot(p[0]-wdrag.x,p[1]-wdrag.y)<4) return; wdrag.moved=true; const g=simGround(p[0],p[1]), nx=g.x+wdrag.dx, ny=g.y+wdrag.dy, B=(SIM.st.BND||[]).map(q=>[q.x,q.y]);
-      if(!B.length||inPolyS([nx,ny],B)){ wdrag.w.x=nx; wdrag.w.y=ny; } if(SIM.paused) simDraw(); return; }
+      if(!B.length||inPolyS([nx,ny],B)){ mdrag.v.x=nx; mdrag.v.y=ny; } if(SIM.paused) simDraw(); return; }
     if(sdrag){ const p=loc(e); if(!sdrag.moved&&Math.hypot(p[0]-sdrag.x,p[1]-sdrag.y)<4) return; sdrag.moved=true; const g=simGround(p[0],p[1]);
       { const nx=g.x+sdrag.dx, ny=g.y+sdrag.dy, B=(SIM.st.BND||[]).map(q=>[q.x,q.y]); if(!B.length||inPolyS([nx,ny],B)){ sdrag.o.x=nx; sdrag.o.y=ny; } } if(SIM.paused) simDraw(); return; }
     if(!pts.has(e.pointerId)) return; pts.set(e.pointerId,loc(e));
@@ -5221,29 +4987,20 @@ function simMount(r){
     if(drag){ const p=loc(e), dx=p[0]-drag.x, dy=p[1]-drag.y; if(Math.hypot(dx,dy)>6) drag.moved=true;
       if(drag.moved){ SIM.panX=drag.px+dx; SIM.panY=drag.py+dy; SIM.userZoom=true; simView(); if(SIM.paused) simDraw(); } } };
   const up=e=>{ if(rdrag){ rdrag=null; cv.style.cursor=''; if(Math.abs(SIM.rot||0)<0.07){ setRot(0); rotBtn(); if(SIM.paused) simDraw(); } return; }
-    if(mdrag){ const d=mdrag; mdrag=null; if(!d.moved) return;
-      if(d.haul){ haulDrop(d.haul,d.v); return; }
-      if(d.G.length<2){ const t=teamTarget(d.v.x,d.v.y,d.v.mk,[d.v]);   // dropped on another machine or a crew: work together?
-        const mate=t&&t.v&&d.v.tm&&t.v.tm===d.v.tm;   // dropped by a machine it already works with: just stays there
-        if(mate&&!d.fixed){ machSave(d.v); return; }
-        const drop={x:d.v.x,y:d.v.y}, so=!t&&!d.fixed?soilNear(drop.x,drop.y):null;
-        if(t||so||d.fixed){ d.v.x=d.o[0].x; d.v.y=d.o[0].y; if(SIM.paused) simDraw(); if(t) teamAsk(d.v.mk,t.name,{a:d.v,b:t.v,drop}); else if(so) teamAsk(d.v.mk,null,{a:d.v,soil:so}); else toast('這台在跑車，位置跟著動畫走；拖到別台機具或工班上可以設定一起合作'); return; }
-        machSave(d.v); return; }
-      machGroupSave(d.G); return; }
-    if(wdrag){ const d=wdrag; wdrag=null; if(!d.moved){ toast('把工人拖到機具或別的工班上，可以設定一起合作'); return; } const t=teamTarget(d.w.x,d.w.y,d.w.trade,d.w); d.w.x=d.ox; d.w.y=d.oy; if(SIM.paused) simDraw(); if(t) teamAsk(d.w.trade,t.name); return; }
+    if(mdrag){ const d=mdrag; mdrag=null; if(d.moved&&!d.fixed){ if(d.G.length>1) machGroupSave(d.G); else machSave(d.v); } return; }
     if(sdrag){ const d=sdrag; sdrag=null; if(d.moved){ const n=SIM.st.toN(d.o.x,d.o.y), it=(SITE.soil||[]).find(x=>x.id===d.o.id); if(it){ islSnap(); it.x=n.x; it.y=n.y; saveSite(); } } return; }
     const wasPinch=!!pinch; pts.delete(e.pointerId); if(pts.size<2){ if(pinch&&pinch.rotOn&&Math.abs(SIM.rot)<0.07){ setRot(0); rotBtn(); if(SIM.paused) simDraw(); } pinch=null; }
     if(pts.size===1 && wasPinch){ const p=[...pts.values()][0]; drag={x:p[0],y:p[1],px:SIM.panX,py:SIM.panY,moved:true}; return; }
     if(pts.size===0){ const d=drag; drag=null; if(wasPinch||!d||d.moved) return;
       const now=Date.now(); if(!ISL.edit&&now-lastTap<300){ lastTap=0; SIM.userZoom=false; setRot(0); rotBtn(); simAutoView(); simDraw(); return; } lastTap=now; if(ISL.edit){ ISL.machSel=null; if(ISL.mode==='fill'){ const b=cv.getBoundingClientRect(); islToggleFill(e.clientX-b.left,e.clientY-b.top); return; } ISL.soilSel=null; islEditBar(); if(SIM.paused) simDraw(); return; } simClick(e); } };
-  cv.onpointerup=up; cv.onpointercancel=e=>{ if(rdrag){ rdrag=null; cv.style.cursor=''; return; } if(mdrag){ const d=mdrag; mdrag=null; if(d.haul){ try{ simMount(REPORTS[selDate]||null); }catch(_){} } else if(d.G.length<2){ d.v.x=d.o[0].x; d.v.y=d.o[0].y; } return; } if(wdrag){ wdrag.w.x=wdrag.ox; wdrag.w.y=wdrag.oy; wdrag=null; return; } if(sdrag){ sdrag=null; return; } pts.delete(e.pointerId); pinch=null; drag=null; };
+  cv.onpointerup=up; cv.onpointercancel=e=>{ if(rdrag){ rdrag=null; cv.style.cursor=''; return; } if(mdrag){ mdrag=null; return; } if(sdrag){ sdrag=null; return; } pts.delete(e.pointerId); pinch=null; drag=null; };
   cv.onwheel=e=>{ e.preventDefault(); if(e.shiftKey||e.altKey){ setRot((SIM.rot||0)+(e.deltaY||e.deltaX)*0.004); rotBtn(); if(SIM.paused) simDraw(); return; } const p=loc(e); simZoomAt(p[0],p[1],(SIM.zoom||1)*Math.exp(-e.deltaY*0.0016)); SIM.userZoom=true; if(SIM.paused) simDraw(); };
   function simClick(e){
     const [x,y]=loc(e); const st=SIM.st;
     let best=null,bd=1e9; st.workers.forEach(w=>{ const d=Math.hypot(w.sx-x,w.sy-y); if(d<Math.max(16,w.sr)&&d<bd){bd=d;best=w;} });
     let html='';
     if(!best){ let bv=null,vd=1e9; st.vehicles.forEach(v=>{ if(v.hidden) return; const q=SP(v.x,v.y,0.55), d=Math.hypot(q[0]-x,q[1]-y); if(d<Math.max(26,SIM.S*1.1)&&d<vd){vd=d;bv=v;} });
-      if(bv){ html=`<b>${esc(bv.mk||'')}${bv.type==='digger'&&bv.dsz?'・'+digSizeName(bv.dsz):''}${bv.vendor?'（'+esc(bv.vendor)+'）':''}</b>${bv.count?' × '+fmtN(bv.count)+' 台':''}${bv.shift?' · '+esc(bv.shift):''}<br>${esc(bv.job||'')}`; } }
+      if(bv){ html=`<b>${esc(bv.mk||'')}${bv.vendor?'（'+esc(bv.vendor)+'）':''}</b>${bv.count?' × '+fmtN(bv.count)+' 台':''}${bv.shift?' · '+esc(bv.shift):''}<br>${esc(bv.job||'')}`; } }
     if(!best&&!html&&st.dog&&st.dog.sx!=null&&Math.hypot(st.dog.sx-x,st.dog.sy-y)<Math.max(18,SIM.S*0.5)) html=`<b>工地小黃</b>：${st.dog.guard?(st.dog.state==='sleep'?'在門口睡覺，幫忙看門':'起來巡門口'):st.dog.state==='sleep'?'睡覺中':st.dog.state==='walk'?'巡邏中':'休息中'}`;
     if(html){}
     else if(best&&best.resting){ html=`<b>${esc(best.trade)}${best.vendor?'（'+esc(best.vendor)+'）':''}</b> · 午休中，13:00 開工`; }
@@ -5348,8 +5105,7 @@ const isPour=t=>/澆置|灌漿|打設|混凝土|混泥土/.test(t);
 function vlabel(r,k){ const v=(r.vendors||{})[k]; return v&&!isEngT(k)?`${k}（${v}）`:(v&&isEngT(k)?`${k}（${v}）`:k); }
 function workersRows(r){ return Object.entries(r.workers||{}).filter(([k,v])=>+v>0&&!isMachTrade(k)).sort((a,b)=>isEngT(b[0])-isEngT(a[0])); }
 function machRows(r){ return Object.entries(machinesOf(r)); }
-function dayTaskText(r){ return dayTaskText0(r).filter((x,i,A)=>A.indexOf(x)===i); }   // the same 工作事項 by the same 廠商 (合作) is listed once
-function dayTaskText0(r){ return r.tasks.filter(t=>t.status!=='next').map(t=>`${zoneName(t.zone)?zoneName(t.zone)+' ':''}${t.text}${t.status==='doing'?'（進行中）':''}${t.trade&&!/（/.test(t.text)?'（'+((r.vendors||{})[t.trade]||t.trade)+'）':''}`); }
+function dayTaskText(r){ return r.tasks.filter(t=>t.status!=='next').map(t=>`${zoneName(t.zone)?zoneName(t.zone)+' ':''}${t.text}${t.status==='doing'?'（進行中）':''}${t.trade&&!/（/.test(t.text)?'（'+((r.vendors||{})[t.trade]||t.trade)+'）':''}`); }
 function pours(ds){ const out=[]; ds.forEach(d=>{ const r=REPORTS[d]; r.tasks.filter(t=>t.status!=='next'&&isPour(t.text)).forEach(t=>{ const q=qtyOf(t.text); if(q) out.push({d,zone:zoneName(t.zone),text:t.text,q:q.q,about:q.about,s:strengthOf(t.text),mix:(r.vendors||{})['預拌車']||(r.vendors||{})['混凝土工']||'',pump:(r.vendors||{})['押送車']||(r.vendors||{})['押送工']||''}); }); }); return out; }
 function blocksGeneral(ds,from,to){
   const B=[]; const e=esc;
@@ -5392,7 +5148,7 @@ function pagePublic(d,n,N){
   const all=sortedDates().filter(x=>x<=d);
   const cumP={}, cumM={}; all.forEach(x=>{ workersRows(REPORTS[x]).forEach(([k,v])=>cumP[k]=(cumP[k]||0)+(+v)); machRows(REPORTS[x]).forEach(([k,v])=>cumM[k]=(cumM[k]||0)+(+v)); });
   const pourCum=pours(all).reduce((s,p)=>s+p.q,0);
-  const items=r.tasks.filter(t=>t.status!=='next').filter((t,i,A)=>{ const k=x=>(x.text||'').replace(/\s+/g,'')+'|'+(x.zone||'')+'|'+x.status+'|'+((r.vendors||{})[x.trade]||x.trade||''); return A.findIndex(x=>k(x)===k(t))===i; }).map(t=>{ const q=qtyOf(t.text); const name=`${zoneName(t.zone)?zoneName(t.zone):''}${t.text}${t.trade&&!/（/.test(t.text)?'（'+((r.vendors||{})[t.trade]||t.trade)+'）':''}`;
+  const items=r.tasks.filter(t=>t.status!=='next').map(t=>{ const q=qtyOf(t.text); const name=`${zoneName(t.zone)?zoneName(t.zone):''}${t.text}${t.trade&&!/（/.test(t.text)?'（'+((r.vendors||{})[t.trade]||t.trade)+'）':''}`;
     return q&&isPour(t.text)?[name,'m³','',(q.about?'約 ':'')+fmtN(q.q),'約 '+fmtN(Math.round(pourCum*10)/10),'']:[name,'式','',t.status==='doing'?'進行中':'完成','','']; });
   const todayPour=pours([d]).reduce((s,p)=>s+p.q,0), st=(pours(all)[0]||{}).s;
   const mats=pourCum?[[`預拌混凝土${st?' '+st+' kgf/cm²':''}`,'m³','',fmtN(todayPour),'約 '+fmtN(Math.round(pourCum*10)/10),(r.vendors||{})['預拌車']||'']]:[];

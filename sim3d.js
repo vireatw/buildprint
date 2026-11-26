@@ -152,17 +152,11 @@ function tail(x,wid){ const g=grp(B(0.03,0.14,wid,'#2B3238',x,0.2,0)); [-1,1].fo
 function beacon(x,y,z){ const b=S(0.05,'#FFB020',x,y,z,G.sph,{emissive:'#FF9A00',emissiveIntensity:1}); b.material=b.material.clone(); b.castShadow=false; b.userData.beacon=true; return b; }
 function operator(x,y,z){ const g=grp(S(0.1,'#E9B88C',0,0,0), mesh(G.dome,M('#F2C200',{flatShading:false}))); g.children[1].scale.set(0.24,0.2,0.24); g.children[1].position.y=0.02; g.add(B(0.2,0.2,0.22,'#FF7A1A',0,-0.2,0)); g.position.set(x,y,z); return g; }
 function tracks(len,wid,h){ const g=grp(); [-1,1].forEach(k=>{ g.add(B(len,h,0.26,'#22272C',0,h/2,k*(wid/2-0.13))); const n=Math.max(3,Math.round(len/0.28)); for(let i=0;i<=n;i++){ const r=(i===0||i===n)?h*0.42:h*0.3; const wl=C(r,0.04,'#8E99A3',-len/2+0.12+(len-0.24)*i/n,h/2,k*(wid/2+0.005)); wl.rotation.x=Math.PI/2; g.add(wl); } }); return g; }
-// materials on a truck's bed, on the crane's hook and in the stack beside it: one layer = a few pieces side by side (n across, m along)
-const MATS={ply:{n:1,c:['#C99555','#B98245']},soil:{n:1,c:['#9A7445','#8A6A40']},rebar:{n:7,c:['#6E4B3A','#5A3F33'],t:0.62},steel:{n:2,c:['#B5472F','#A23E29'],t:0.72},scaf:{n:4,c:['#C9CED2','#A9B0B6'],t:0.5},pipe:{n:5,c:['#D9772B','#C4651F'],t:0.78},
-  block:{n:2,m:3,c:['#B46A4A','#A65E40'],t:0.9},bag:{n:2,m:3,c:['#BDB9B0','#A9A59C'],t:0.92},glass:{n:1,c:['#A9CFE0','#96C0D4'],t:0.9},box:{n:2,m:2,c:['#C8B48A','#B7A377'],t:0.9}};
-function matLayer(kind,i,w,h,d){ const K=MATS[kind]||MATS.ply, g=grp(), n=K.n, m=K.m||1; for(let a=0;a<m;a++) for(let j=0;j<n;j++) g.add(B(w/m*(m>1?0.93:1),h,d/n*(K.t||1),K.c[(i+j+a)%2],(a-(m-1)/2)*w/m,0,(j-(n-1)/2)*d/n)); return g; }
-function truckMat(g,u,v){ const kind=v.earth?'soil':(v.mat||'ply'); if(u.matK===kind) return; u.matK=kind;
-  if(u.load){ g.remove(u.load); freeTree(u.load); } u.load=grp(); for(let i=0;i<3;i++){ const L=matLayer(kind,i,1.2,0.085,0.7); L.position.set(-0.32,0.71+i*0.09,0); u.load.add(L); } g.add(u.load);
-  if(u.kn){ if(u.bundle){ g.remove(u.bundle); freeTree(u.bundle); } u.bundle=grp(); for(let i=0;i<3;i++){ const L=matLayer(kind,i,0.9,0.07,0.5); L.position.y=i*0.075; u.bundle.add(L); } u.bundle.add(B(0.05,0.26,0.54,'#22282E',-0.25,0.08,0),B(0.05,0.26,0.54,'#22282E',0.25,0.08,0)); g.add(u.bundle); } }
 function buildVehicle(v){ const g=grp(), u={}; g.userData=u; u.wheels=[]; u.beacons=[];
   const addW=(xs,r,hw)=>xs.forEach(x=>[-1,1].forEach(k=>{ const w=wheel(r,0.16,x,r,k*hw); g.add(w); u.wheels.push(w); }));
   if(v.type==='truck'){ g.add(B(2.0,0.2,0.8,'#444B52',0,0.34,0)); g.add(cab(0.56,0.62,0.76,'#2F6DB5',0.68,0.34)); g.add(B(1.36,0.22,0.86,'#ECE8DC',-0.32,0.55,0)); g.add(B(1.36,0.05,0.88,'#2F6DB5',-0.32,0.45,0)); [-1,1].forEach(k=>g.add(B(1.36,0.12,0.03,'#D9D5C8',-0.32,0.72,k*0.42))); g.add(B(0.03,0.12,0.86,'#D9D5C8',-0.99,0.72,0)); g.add(tail(-1.0,0.8)); addW([0.62,-0.6],0.2,0.42);
-    if(v.crane){ g.add(B(0.26,0.5,0.26,'#E4A21B',0.28,0.9,0)); u.kn=mesh(G.box,M('#E4A21B')); g.add(u.kn); u.rope=mesh(G.box,M('#22282E')); g.add(u.rope); } truckMat(g,u,v); }
+    u.load=grp(); for(let i=0;i<3;i++) u.load.add(B(1.2,0.085,0.7,i%2?'#C99555':'#B98245',-0.32,0.71+i*0.09,0)); g.add(u.load);
+    if(v.crane){ g.add(B(0.26,0.5,0.26,'#E4A21B',0.28,0.9,0)); u.kn=mesh(G.box,M('#E4A21B')); g.add(u.kn); u.rope=mesh(G.box,M('#22282E')); u.bundle=grp(B(0.9,0.07,0.5,'#C99555',0,0,0),B(0.9,0.07,0.5,'#B98245',0,0.075,0),B(0.9,0.07,0.5,'#C99555',0,0.15,0),B(0.05,0.26,0.54,'#22282E',-0.25,0.08,0),B(0.05,0.26,0.54,'#22282E',0.25,0.08,0)); g.add(u.rope,u.bundle); } }
   else if(v.type==='mixer'||v.type==='pump'){ g.add(B(2.0,0.2,0.8,'#444B52',0,0.36,0)); g.add(cab(0.56,0.62,0.76,v.type==='mixer'?'#F2B33D':'#F4F4F0',0.67,0.36)); g.add(tail(-1.0,0.8)); addW([0.64,-0.3,-0.72],0.2,0.42);
     if(v.type==='mixer'){ g.add(B(0.16,0.4,0.6,'#C9CED2',0.28,0.66,0)); const dr=grp(); const d1=mesh(new T.CylinderGeometry(0.2,0.42,0.75,14),M('#F4F1EA',{flatShading:false})); d1.position.y=0.3; const d2=mesh(new T.CylinderGeometry(0.42,0.3,0.5,14),M('#F4F1EA',{flatShading:false})); d2.position.y=-0.32; dr.add(d1,d2);
         for(let i=0;i<2;i++){ const s=B(0.86,1.1,0.05,'#D9473A',0,0,0); s.rotation.y=i*Math.PI/2; s.scale.set(0.84,0.9,0.05); s.rotation.z=0.35; dr.add(s); }
@@ -177,8 +171,8 @@ function buildVehicle(v){ const g=grp(), u={}; g.userData=u; u.wheels=[]; u.beac
     u.cable=mesh(G.box,M('#22282E')); u.hook=grp(B(0.14,0.16,0.1,'#F2C200',0,0,0),B(0.14,0.04,0.11,'#2B3238',0,0,0),B(0.03,0.1,0.03,'#5B6670',0,-0.12,0)); g.add(u.cable,u.hook); }
   else if(v.type==='digger'){ g.add(tracks(1.5,1.15,0.3)); const hs=grp(); hs.position.y=0.3; g.add(hs); u.house=hs; hs.add(B(1.0,0.42,0.96,YEL,-0.1,0.21,0),B(1.02,0.06,0.98,'#2B3238',-0.1,0.07,0),B(0.28,0.34,0.88,YEL2,-0.62,0.17,0)); for(let i=-1;i<=1;i++) hs.add(B(0.02,0.24,0.14,'#2B3238',-0.765,0.2,i*0.28));
     const cb=cab(0.44,0.5,0.44,'#F5BE3A',0.12,0.42); cb.position.z=0.24; hs.add(cb); hs.add(B(0.5,0.05,0.5,'#2B3238',0.12,0.945,0.24)); hs.add(operator(0.1,0.72,0.24)); const bc=beacon(0,1.0,0.24); hs.add(bc); u.beacons.push(bc); hs.add(B(0.07,0.3,0.07,'#3B4650',-0.36,0.57,-0.3));
-    u.boom=mesh(G.box,M(YEL)); u.stick=mesh(G.box,M(YEL)); u.ram1=mesh(G.cyl,M('#D5DADF',{flatShading:false})); u.ram2=mesh(G.cyl,M('#D5DADF',{flatShading:false})); u.bucket=grp(B(0.34,0.26,0.4,'#4A5058',0,-0.1,0)); for(let i=-1;i<=1;i++){ const tt=mesh(G.cone4,M('#C9CED2')); tt.scale.set(0.07,0.1,0.07); tt.position.set(0.08,-0.27,i*0.13); tt.rotation.z=Math.PI; u.bucket.add(tt); } u.dirt=B(0.28,0.08,0.34,'#9A7445',0,0.05,0); u.bucket.add(u.dirt); u.clods=[0,1,2,3,4].map(i=>{ const c=B(0.09+0.03*(i%2),0.07,0.08,i%2?'#8A6A40':'#9A7445'); c.visible=false; return c; }); u.j=[0,1,2].map(()=>S(0.09,'#3B4650'));
-    hs.add(u.boom,u.stick,u.ram1,u.ram2,u.bucket,...u.j,...u.clods); u.smoke=[0,1,2].map(()=>{ const s=S(0.06,'#6E7378',0,0,0,G.ico,{transparent:true,opacity:0.4}); s.material=s.material.clone(); s.castShadow=false; hs.add(s); return s; }); }
+    u.boom=mesh(G.box,M(YEL)); u.stick=mesh(G.box,M(YEL)); u.ram1=mesh(G.cyl,M('#D5DADF',{flatShading:false})); u.ram2=mesh(G.cyl,M('#D5DADF',{flatShading:false})); u.bucket=grp(B(0.34,0.26,0.4,'#4A5058',0,-0.1,0)); for(let i=-1;i<=1;i++){ const tt=mesh(G.cone4,M('#C9CED2')); tt.scale.set(0.07,0.1,0.07); tt.position.set(0.08,-0.27,i*0.13); tt.rotation.z=Math.PI; u.bucket.add(tt); } u.dirt=B(0.28,0.08,0.34,'#9A7445',0,0.05,0); u.bucket.add(u.dirt); u.j=[0,1,2].map(()=>S(0.09,'#3B4650'));
+    hs.add(u.boom,u.stick,u.ram1,u.ram2,u.bucket,...u.j); u.smoke=[0,1,2].map(()=>{ const s=S(0.06,'#6E7378',0,0,0,G.ico,{transparent:true,opacity:0.4}); s.material=s.material.clone(); s.castShadow=false; hs.add(s); return s; }); }
   else if(v.type==='skid'){ addW([0.38,-0.38],0.19,0.5); u.wheels.forEach(w=>{ w.children[1].material=M(YEL); }); g.add(B(1.0,0.3,0.8,YEL,-0.05,0.31,0),B(1.0,0.06,0.82,'#2B3238',-0.05,0.22,0),B(0.16,0.42,0.78,YEL2,-0.5,0.37,0));
     const cg=grp(); [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([a,k])=>cg.add(B(0.04,0.5,0.04,'#2E3740',-0.12+a*0.29,0.71,k*0.31))); cg.add(B(0.66,0.06,0.7,YEL,-0.12,0.99,0)); g.add(cg); g.add(operator(-0.12,0.72,0)); const bc=beacon(-0.3,1.06,0); g.add(bc); u.beacons.push(bc);
     u.arms=[-1,1].map(k=>{ const a=mesh(G.box,M(YEL)); g.add(a); a.userData.k=k; return a; }); u.bucket=grp(B(0.34,0.26,1.05,'#59616A',0,0.13,0)); u.dirt=B(0.26,0.12,0.85,'#8B6A3E',0,0.3,0); u.bucket.add(u.dirt); g.add(u.bucket); }
@@ -198,14 +192,15 @@ function buildVehicle(v){ const g=grp(), u={}; g.userData=u; u.wheels=[]; u.beac
   return g; }
 function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv; const u=g.userData, T0=t+(v.ph||0), dig=v.type==='digger';
   let x=v.x, y=v.y; const dir=v.u?Math.atan2(v.u.y,v.u.x):(v.dir||0);
+  if(dig&&v.dig&&!v.loadTo&&!v.still&&!view.edit&&!view.lunch){ const k=Math.sin(t*0.35+(v.ph||0))*0.7; x+=Math.cos(dir)*k; y+=Math.sin(dir)*k; }
   g.visible=!v.hidden; if(v.hidden) return; { const s0=soilTop(st,x,y,0), sh=s0>0?Math.max(0,s0*0.88-0.2):0; u.sh=u.sh==null?sh:u.sh+(sh-u.sh)*0.2; g.position.set(x,(v.z||0)+u.sh-(st.pitAt?st.pitAt(x,y):0),y); }
   u.hd=u.hd==null?dir:lerpAng(u.hd,dir,0.25); g.rotation.y=-u.hd;
   const moving=v.phase==='arrive'||v.phase==='leave'; if(moving) u.wheels.forEach(w=>{ w.rotation.z=-t*8; });
   u.beacons.forEach(b=>{ const on=Math.sin(T0*7)>0; b.material.emissiveIntensity=on?(1.2+view.N*3):0.1; });
-  if(v.type==='truck'){ truckMat(g,u,v); const cg=v.cargo==null?(v.loaded?3:0):v.cargo; u.load.visible=cg>0; u.load.children.forEach((b,i)=>{ b.visible=i<cg; });
+  if(v.type==='truck'){ if(v.earth&&!u.soilLoad){ u.soilLoad=true; u.load.children.forEach((b,i)=>{ b.material=M(i%2?'#9A7445':'#8A6A40'); }); } const cg=v.cargo==null?(v.loaded?3:0):v.cargo; u.load.visible=cg>0; u.load.children.forEach((b,i)=>{ b.visible=i<cg; });
     if(u.kn){ // 吊卡: the knuckle crane picks a bundle up off the stack beside the truck, swings it over and sets it on the bed
       const D=st.drop, L=v.lift, sm=x=>x*x*(3-2*x); let tx=-0.55, ty=1.25, tz=0, on=false, bx=0, by=0, bz=0;
-      if(L&&D){ const k0=Math.max(0,Math.min(1,(t-L.t0)/3.3)), k=L.out?1-k0:k0, dx=D.x+D.w/2-v.x, dy=D.y+D.d/2-v.y, c=Math.cos(u.hd), s2=Math.sin(u.hd), sx=dx*c+dy*s2, sz=-dx*s2+dy*c, ex=-0.32, ey=0.74+cg*0.09;
+      if(L&&D){ const k=Math.max(0,Math.min(1,(t-L.t0)/3.3)), dx=D.x+D.w/2-v.x, dy=D.y+D.d/2-v.y, c=Math.cos(u.hd), s2=Math.sin(u.hd), sx=dx*c+dy*s2, sz=-dx*s2+dy*c, ex=-0.32, ey=0.74+cg*0.09;
         const sw=k<0.35?0:k<0.75?sm((k-0.35)/0.4):1, y0=0.06+(L.h||0.1); bx=sx+(ex-sx)*sw; bz=sz*(1-sw); by=k<0.12?y0:k<0.35?y0+sm((k-0.12)/0.23)*(1.5-y0):k<0.75?1.5:1.5-sm((k-0.75)/0.25)*(1.5-ey);
         on=k>0.1&&k<0.98; tx=bx; tz=bz; ty=Math.max(1.9,by+0.7); if(k<0.12){ tx=sx; tz=sz; } }
       link(u.kn,0.28,1.1,0,tx,ty,tz,0.09); u.rope.visible=!!(L&&D); u.bundle.visible=on; if(L&&D){ link(u.rope,tx,ty,tz,tx,(on?by+0.26:0.2+(L.h||0)),tz,0.02); u.bundle.position.set(bx,by,bz); } } }
@@ -219,37 +214,30 @@ function animVehicle(g,v,t,st,view){ if(view.lunch&&v.type!=='truck') t=view.tv;
     link(u.ram,0.35,0.3,0,Math.cos(el)*1.2,0.5+Math.sin(el)*1.2,0,0.07);
     const tipx=v.x+Math.cos(sl)*4.2*Math.cos(el), tipy=v.y+Math.sin(sl)*4.2*Math.cos(el), tipz=0.97+4.2*Math.sin(el), hz=1.25+0.45*Math.sin(t*0.8+(v.ph||0));
     const dx=tipx-v.x, dy=tipy-v.y, c=Math.cos(u.hd), s=Math.sin(u.hd), lx=dx*c+dy*s, lz=-dx*s+dy*c; link(u.cable,lx,tipz,lz,lx,hz+0.1,lz,0.02); u.hook.position.set(lx,hz,lz); }
-  else if(dig){ const sc=v.sc||1; if(g.scale.x!==sc) g.scale.setScalar(sc);   // 微型／小型／中型／大型: the whole machine to scale; the arm below works in the machine's own units
-    const z=-0.18, P0=[0.35,0.48,z], sm=k=>{ k=Math.max(0,Math.min(1,k)); return k*k*(3-2*k); }, mix=(A,B,k)=>A.map((a,i)=>a+(B[i]-a)*sm(k));
-    // One bucket, the way an operator works it (q = bucket pin: out from the boom foot, height, curl; curl + = closed/carrying, − = opened/tipping):
-    // reach out with the bucket open → set the teeth into the ground → pull the stick in so the teeth drag through the soil while the bucket curls shut →
-    // lift → swing to the dump side (the truck's bed when loading one) → open the bucket so the soil falls out → swing back and reach out again.
-    // While it digs the tracks stay put; the hole is in front of it (or the pile it faces).
-    let p=null, dA=0, dT=2.1, dH=0.95, rch=2.1;
-    if(v.loadTo){ const tr=st.vehicles.find(o=>o.earth&&o.phase==='load'&&!o.hidden); p=tr&&!view.lunch?Math.min(0.999,(tr.eT||0)/9):null;   // timed by the truck (its eT, 9 s a bucket), so the soil lands as the bucket tips
-      dA=Math.atan2(v.loadTo.y-v.y,v.loadTo.x-v.x)-dir; dA=Math.atan2(Math.sin(dA),Math.cos(dA)); rch=Math.max(1.85,Math.min(2.4,(v.digR||2)/sc)); dT=Math.max(1.9,Math.min(2.55,(Math.hypot(v.loadTo.x-v.x,v.loadTo.y-v.y)-0.15)/sc)); dH=Math.min(1.65/sc-0.3,0.48+Math.sqrt(Math.max(0.1,2.72*2.72-(dT-0.35)*(dT-0.35)))); }   // the bucket clears the side of the bed whatever the machine's size (as far as its arm reaches)
-    else if(v.dig&&!view.lunch&&!view.edit){ p=((T0/8.5)%1+1)%1; dA=(v.dumpSide||1)*1.55; }
-    // where the teeth meet the ground: the pit floor, or the surface of the soil pile in front
-    const fx=x+Math.cos(dir)*rch*sc, fy=y+Math.sin(dir)*rch*sc, gH=Math.max(-0.25,Math.min(0.9,((soilTop(st,fx,fy,0)||0)*0.9-(u.sh||0)-(st.pitAt?st.pitAt(fx,fy)-st.pitAt(x,y):0))/sc))-0.3;   // local height of the ground there (the arm's foot is 0.3 up)
-    const C=[1.95,0.95,0.55], R=[rch,gH+0.55,-0.95], D=[rch,gH-0.06,-0.55], Dr=[rch-0.75,gH-0.02,0.15], Sc=[rch-0.9,gH+0.22,0.7], T=[dT,dH,0.6], Tp=[dT+0.15,dH+0.05,-1.2];
-    let q, sw2=0, full=false, tip=0;
-    if(p==null) q=view.lunch||!v.dig?[1.7,gH+0.12,0.1]:[C[0],C[1],0.2];   // resting: bucket set down on the ground in front
-    else if(p<0.10) q=mix([C[0],C[1],0.0],R,p/0.10);                 // reach out, bucket opening
-    else if(p<0.17) q=mix(R,D,(p-0.10)/0.07);                          // teeth into the ground
-    else if(p<0.33){ q=mix(D,Dr,(p-0.17)/0.16); full=p>0.26; }        // crowd: stick pulls in, teeth drag through the soil
-    else if(p<0.40){ q=mix(Dr,Sc,(p-0.33)/0.07); full=true; }          // curl shut, break out of the ground
-    else if(p<0.48){ q=mix(Sc,C,(p-0.40)/0.08); full=true; }           // boom up
-    else if(p<0.60){ sw2=sm((p-0.48)/0.12); q=mix(C,T,(p-0.48)/0.12); full=true; }   // swing to the dump side, rising
-    else if(p<0.70){ sw2=1; q=mix(T,Tp,(p-0.60)/0.07); full=p<0.64; tip=Math.max(0,Math.min(1,(p-0.62)/0.08)); }   // open the bucket: the soil falls out
-    else if(p<0.76){ sw2=1; q=mix(Tp,[C[0],C[1],0.0],(p-0.70)/0.06); }
-    else if(p<0.94){ sw2=1-sm((p-0.76)/0.18); q=[C[0],C[1],0.0]; }    // swing back
-    else q=[C[0],C[1],0.0];
-    u.house.rotation.y=-dA*sw2;
-    // two-link arm of fixed lengths: boom from its foot to the elbow, stick from the elbow to the bucket (elbow kept up)
-    const L1=1.38, L2=1.42, bx=q[0]-P0[0], by=q[1]-P0[1], d=Math.max(0.3,Math.min(L1+L2-0.03,Math.hypot(bx,by))), al=Math.atan2(by,bx)+Math.acos(Math.max(-1,Math.min(1,(L1*L1+d*d-L2*L2)/(2*L1*d))));
-    const E=[P0[0]+Math.cos(al)*L1,P0[1]+Math.sin(al)*L1,z], Bk=[P0[0]+Math.cos(Math.atan2(by,bx))*d,P0[1]+Math.sin(Math.atan2(by,bx))*d,z], rot=q[2];
-    // clods dropping out of the bucket as it opens (they fall into the truck's bed, or onto the spoil heap)
-    if(u.clods){ const flo=v.loadTo?0.92/sc-0.3:Math.max(-0.25,gH+0.05); u.clods.forEach((c,i)=>{ const k=tip-i*0.12; if(k<=0||k>=0.9||!tip){ c.visible=false; return; } c.visible=true; const f=k/0.9; c.position.set(Bk[0]+0.12+(i%2?0.06:-0.04),Bk[1]-0.15-(Bk[1]-0.15-flo)*f*f,z+(i-2)*0.07); c.rotation.set(f*3+i,f*2,0); }); }
+  else if(dig){ const sw=view.lunch?-0.6:v.dig?Math.sin(T0*1.1):Math.sin(T0*0.33)*0.15, z=-0.18;
+    const P0=[0.35,0.48,z]; let E=[1.25+0.1*sw,1.45+0.25*sw,z], Bk=[1.95+0.25*sw,0.25+0.45*sw,z], rot=-0.5+sw*0.6, full=!!v.dig&&sw>0.2;
+    if(v.loadTo){ // loading a truck, the way it is done: reach out over the pile, lower, curl the bucket full, lift, swing round to the truck, tip over the side of the bed, swing back.
+      // The round is timed by the truck (its eT, 9 s a bucket), so the soil lands in the bed as the bucket tips
+      const tr=st.vehicles.find(o=>o.earth&&o.phase==='load'&&!o.hidden), p=tr&&!view.lunch?Math.min(0.999,(tr.eT||0)/9):null, sm=k=>{ k=Math.max(0,Math.min(1,k)); return k*k*(3-2*k); };
+      let dA=Math.atan2(v.loadTo.y-v.y,v.loadTo.x-v.x)-dir; dA=Math.atan2(Math.sin(dA),Math.cos(dA));
+      const r=Math.max(1.85,Math.min(2.4,v.digR||2)), dT=Math.max(1.9,Math.min(2.55,Math.hypot(v.loadTo.x-v.x,v.loadTo.y-v.y)-0.15));
+      const C=[1.75,1.15,0.55], R=[r,0.6,-0.9], D=[r,0.02,-0.75], Sc=[r-0.45,0.18,0.5], T=[dT,1.3,0.55], Tp=[dT,1.3,-1.15];   // bucket: out, height, curl
+      const mix=(A,B,k)=>A.map((a,i)=>a+(B[i]-a)*sm(k)); let q=C, sw2=0; full=false;
+      if(p==null){ q=[C[0],C[1]+Math.sin(T0*0.5)*0.03,C[2]-0.5]; }
+      else if(p<0.10) q=mix([C[0],C[1],0.05],R,p/0.10);
+      else if(p<0.20) q=mix(R,D,(p-0.10)/0.10);
+      else if(p<0.32){ q=mix(D,Sc,(p-0.20)/0.12); full=p>0.28; }
+      else if(p<0.42){ q=mix(Sc,C,(p-0.32)/0.10); full=true; }
+      else if(p<0.58){ sw2=sm((p-0.42)/0.16); q=mix(C,T,(p-0.42)/0.16); full=true; }
+      else if(p<0.68){ sw2=1; q=mix(T,Tp,(p-0.58)/0.07); full=p<0.64; }
+      else if(p<0.74){ sw2=1; q=mix(Tp,[C[0],C[1],0.05],(p-0.68)/0.06); }
+      else if(p<0.94){ sw2=1-sm((p-0.74)/0.20); q=[C[0],C[1],0.05]; }
+      else q=[C[0],C[1],0.05];
+      u.house.rotation.y=-dA*sw2;
+      // two-link arm: boom from its foot to the elbow, stick from the elbow to the bucket
+      const L1=1.38, L2=1.42, bx=q[0]-P0[0], by=q[1]-P0[1], d=Math.min(L1+L2-0.03,Math.hypot(bx,by)), al=Math.atan2(by,bx)+Math.acos(Math.max(-1,Math.min(1,(L1*L1+d*d-L2*L2)/(2*L1*d))));
+      E=[P0[0]+Math.cos(al)*L1,P0[1]+Math.sin(al)*L1,z]; Bk=[q[0],q[1],z]; rot=q[2]; }
+    else if(u.house.rotation.y) u.house.rotation.y=0;
     link(u.boom,...P0,...E,0.16); link(u.stick,...E,...Bk,0.12); link(u.ram1,0.62,0.44,z,(P0[0]+E[0])/2,(P0[1]+E[1])/2,z+0.0,0.06); link(u.ram2,(P0[0]+E[0]*2)/3,(P0[1]+E[1]*2)/3+0.14,z,(E[0]+Bk[0])/2,(E[1]+Bk[1])/2+0.12,z,0.05);
     u.bucket.position.set(...Bk); u.bucket.rotation.z=rot; u.dirt.visible=full; [P0,E,Bk].forEach((p,i)=>u.j[i].position.set(...p));
     u.smoke.forEach((sm,i)=>{ const k=((t*0.9)+i/3)%1; sm.visible=!!v.dig; sm.position.set(-0.36+k*0.1,0.78+k*0.7,-0.3); sm.scale.setScalar(0.1+k*0.2); sm.material.opacity=0.4*(1-k); }); }
@@ -277,7 +265,7 @@ function animDog(g,d,t,dt){ const u=g.userData, T0=t+d.ph, walk=d.state==='walk'
 /* ---------------- the renderer ---------------- */
 export function create(){
   const canvas=document.createElement('canvas'); canvas.id='sim3d';
-  const R=new T.WebGLRenderer({canvas,antialias:true,alpha:false,stencil:true,powerPreference:'high-performance'}); R.shadowMap.enabled=true; R.shadowMap.type=T.PCFSoftShadowMap; R.outputColorSpace=T.SRGBColorSpace;
+  const R=new T.WebGLRenderer({canvas,antialias:true,alpha:false,stencil:true,powerPreference:'high-performance'}); R.shadowMap.enabled=true; R.localClippingEnabled=true; R.shadowMap.type=T.PCFSoftShadowMap; R.outputColorSpace=T.SRGBColorSpace;
   const scene=new T.Scene(), cam=new T.OrthographicCamera(-1,1,1,-1,1,600);
   const hemi=new T.HemisphereLight('#EAF6FF','#C9B48A',1.5), sun=new T.DirectionalLight('#FFF1D6',2.4); scene.add(hemi,sun,sun.target);
   sun.castShadow=true; sun.shadow.mapSize.set(2048,2048); sun.shadow.bias=-0.0006; sun.shadow.normalBias=0.03; const sc=sun.shadow.camera; sc.left=-22; sc.right=22; sc.top=22; sc.bottom=-22; sc.near=1; sc.far=140;
@@ -349,7 +337,7 @@ export function create(){
       if(o.sign){ g.add(B(w,h,d,'#4E7FAE',0,h/2,0),B(w+0.1,0.06,d+0.1,'#E9EEF2',0,h+0.03,0)); const n=Math.max(2,Math.floor(w/0.7)); [-1,1].forEach(k=>{ for(let i=0;i<n;i++){ const gx=-w/2+0.18+i*(w-0.36)/n; if(i===0) g.add(B(0.26,0.57,0.02,'#3A5E82',gx+0.13,0.33,k*(d/2+0.006))); else { const wm=M('#BFE3F5',{emissive:'#FFD27A',emissiveIntensity:0}).clone(); winMats.push(wm); g.add(B(0.34,0.3,0.02,wm,gx+0.22,0.47,k*(d/2+0.006)),B(0.38,0.03,0.03,'#FFFFFF',gx+0.22,0.31,k*(d/2+0.012))); } } });
         const tx=textTex(o.sign), al=w>=d, Lr=al?w:d, Dr=al?d:w, th2=Math.min(Dr*0.62,Lr*0.82/tx.userData.asp), pl=mesh(new T.PlaneGeometry(th2*tx.userData.asp,th2),new T.MeshBasicMaterial({map:tx,transparent:true}),false); pl.rotation.x=-Math.PI/2; pl.rotation.z=al?0:Math.PI/2; pl.position.y=h+0.065; g.add(pl); pl.userData.z0=pl.rotation.z; stat.userData.roof=pl; if(!st.gateClosed) lamp(cx,z0+1.9,cy+d/2+0.9,16,8);
         g.add(B(0.3,0.16,0.4,'#C9CED2',w/2-0.3,h+0.14,-d/2+0.3)); const pole=B(0.035,1.05,0.035,'#8E99A3',-w/2+0.12,h+0.52,-d/2+0.12); g.add(pole); const fg=grp(), nm=(v.company||v.site||'').trim(), ft=flagTex(nm), FH=0.34, FW=Math.min(1.8,Math.max(0.5,FH*ft.userData.asp)); const fl=mesh(new T.PlaneGeometry(FW,FH,10,1),new T.MeshBasicMaterial({map:ft,side:T.DoubleSide}),false); fl.position.x=FW/2; fl.userData.W=FW; fg.add(fl); fg.position.set(-w/2+0.12,h+0.84,-d/2+0.12); g.add(fg); flagM=fg; return; }
-      if(o.pile){ [-0.3,0.3].forEach(x=>g.add(B(0.08,0.03,d,'#8A6B45',x,0.012,0))); pileM.push({o,g,w,d,L:[],K:[]}); return; }   // 拆模 boards stacked up, one layer per piece stripped
+      if(o.pile){ const L=[]; for(let i=0;i<10;i++){ const b=B(w-(i%2)*0.06,0.062,d-((i+1)%2)*0.05,i%2?'#C99555':'#B98245',(i%3-1)*0.015,0.035+i*0.07,0); b.rotation.y=(i%3-1)*0.03; g.add(b); L.push(b); } [-0.3,0.3].forEach(x=>g.add(B(0.08,0.03,d,'#8A6B45',x,0.012,0))); pileM.push({o,L}); return; }   // 拆模 boards stacked up, one layer per piece stripped
       const bm=B(w,h,d,o.col||'#B6B5AF',0,h/2,0); g.add(bm); if(o.ply&&h>0.2){ const k=Math.round(h/0.1); for(let i=1;i<k;i++){ const s=B(w+0.006,0.008,d+0.006,'#8A5A28',0,h*i/k,0); s.castShadow=false; g.add(s); } }
       if(o.pipes){ bm.visible=false; const n=4; for(let i=0;i<n;i++){ const p=C(Math.min(h,d/n)*0.48,w,'#E6EBEF',0,h/2,-d/2+d*(i+0.5)/n,G.cyl,{flatShading:false}); p.rotation.z=Math.PI/2; g.add(p); } } });
     // backfilled cells
@@ -368,9 +356,26 @@ export function create(){
     selRing=mesh(new T.RingGeometry(1.1,1.25,40),new T.MeshBasicMaterial({color:'#F5B700',side:T.DoubleSide,transparent:true,opacity:0.95}),false); selRing.rotation.x=-Math.PI/2; selRing.visible=false; dyn.add(selRing); }
   // --- the building, floor by floor (index.html works out the footprint and each floor's state; this draws it) ---
   let bldM=null, bKey='', bSt=null, bWin=[]; const UPY=new T.Vector3(0,1,0);
+  // SketchUp 模型 (平面配置 file's `model`): triangles in layout cm, decoded once per layout and kept across rebuilds
+  const MDL=new Map();
+  function mdlGeo(md){ let L=MDL.get(md.id); if(L) return L;
+    MDL.forEach(old=>old.forEach(x=>{ SHARED.delete(x.g); x.g.dispose(); })); MDL.clear();
+    const buf=s=>{ const bin=atob(s), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u.buffer; };
+    L=[]; md.parts.forEach(p=>{ try{ const g=new T.BufferGeometry(); g.setAttribute('position',new T.BufferAttribute(new Float32Array(new Int16Array(buf(p.p))),3)); g.setIndex(new T.BufferAttribute(p.w===4?new Uint32Array(buf(p.i)):new Uint16Array(buf(p.i)),1)); SHARED.add(g); L.push({g,c:p.c,o:p.o,k:p.k}); }catch(e){ console.warn('model part',e); } });
+    MDL.set(md.id,L); return L; }
+  // the model stands where the 平面配置 sits; it shows as far up as the work has got: steel (k=0) to the top of the floor being built, the rest to the floors already done
+  function buildModel(S){ const md=S.mdl, f=md.f, o=f(0,0), ax=f(1000,0), ay=f(0,1000), g=grp();
+    g.matrixAutoUpdate=false; g.matrix.set((ax[0]-o[0])/1000,(ay[0]-o[0])/1000,0,o[0], 0,0,S.zk,-S.zb*S.zk, (ax[1]-o[1])/1000,(ay[1]-o[1])/1000,0,o[1], 0,0,0,1);
+    const last=S.F[S.F.length-1], doing=S.F.find(x=>x.state==='doing'), cutF=S.F.find(x=>x.state==='cut'), mg=20*S.zk, lift=S.lift||0;
+    const whole=!cutF&&!doing&&last.roof, zF=cutF?(S.cut?S.cut.z0:cutF.z0)-0.1:last.z1+mg, zR=cutF?zF:doing?doing.z0+mg:last.z1+mg;
+    const pl=z=>whole?[]:[new T.Plane(new T.Vector3(0,-1,0),(z+lift)*YS)], P=[pl(zF),pl(zR)];
+    mdlGeo(md).forEach(x=>{ const tr=x.o<1, m=new T.MeshLambertMaterial({color:x.c,flatShading:true,side:T.DoubleSide,clippingPlanes:P[x.k?1:0],clipShadows:true,transparent:tr,opacity:tr?x.o:1,depthWrite:!tr}); m.userData.cached=false;
+      const o3=mesh(x.g,m,!tr); g.add(o3); });
+    bldM.add(g); }
   function buildBldg(st,S){
     if(bldM){ world.remove(bldM); bldM.traverse(m=>{ if(m.isInstancedMesh) m.dispose(); }); freeTree(bldM); bldM=null; } bWin=[];
     const B=st.bldg; if(!B||!S) return; bldM=grp(); world.add(bldM); bldM.position.y=S.lift||0;
+    if(S.mdl) buildModel(S);
     const H=B.H.map(p=>({x:p[0],y:p[1]})), E=B.edges;
     // the outline pushed out by d: each corner moves along the two edge normals (inward at a notch)
     const out=d=>H.map((p,i)=>{ const e1=E[(i-1+E.length)%E.length], e2=E[i]; let nx=e1.nx+e2.nx, ny=e1.ny+e2.ny; const L=Math.hypot(nx,ny)||1; nx/=L; ny/=L; const c=Math.max(0.3,nx*e2.nx+ny*e2.ny); return {x:p.x+nx*d/c,y:p.y+ny*d/c}; });
@@ -401,6 +406,7 @@ export function create(){
         for(let k=0;k+3<s.length;k+=4){ const ax=s[k], ay=s[k+1], bx=s[k+2], by=s[k+3], dx=bx-ax, dy=by-ay, L=Math.hypot(dx,dy); if(L<1e-3) continue;
           _p.set((ax+bx)/2,z0+wh/2,(ay+by)/2); _q.setFromAxisAngle(UPY,Math.atan2(-dy,dx)); _s.set(L+th*0.5,wh,th); _m.compose(_p,_q,_s); put('#FBF8F2',_m); }
         return; }
+      if(S.mdl&&!(f.roof&&f.state==='done'&&S.clad&&S.fac&&S.fac.roof)) return;   // the SketchUp model stands in for the drawn floors; the roof sheets, 太陽能板 and 避雷針 from the elevations still go on top of it
       if(f.roof){
         const RF=S.fac&&S.fac.roof;
         if((f.state==='doing'||!S.clad)&&RF&&RF.hAt){ const col=f.state==='doing'?'#B4573E':'#66737E', dz=f.z1-f.z0, zt=(x,y)=>f.z0+RF.hAt(x,y)*dz;
@@ -469,7 +475,7 @@ export function create(){
     if(built.GW!==v.GW||built.GH!==v.GH||!water) buildBackdrop(v.GW,v.GH);
     const zk=st.zones.map(z=>z.status).join();
     if(built.st!==st||built.props!==st.props||built.fills!==st.fills||built.zk!==zk){ const fresh=built.st!==st; buildStatic(st,v); if(fresh) buildDynamic(st); }
-    { const S=v.bs||null, k=S?JSON.stringify([S.F.map(f=>[f.state,+f.z0.toFixed(2),+f.z1.toFixed(2),f.roof]),S.clad,S.cut&&S.cut.key,S.fac?(S.fac.ver||1):0,S.lift||0]):''; if(bSt!==st.bldg||bKey!==k){ bSt=st.bldg; bKey=k; buildBldg(st,S); } }
+    { const S=v.bs||null, k=S?JSON.stringify([S.F.map(f=>[f.state,+f.z0.toFixed(2),+f.z1.toFixed(2),f.roof]),S.clad,S.cut&&S.cut.key,S.fac?(S.fac.ver||1):0,S.lift||0,S.mdl?S.mdl.id:0]):''; if(bSt!==st.bldg||bKey!==k){ bSt=st.bldg; bKey=k; buildBldg(st,S); } }
     // camera = SP(): right ∝ (x−y), up-screen ∝ −(x+y), k px per unit in the view plane
     const k=v.S/Math.SQRT2; cam.left=-v.ox/k; cam.right=(v.W-v.ox)/k; cam.top=v.oy/k; cam.bottom=-(v.H-v.oy)/k; cam.position.copy(CAMDIR).multiplyScalar(260); cam.up.set(0,1,0); cam.lookAt(0,0,0); cam.updateProjectionMatrix();
     // turning the site: the world turns about its centre, the light, sea and far shore stay put
@@ -484,7 +490,7 @@ export function create(){
     // fence: full height at the back, a low rail at the front
     fences.forEach(f=>{ const r0=f.nx*ca-f.ny*sa, r1=f.nx*sa+f.ny*ca, isBack=(r0+r1)<0; f.g.visible=isBack; f.low.visible=!isBack; });
     lamps.forEach(l=>{ const on=Math.sin(t*3.2+l.ph)>0.2; l.m.material.emissiveIntensity=on?1+N*3:0.05; });
-    soilM.forEach(({o,m})=>{ m.position.x=o.x; m.position.z=o.y; }); pileM.forEach(P=>{ const n=Math.min(10,P.o.n||0); for(let i=0;i<10;i++){ const want=i<n?((P.o.mats&&P.o.mats[i])||P.o.mat||'ply'):null; if(want&&P.K[i]!==want){ if(P.L[i]){ P.g.remove(P.L[i]); freeTree(P.L[i]); } const b=matLayer(want,i,P.w-(i%2)*0.06,0.062,P.d-((i+1)%2)*0.05); b.position.set((i%3-1)*0.015,0.035+i*0.07,0); b.rotation.y=(i%3-1)*0.03; P.g.add(b); P.L[i]=b; P.K[i]=want; } if(P.L[i]) P.L[i].visible=i<n; } });   // each layer shows the material it is
+    soilM.forEach(({o,m})=>{ m.position.x=o.x; m.position.z=o.y; }); pileM.forEach(P=>P.L.forEach((b,i)=>{ b.visible=i<(P.o.n||0); }));
     formM.forEach(({o,fl,rb,pg})=>{ fl.visible=!!o.filled; rb.visible=!o.filled;
       if(o.strip){ const k=o.stripped?(o.stripT==null?1:Math.min(1,Math.max(0,(t-o.stripT)/0.9))):0, e=k*k; pg.visible=k<1; pg.children.forEach(b=>{ if(b.userData.z0==null){ b.userData.z0=b.position.z; b.userData.x0=b.position.x; } b.position.z=b.userData.z0*(1+e*0.9); b.position.x=b.userData.x0*(1+e*0.25); }); pg.rotation.x=0; pg.position.y=-e*o.h*0.85; } });   // 拆模: the boards are pried off outward and dropped
     if(flagM){ const fl=flagM.children[0], W=fl.userData.W||0.5, g=fl.geometry, p=g.attributes.position; for(let i=0;i<p.count;i++){ const k=(p.getX(i)+W/2)/W; p.setZ(i,Math.sin(t*3.5-k*5)*0.045*k); } p.needsUpdate=true; flagM.rotation.y=a+Math.PI/4-0.15; }   // faces the viewer so the name reads
