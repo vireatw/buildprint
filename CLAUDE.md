@@ -65,3 +65,4 @@ No network on Claude's side is guaranteed, so test with a fake Firebase: serve t
 
 ## 回填 hit-testing (2026-11-26)
 - The excavation is drawn `PIT_D` below ground and a fill's top at `FILL_H - pit`, so `islToggleFill` must not use the ground plane: it hit-tests fills at their drawn height and, for an empty cell, projects the tap onto the pit floor (`simGround(sx, sy + z*SIM.S*0.5)`), then looks a little around it (small cells between close beams). New fills store the cell's middle. Forgetting this is what broke 回填 after the pit was introduced.
+- Dug areas with 地樑 on only some sides (the strip by the fence, the corner by the 工務所) are backfilled as "band" fills: `fillCell(st,x,y,true)` clips the zone's `pitPts` by the beams the tap faces; such a fill is stored with `band:1` (old stored points never turn into bands). Each built fill carries `pit` so sim3d draws it at the right depth even when its middle lies outside the pit.
