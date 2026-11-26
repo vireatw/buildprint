@@ -151,6 +151,9 @@ button.tz::after{content:'';flex:none;width:7px;height:7px;border-right:2px soli
 .pe-hint .grow{flex:1;min-width:180px;color:#DCE6EE}
 .pe-hint button{padding:7px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.35);color:#fff;font-size:14px}
 .pe-hint button:disabled{opacity:.4}
+.pe-hint .pe-sz{display:inline-flex;align-items:center;gap:6px;color:#DCE6EE;font-size:14px}
+.pe-hint .pe-sz select{padding:7px 8px;border-radius:8px;border:1px solid #2E4458;background:#0C1824;color:#fff;font-size:16px;min-width:72px}
+.pe-hint .pe-u{color:#A9BAC8;font-size:13px}
 #peHint input{background:#0C1824!important;color:#fff!important;border:1px solid #2E4458!important}
 .pe-hint .pe-zhelp{flex:1 1 100%;font-size:13px;color:#A9BAC8;min-width:0;order:9}
 .pe-hint input{flex:1;min-width:120px;padding:8px 10px;border-radius:8px;border:1px solid #2E4458;background:#0C1824;color:#fff;font-size:16px}
@@ -1125,7 +1128,7 @@ function switchSite(id){
 function normalizeSite(s){
   s=JSON.parse(JSON.stringify(s||{}));
   s.trades=Array.isArray(s.trades)&&s.trades.length?s.trades:TRADES_DEFAULT.slice();
-  s.zones=Array.isArray(s.zones)?s.zones:[]; s.stages=Array.isArray(s.stages)?s.stages:[]; s.beams=Array.isArray(s.beams)?s.beams:[];
+  s.zones=Array.isArray(s.zones)?s.zones:[]; s.stages=Array.isArray(s.stages)?s.stages:[]; s.beams=Array.isArray(s.beams)?s.beams:[]; s.cols=Array.isArray(s.cols)?s.cols:[];
   return s;
 }
 function showBanner(t,keep){ const b=$('#banner'); b.textContent=t; b.hidden=false; if(keep) b.dataset.keep='1'; }
@@ -2463,6 +2466,7 @@ const PE_TOOLS=[
   {k:'office',t:'工務所',ic:'<path d="M4 20V9h16v11z"/><path d="M4 9l2-4h12l2 4M10 20v-5h4v5"/>'},
   {k:'gate',t:'大門',ic:'<path d="M5 20V5M19 20V5M5 8h14"/><path d="M9 8v12M15 8v12"/>'},
   {k:'beam',t:'地樑',ic:'<path d="M3 8h18M3 16h18M8 3v18M16 3v18"/>'},
+  {k:'col',t:'柱',ic:'<path d="M7 7h10v10H7z"/><path d="M7 7l10 10M17 7L7 17"/>'},
   {k:'erase',t:'刪除',ic:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'},
 ];
 const PE_HINT={
@@ -2473,7 +2477,8 @@ const PE_HINT={
   office:'在工務所的位置拖曳出一個方框。',
   gate:'沿著圍籬拖曳，標出大門的寬度。',
   beam:'沿著圖上的地樑拖曳畫線，一次一支。會自動對齊水平、垂直和其他地樑。兩指拖曳可以移動畫面。',
-  erase:'點一下要刪除的地樑、分區、空地、工務所、大門或圍籬。',
+  col:'在圖上有柱子的位置點一下放一支柱，會自動對齊地樑的交點和端點。',
+  erase:'點一下要刪除的地樑、柱、分區、空地、工務所、大門或圍籬。',
 };
 const PE_MOVE_HINT={
   boundary:'拖曳圍籬上的白點移動角，拖曳＋多加一個角。要整個重畫請按左上角「重畫」。',
@@ -2481,8 +2486,12 @@ const PE_MOVE_HINT={
   yard:'點空地選取它，再拖曳調整形狀或整塊移動。',
   office:'拖曳工務所移動位置，拖曳四個角調整大小。',
   gate:'沿著圍籬拖曳大門移動位置，拖曳兩端調整寬度。',
-  beam:'點一支地樑選取它，再拖曳兩端或中間。要畫新的地樑請按左上角「新增」。',
+  beam:'點一支地樑選取它，可以改尺寸，再拖曳兩端或中間。要畫新的地樑請按左上角「新增」。',
+  col:'點一支柱選取它，可以改尺寸或刪除，直接拖曳可以移動。要放新的柱請按左上角「新增」。',
 };
+// sizes in cm, as on the structural drawings. 地樑: 寬 × 深; 柱: 寬（圖上左右）× 深（圖上上下）
+const PE_BW=[20,25,30,35,40,45,50,60,70,80,100,120], PE_BD=[40,50,60,70,80,90,100,120,150,180,200,250], PE_CS=[30,40,50,60,70,80,90,100,120,150,180,200];
+const peSzSel=(id,L,v,lab,def)=>`<label class="pe-sz">${lab}<select id="${id}" aria-label="${lab}（公分）">${def?`<option value="0" ${v?'':'selected'}>預設</option>`:''}${(L.includes(+v)||!v?L:L.concat([+v]).sort((a,b)=>a-b)).map(x=>`<option value="${x}" ${+v===x?'selected':''}>${x}</option>`).join('')}</select></label>`;
 const PE_DRAG={beam:1,office:1,gate:1};
 const PE_POLY={boundary:1,zone:1,yard:1};
 const isYardName=n=>/空地|停車|車道/.test(n||'');
@@ -2529,21 +2538,22 @@ function peLoadGeo(){
     office:s.office?{X:s.office.x*PE.A*1000,Y:s.office.y*1000,W:s.office.w*PE.A*1000,H:s.office.h*1000}:null,
     gate:s.gate&&s.gate.x1!=null?{a:peW({x:s.gate.x1,y:s.gate.y1}),b:peW({x:s.gate.x2,y:s.gate.y2})}:null,
     zones:(s.zones||[]).filter(z=>z.pts||z.w).map(z=>({id:z.id,name:z.name,pts:zonePts(z).map(peW)})),
-    beams:(s.beams||[]).map(b=>({a:peW({x:b.x1,y:b.y1}),b:peW({x:b.x2,y:b.y2})})) };
+    beams:(s.beams||[]).map(b=>({a:peW({x:b.x1,y:b.y1}),b:peW({x:b.x2,y:b.y2}),w:+b.w||0,d:+b.d||0})),
+    cols:(s.cols||[]).map(c=>({p:peW({x:c.x,y:c.y}),w:+c.w||60,d:+c.d||60})) };
 }
 function pePush(){ PE.undo.push(JSON.stringify(PE.g)); if(PE.undo.length>80) PE.undo.shift(); PE.dirty=true; }
 function peUndo(){ if(!PE) return; if(PE.poly.length){ PE.poly.pop(); peDraw(); peHint(); return; } const u=PE.undo.pop(); if(!u){ toast('沒有可以復原的步驟'); return; } PE.g=JSON.parse(u); PE.sel=null; peDraw(); peHint(); peToolMarks(); }
 const PE_ONE={boundary:1,office:1,gate:1,yard:1};   // only one of these: 「新增」 means 重畫
-function peHas(k){ const g=PE.g; if(!g) return false; return k==='boundary'?g.boundary.length>2:k==='zone'?g.zones.some(z=>!isYardName(z.name)):k==='yard'?g.zones.some(z=>isYardName(z.name)):k==='office'?!!g.office:k==='gate'?!!g.gate:k==='beam'?g.beams.length>0:false; }
+function peHas(k){ const g=PE.g; if(!g) return false; return k==='boundary'?g.boundary.length>2:k==='zone'?g.zones.some(z=>!isYardName(z.name)):k==='yard'?g.zones.some(z=>isYardName(z.name)):k==='office'?!!g.office:k==='gate'?!!g.gate:k==='beam'?g.beams.length>0:k==='col'?(g.cols||[]).length>0:false; }
 const peToolOf=z=>isYardName(z&&z.name)?'yard':'zone';
-function peSetTool(k,mode){ PE.tool=k; PE.mode=k==='erase'?'add':(mode||(peHas(k)?'move':'add')); PE.poly=[]; PE.drag=null; PE.sel=null; PE.bsel=null; PE.hover=null; PE.redraw=null; PE.vsel=null; PE.vdrag=null;
+function peSetTool(k,mode){ PE.tool=k; PE.mode=k==='erase'?'add':(mode||(peHas(k)?'move':'add')); PE.poly=[]; PE.drag=null; PE.sel=null; PE.bsel=null; PE.csel=null; PE.hover=null; PE.redraw=null; PE.vsel=null; PE.vdrag=null;
   $$('#peTools [data-pt]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.pt===k));
   $('#peStage').classList.toggle('panning',PE.mode==='move'); peModeUI(); peToolMarks(); peHint(); peDraw(); }
 function peModeUI(){ const m=$('#peMode'); if(!m) return; const t=PE.tool; if(t==='erase'){ m.hidden=true; return; } m.hidden=false;
   const has=peHas(t), addL=PE_ONE[t]&&has?'重畫':'新增';
   m.innerHTML=`<button type="button" data-pm="move" aria-pressed="${PE.mode==='move'}" ${has?'':'disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18"/><path d="M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>移動</button><button type="button" data-pm="add" aria-pressed="${PE.mode==='add'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>${addL}</button>`;
   m.querySelectorAll('[data-pm]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); peSetTool(PE.tool,b.dataset.pm); }); }
-function peToolMarks(){ const g=PE.g; if(!g) return; const done={boundary:g.boundary.length>2,zone:g.zones.some(z=>!isYardName(z.name)),yard:g.zones.some(z=>isYardName(z.name)),office:!!g.office,gate:!!g.gate,beam:g.beams.length>0};
+function peToolMarks(){ const g=PE.g; if(!g) return; const done={boundary:g.boundary.length>2,zone:g.zones.some(z=>!isYardName(z.name)),yard:g.zones.some(z=>isYardName(z.name)),office:!!g.office,gate:!!g.gate,beam:g.beams.length>0,col:(g.cols||[]).length>0};
   $$('#peTools [data-pt]').forEach(b=>b.classList.toggle('done',!!done[b.dataset.pt])); }
 function peHint(){
   const h=$('#peHint'); if(!h||!PE) return; const t=PE.tool;
@@ -2561,8 +2571,20 @@ function peHint(){
     h.innerHTML=`<span class="grow">重新點出「${esc(z?z.name:'')}」範圍的每個角，按「完成」就會取代原本的範圍。</span><button type="button" id="peReX">取消重畫</button>`;
     $('#peReX').onclick=()=>{ const id=PE.redraw; peSetTool(peToolOf(z),'move'); PE.sel=id; peDraw(); peHint(); }; return; }
   if(t==='beam'&&PE.mode==='move'&&PE.bsel!=null&&PE.g.beams[PE.bsel]){
-    h.innerHTML=`<span class="grow">已選一支地樑：拖曳兩端調整長度，拖曳中間整支移動。</span><button type="button" id="peBDel">刪除這支</button>`;
+    const bm=PE.g.beams[PE.bsel];
+    h.innerHTML=`<span>地樑</span>${peSzSel('peBW',PE_BW,bm.w,'寬',true)}${peSzSel('peBD',PE_BD,bm.d,'深',true)}<span class="pe-u">公分</span><button type="button" id="peBAll">全部地樑同尺寸</button><button type="button" id="peBDel">刪除這支</button><span class="grow pe-zhelp">拖曳兩端調整長度，拖曳中間整支移動。</span>`;
+    $('#peBW').onchange=e=>{ pePush(); bm.w=+e.target.value||0; PE.beamSz={w:bm.w,d:bm.d}; peDraw(); }; $('#peBD').onchange=e=>{ pePush(); bm.d=+e.target.value||0; PE.beamSz={w:bm.w,d:bm.d}; peDraw(); };
+    $('#peBAll').onclick=()=>{ pePush(); PE.g.beams.forEach(x=>{ x.w=bm.w; x.d=bm.d; }); PE.beamSz={w:bm.w,d:bm.d}; peDraw(); toast('全部地樑都改成這個尺寸'); };
     $('#peBDel').onclick=()=>{ pePush(); PE.g.beams.splice(PE.bsel,1); PE.bsel=null; peDraw(); peHint(); peToolMarks(); peModeUI(); }; return; }
+  if(t==='col'){ const g=PE.g; g.cols=g.cols||[]; const c=PE.mode==='move'&&PE.csel!=null?g.cols[PE.csel]:null, z=c||PE.colSz||(PE.colSz={w:60,d:60});
+    h.innerHTML=`<span>${c?'這支柱':'新的柱'}</span>${peSzSel('peCW',PE_CS,z.w,'寬',false)}${peSzSel('peCD',PE_CS,z.d,'深',false)}<span class="pe-u">公分</span>${c?'<button type="button" id="peCAll">全部柱同尺寸</button><button type="button" id="peCDel">刪除這支</button>':'<button type="button" id="peCAuto">地樑交點自動放柱</button>'}<span class="grow pe-zhelp">${c?'直接拖曳可以移動。':PE.mode==='move'?PE_MOVE_HINT.col:PE_HINT.col}</span>`;
+    const set=(k,v)=>{ if(c){ pePush(); c[k]=v; } PE.colSz={w:k==='w'?v:z.w,d:k==='d'?v:z.d}; peDraw(); };
+    $('#peCW').onchange=e=>set('w',+e.target.value||60); $('#peCD').onchange=e=>set('d',+e.target.value||60);
+    const ca=$('#peCAll'); if(ca) ca.onclick=()=>{ pePush(); g.cols.forEach(x=>{ x.w=c.w; x.d=c.d; }); peDraw(); toast('全部柱都改成這個尺寸'); };
+    const cd=$('#peCDel'); if(cd) cd.onclick=()=>{ pePush(); g.cols.splice(PE.csel,1); PE.csel=null; peDraw(); peHint(); peToolMarks(); peModeUI(); };
+    const cu=$('#peCAuto'); if(cu) cu.onclick=()=>{ const P=[]; g.beams.forEach(b=>P.push(b.a,b.b)); for(let i=0;i<g.beams.length;i++) for(let j=i+1;j<g.beams.length;j++){ const I=segX(g.beams[i].a,g.beams[i].b,g.beams[j].a,g.beams[j].b,false); if(I) P.push(I); }
+      if(!P.length){ toast('先畫地樑，才有交點可以放柱'); return; } pePush(); let n=0; P.forEach(q=>{ if(g.cols.some(x=>pD(x.p,q)<8)) return; g.cols.push({p:{X:q.X,Y:q.Y},w:z.w,d:z.d}); n++; }); toast(n?`已在地樑的交點和端點放了 ${n} 支柱，不要的可以刪掉`:'交點上都已經有柱了'); peDraw(); peToolMarks(); peModeUI(); };
+    return; }
   if(PE.mode==='move'&&PE_MOVE_HINT[t]){ h.innerHTML=`<span class="grow">${PE_MOVE_HINT[t]}</span>`; return; }
   if(PE_POLY[t]&&PE.poly.length){
     h.innerHTML=`<span class="grow">已點 ${PE.poly.length} 個點${PE.poly.length<3?'，至少要 3 個點':'，點回第一個點或按「完成」'}。</span><button type="button" id="pePolyX">重畫</button><button type="button" class="pri" id="pePolyOk" ${PE.poly.length<3?'disabled':''}>完成</button>`;
@@ -2618,6 +2640,7 @@ function peFinishPoly(){
 function peHit(W){
   const g=PE.g, thr=12/PE.k;
   let best=null, bd=thr;
+  (g.cols||[]).forEach((c,i)=>{ const d=pD(c.p,W); if(d<bd*1.3){ bd=d/1.3; best={k:'col',i}; } }); if(best) return best;
   g.beams.forEach((b,i)=>{ const d=pD(projSeg(W,b.a,b.b),W); if(d<bd){ bd=d; best={k:'beam',i}; } });
   if(g.gate){ const d=pD(projSeg(W,g.gate.a,g.gate.b),W); if(d<bd*1.3){ bd=d; best={k:'gate'}; } }
   if(best) return best;
@@ -2644,6 +2667,7 @@ function peBodyAt(p){ if(PE.mode!=='move') return null; const g=PE.g, t=PE.tool,
   if(t==='office'&&g.office){ const o=g.office; if(W.X>=o.X&&W.X<=o.X+o.W&&W.Y>=o.Y&&W.Y<=o.Y+o.H) return {k:'ob'}; }
   if(t==='gate'&&g.gate&&pD(projSeg(W,g.gate.a,g.gate.b),W)<thr*1.4) return {k:'gb'};
   if(t==='beam'&&PE.bsel!=null&&g.beams[PE.bsel]){ const bm=g.beams[PE.bsel]; if(pD(projSeg(W,bm.a,bm.b),W)<thr) return {k:'bb'}; }
+  if(t==='col'){ let ci=null, bd=thr*1.3; (g.cols||[]).forEach((c,i)=>{ const d=pD(c.p,W); if(d<bd){ bd=d; ci=i; } }); if(ci!=null){ PE.csel=ci; return {k:'cb'}; } }   // a 柱 is picked up and moved in one go
   return null; }
 // snap while dragging, ignoring the thing being dragged
 function peSnapEx(W,ex,from){ const g=PE.g, keep={zones:g.zones,boundary:g.boundary,beams:g.beams,office:g.office};
@@ -2657,12 +2681,15 @@ function peTap(p){
     if(t==='zone'||t==='yard'){ const area=pts=>Math.abs(pts.reduce((s,p,i)=>{ const q=pts[(i+1)%pts.length]; return s+p.X*q.Y-q.X*p.Y; },0)/2);
       const zs=PE.g.zones.filter(z=>peToolOf(z)===t&&inPolyS([W.X,W.Y],z.pts.map(p=>[p.X,p.Y]))).sort((a,b)=>area(a.pts)-area(b.pts)); const ns=zs.length?zs[0].id:null; if(ns!==PE.sel) PE.vsel=null; PE.sel=ns; }
     else if(t==='beam'){ let bi=null, bd=14/PE.k; PE.g.beams.forEach((bm,i)=>{ const d=pD(projSeg(W,bm.a,bm.b),W); if(d<bd){ bd=d; bi=i; } }); PE.bsel=bi; }
+    else if(t==='col'){ let ci=null, bd=18/PE.k; (PE.g.cols||[]).forEach((c,i)=>{ const d=pD(c.p,W); if(d<bd){ bd=d; ci=i; } }); PE.csel=ci; }
     peDraw(); peHint(); return; }
   if(PE_POLY[t]&&PE.mode==='add'){ const from=PE.poly[PE.poly.length-1]||null; const S=peSnap(W,from);
     if(PE.poly.length>2&&pD(S,PE.poly[0])<16/PE.k){ peFinishPoly(); return; }
     PE.poly.push({X:S.X,Y:S.Y}); peDraw(); peHint(); return; }
+  if(t==='col'){ const g=PE.g; g.cols=g.cols||[]; const S=peSnap(W,null), z=PE.colSz||(PE.colSz={w:60,d:60}); if(g.cols.some(c=>pD(c.p,S)<6)){ toast('這裡已經有一支柱了'); return; }
+    pePush(); g.cols.push({p:{X:S.X,Y:S.Y},w:z.w,d:z.d}); peToolMarks(); peModeUI(); peDraw(); return; }
   if(t==='erase'){ const h=peHit(W); if(!h){ toast('這裡沒有東西可以刪'); return; } pePush(); const g=PE.g; let what='';
-    if(h.k==='beam'){ g.beams.splice(h.i,1); what='地樑'; } else if(h.k==='gate'){ g.gate=null; what='大門'; } else if(h.k==='office'){ g.office=null; what='工務所'; }
+    if(h.k==='col'){ g.cols.splice(h.i,1); what='柱'; } else if(h.k==='beam'){ g.beams.splice(h.i,1); what='地樑'; } else if(h.k==='gate'){ g.gate=null; what='大門'; } else if(h.k==='office'){ g.office=null; what='工務所'; }
     else if(h.k==='zone'){ const z=g.zones.find(z=>z.id===h.id); g.zones=g.zones.filter(z=>z.id!==h.id); what=z?'「'+z.name+'」':'分區'; } else if(h.k==='boundary'){ g.boundary=[]; what='圍籬範圍'; }
     toast('已刪除'+what+'，按「復原」可以救回來'); peToolMarks(); peDraw(); return; }
   if(PE_DRAG[t]) toast(t==='beam'?'按住拖曳來畫一支地樑':t==='gate'?'沿著圍籬拖曳標出大門':'拖曳出工務所的方框');
@@ -2676,7 +2703,7 @@ function peCommitDrag(){
   const len=pD(d.a,d.b), t=d.tool;
   if(len<14/PE.k){ peDraw(); return; }
   pePush();
-  if(t==='beam'){ PE.g.beams.push({a:{X:d.a.X,Y:d.a.Y},b:{X:d.b.X,Y:d.b.Y}}); }
+  if(t==='beam'){ const z=PE.beamSz||{w:0,d:0}; PE.g.beams.push({a:{X:d.a.X,Y:d.a.Y},b:{X:d.b.X,Y:d.b.Y},w:z.w||0,d:z.d||0}); }
   else if(t==='office'){ const X=Math.min(d.a.X,d.b.X), Y=Math.min(d.a.Y,d.b.Y); PE.g.office={X,Y,W:Math.abs(d.b.X-d.a.X),H:Math.abs(d.b.Y-d.a.Y)}; toast('已標出工務所'); peSetTool('office','move'); }
   else if(t==='gate'){ const [a,b]=peGateSnap(d.a,d.b); PE.g.gate={a,b}; toast('已標出大門'); peSetTool('gate','move'); }
   peToolMarks(); peModeUI(); peDraw();
@@ -2716,7 +2743,8 @@ function peWire(){
       else if(v.k==='ge'){ const a=v.i===0?W:o.gate.a, b=v.i===1?W:o.gate.b; const [A,B]=peGateSnap(a,b); g.gate={a:A,b:B}; }
       else if(v.k==='gb'){ const [A,B]=peGateSnap({X:o.gate.a.X+dX,Y:o.gate.a.Y+dY},{X:o.gate.b.X+dX,Y:o.gate.b.Y+dY}); g.gate={a:A,b:B}; }
       else if(v.k==='be'){ const bm=g.beams[PE.bsel], other=v.i===0?bm.b:bm.a; S=peSnapEx(W,{beam:PE.bsel},other); if(v.i===0) bm.a={X:S.X,Y:S.Y}; else bm.b={X:S.X,Y:S.Y}; }
-      else if(v.k==='bb'){ g.beams[PE.bsel]={a:{X:o.beam.a.X+dX,Y:o.beam.a.Y+dY},b:{X:o.beam.b.X+dX,Y:o.beam.b.Y+dY}}; }
+      else if(v.k==='bb'){ g.beams[PE.bsel]=Object.assign({},o.beam,{a:{X:o.beam.a.X+dX,Y:o.beam.a.Y+dY},b:{X:o.beam.b.X+dX,Y:o.beam.b.Y+dY}}); }
+      else if(v.k==='cb'&&g.cols[PE.csel]){ S=peSnap(W,null); g.cols[PE.csel].p={X:S.X,Y:S.Y}; }
       PE.hover=S&&S.snap?S:null; peDraw(); return; }
     if(PE.drag&&PE.ptrs.size===1){ const W=peToW(p); let S;
       if(PE.drag.tool==='office') S={X:W.X,Y:W.Y}; else S=peSnap(W,PE.drag.a);
@@ -2731,7 +2759,7 @@ function peWire(){
     if(!PE||!PE.g) return; const had=PE.ptrs.delete(e.pointerId);
     if(PE.pinch){ if(PE.ptrs.size<2){ PE.pinch=null; PE.down=null; PE.drag=null; PE.vdrag=null; } return; }
     if(!had) return;
-    if(PE.vdrag){ const v=PE.vdrag; PE.vdrag=null; PE.hover=null; if(!v.moved){ if(v.k==='zv') PE.vsel=v.ins?null:v.i; else if(v.k==='zb'||v.k==='bb') peTap(peLocal(e)); } peDraw(); peHint(); return; }
+    if(PE.vdrag){ const v=PE.vdrag; PE.vdrag=null; PE.hover=null; if(!v.moved){ if(v.k==='zv') PE.vsel=v.ins?null:v.i; else if(v.k==='zb'||v.k==='bb'||v.k==='cb') peTap(peLocal(e)); } peDraw(); peHint(); return; }
     if(PE.drag){ peCommitDrag(); PE.down=null; return; }
     if(PE.down&&!PE.down.moved&&e.type==='pointerup'){ peTap(peLocal(e)); }
     PE.down=null;
@@ -2749,8 +2777,9 @@ function peDraw(){
   if(g.boundary.length>2) h+=`<polygon points="${pts(g.boundary)}" fill="none" stroke="#D0342C" stroke-width="${u(3.2)}" stroke-linejoin="round"/>`;
   g.boundary.forEach(v=>{ h+=`<circle cx="${v.X.toFixed(1)}" cy="${v.Y.toFixed(1)}" r="${u(3.5)}" fill="#D0342C"/>`; });
   if(g.office){ const o=g.office; h+=`<rect x="${o.X.toFixed(1)}" y="${o.Y.toFixed(1)}" width="${o.W.toFixed(1)}" height="${o.H.toFixed(1)}" fill="rgba(47,109,181,.38)" stroke="#2F6DB5" stroke-width="${u(2.4)}"/>`; }
-  g.beams.forEach(b=>{ h+=`<line x1="${b.a.X.toFixed(1)}" y1="${b.a.Y.toFixed(1)}" x2="${b.b.X.toFixed(1)}" y2="${b.b.Y.toFixed(1)}" stroke="#24323C" stroke-opacity=".82" stroke-width="${u(5)}" stroke-linecap="round"/>`; });
+  g.beams.forEach(b=>{ h+=`<line x1="${b.a.X.toFixed(1)}" y1="${b.a.Y.toFixed(1)}" x2="${b.b.X.toFixed(1)}" y2="${b.b.Y.toFixed(1)}" stroke="#24323C" stroke-opacity=".82" stroke-width="${u(Math.max(3,Math.min(11,5*(b.w||45)/45)))}" stroke-linecap="round"/>`; });
   g.beams.forEach(b=>{ [b.a,b.b].forEach(v=>{ h+=`<circle cx="${v.X.toFixed(1)}" cy="${v.Y.toFixed(1)}" r="${u(3.4)}" fill="#F5B700" stroke="#24323C" stroke-width="${u(1.2)}"/>`; }); });
+  (g.cols||[]).forEach((c,i)=>{ const w=Math.max(8,Math.min(26,14*(c.w||60)/60))/k, d=Math.max(8,Math.min(26,14*(c.d||60)/60))/k, on=PE.tool==='col'&&PE.mode==='move'&&PE.csel===i; h+=`<rect x="${(c.p.X-w/2).toFixed(1)}" y="${(c.p.Y-d/2).toFixed(1)}" width="${w.toFixed(1)}" height="${d.toFixed(1)}" fill="${on?'#F5B700':'#5F6B75'}" stroke="${on?'#E07800':'#16222C'}" stroke-width="${u(on?3:1.6)}"/>`; });   // 柱: a square on the plan, a little bigger for a bigger column
   if(g.gate){ h+=`<line x1="${g.gate.a.X.toFixed(1)}" y1="${g.gate.a.Y.toFixed(1)}" x2="${g.gate.b.X.toFixed(1)}" y2="${g.gate.b.Y.toFixed(1)}" stroke="#1E9E52" stroke-width="${u(8)}" stroke-linecap="round"/>`; }
   // labels on top
   g.zones.forEach(z=>{ const c=z.pts.reduce((s,p)=>({X:s.X+p.X/z.pts.length,Y:s.Y+p.Y/z.pts.length}),{X:0,Y:0}); h+=lab(c.X,c.Y,z.name,isYardName(z.name)?'#3E454B':'#B35A00'); });
@@ -2786,7 +2815,8 @@ function peSave(){
   if(g.gate){ const a=peN(g.gate.a), b=peN(g.gate.b); SITE.gate={x1:a.x,y1:a.y,x2:b.x,y2:b.y}; } else if(SITE.gate&&SITE.gate.x1!=null) SITE.gate=null;
   SITE.zones=g.zones.map(z=>{ const P=z.pts.map(peN), xs=P.map(p=>p.x), ys=P.map(p=>p.y), x=Math.min(...xs), y=Math.min(...ys);
     return {id:z.id,name:z.name,pts:P,x,y,w:+(Math.max(...xs)-x).toFixed(4),h:+(Math.max(...ys)-y).toFixed(4)}; });
-  SITE.beams=g.beams.map(b=>{ const a=peN(b.a), c=peN(b.b); return {x1:a.x,y1:a.y,x2:c.x,y2:c.y}; });
+  SITE.beams=g.beams.map(b=>{ const a=peN(b.a), c=peN(b.b), o={x1:a.x,y1:a.y,x2:c.x,y2:c.y}; if(b.w) o.w=b.w; if(b.d) o.d=b.d; return o; });
+  SITE.cols=(g.cols||[]).map(c=>{ const n=peN(c.p); return {x:n.x,y:n.y,w:c.w||60,d:c.d||60}; });
   if(!SITE.drawing.aspect) SITE.drawing.aspect=+PE.A.toFixed(4);
   peClose(); saveSite().then(()=>{ renderAll(true); }); toast('平面圖已儲存，工地動畫會照這個畫');
 }
@@ -3399,17 +3429,24 @@ function simBuild(r){
     const TH=0.34, CH=0.23;   // beam width; half the column size (columns a little wider than the beams)
     const pick=mode=>{ let m=mode; if(m==='strip') m='form'; if(m==='rebar'&&rng()<0.3) m='form'; return m; };
     const fillOf=(z,md)=>{ if(!z) return 'empty'; if(md==='strip') return 'full'; if(/(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing+' '+z.txt)) return 'dyn'; return 'empty'; };
-    const beamPiece=(ax,ay,bx,by,m,fl,zn)=>{ if(slabOn) return;
-      if(m==='rebar') props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.42,col:SC.rebar,cage:true});
-      else if(m==='form'){ const st0=modeOf(zn)==='strip'; props.push({beam:true,ax,ay,bx,by,wd:TH+0.12,h:0.56,col:SC.ply,ply:true,form:true,fill:fl,filled:fl==='full',zn,strip:st0,stripped:st0&&rng()<0.3}); }   // 拆模: boards come off one by one (stripStep)
-      else props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.46,col:m==='fresh'?SC.fresh:SC.concrete});
+    // sizes from the plan (cm) are drawn against the model's own beam (45 wide × 60 deep) and column (60 × 60)
+    const beamPiece=(ax,ay,bx,by,m,fl,zn,A)=>{ if(slabOn) return; const wk=(A&&A.wk)||1, hk=(A&&A.hk)||1, TW=TH*wk; if(zn) zn.bh=Math.max(zn.bh||0,0.56*hk);
+      if(m==='rebar') props.push({beam:true,ax,ay,bx,by,wd:TW,h:0.42*hk,col:SC.rebar,cage:true});
+      else if(m==='form'){ const st0=modeOf(zn)==='strip'; props.push({beam:true,ax,ay,bx,by,wd:TW+0.12,h:0.56*hk,col:SC.ply,ply:true,form:true,fill:fl,filled:fl==='full',zn,strip:st0,stripped:st0&&rng()<0.3}); }   // 拆模: boards come off one by one (stripStep)
+      else props.push({beam:true,ax,ay,bx,by,wd:TW,h:0.46*hk,col:m==='fresh'?SC.fresh:SC.concrete});
     };
-    const segs=fenceClamp(beamSnap(SITE.beams.map(b=>({x1:MX(+b.x1),y1:MY(+b.y1),x2:MX(+b.x2),y2:MY(+b.y2)})).map(g=>Object.assign(g,{len:Math.hypot(g.x2-g.x1,g.y2-g.y1)})).filter(g=>g.len>0.1),beamTL,beamTL?150*bldg.fit.k:0),BND);   // on the drawing's beam lines, and never through the fence
+    const segs=fenceClamp(beamSnap(SITE.beams.map(b=>({x1:MX(+b.x1),y1:MY(+b.y1),x2:MX(+b.x2),y2:MY(+b.y2),wk:Math.max(0.4,Math.min(2.7,(+b.w||45)/45)),hk:Math.max(0.6,Math.min(2.6,(+b.d||60)/60))})).map(g=>Object.assign(g,{len:Math.hypot(g.x2-g.x1,g.y2-g.y1)})).filter(g=>g.len>0.1),beamTL,beamTL?150*bldg.fit.k:0),BND);   // on the drawing's beam lines, and never through the fence
     const cross=(A,B)=>{ const dx1=A.x2-A.x1, dy1=A.y2-A.y1, dx2=B.x2-B.x1, dy2=B.y2-B.y1, den=dx1*dy2-dy1*dx2; if(Math.abs(den)<1e-9) return null;
       const t=((B.x1-A.x1)*dy2-(B.y1-A.y1)*dx2)/den, u=((B.x1-A.x1)*dy1-(B.y1-A.y1)*dx1)/den, ta=0.25/A.len, tb=0.25/B.len;
       if(t<-ta||t>1+ta||u<-tb||u>1+tb) return null; const tc=Math.max(0,Math.min(1,t)); return {t:tc,x:A.x1+dx1*tc,y:A.y1+dy1*tc}; };
     const joints=[]; const addJ=(x,y)=>{ if(!joints.some(j=>Math.hypot(j.x-x,j.y-y)<0.3)) joints.push({x,y}); };
     segs.forEach((A,i)=>{ A.ts=[0,1]; segs.forEach((B,j)=>{ if(i===j) return; const r=cross(A,B); if(r){ A.ts.push(r.t); addJ(r.x,r.y); } }); addJ(A.x1,A.y1); addJ(A.x2,A.y2); });
+    // 柱: placed on the plan → only those stand (each at its own size); none placed → one at every joint, as before
+    const COLS=(SITE.cols||[]).length?SITE.cols.map(c=>{ let x=MX(+c.x), y=MY(+c.y); const j=joints.slice().sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y))[0]; if(j&&Math.hypot(j.x-x,j.y-y)<0.6){ x=j.x; y=j.y; }
+      return {x,y,cw:0.46*Math.max(0.4,Math.min(3.4,(+c.w||60)/60)),cd:0.46*Math.max(0.4,Math.min(3.4,(+c.d||60)/60))}; }):null;
+    const colAt=(x,y)=>COLS?COLS.find(c=>Math.hypot(c.x-x,c.y-y)<0.3):null;
+    const endE=(x,y,ux,uy,A)=>{ if(!COLS) return CH/Math.max(Math.abs(ux),Math.abs(uy)); const c=colAt(x,y); if(!c) return -TH*(A.wk||1)*0.5;   // no column there: the beams run on into each other
+      return Math.min(c.cw/2/Math.max(Math.abs(ux),1e-6),c.cd/2/Math.max(Math.abs(uy),1e-6)); };
     segs.forEach(A=>{
       const ts=A.ts.sort((p,q)=>p-q).filter((v,k,arr)=>k===0||v-arr[k-1]>0.3/A.len);
       if(ts[ts.length-1]<1) ts.push(1);
@@ -3421,12 +3458,11 @@ function simBuild(r){
           const a=t0+(t1-t0)*q/n, b=t0+(t1-t0)*(q+1)/n;
           let ax=A.x1+(A.x2-A.x1)*a, ay=A.y1+(A.y2-A.y1)*a, bx=A.x1+(A.x2-A.x1)*b, by=A.y1+(A.y2-A.y1)*b;
           // beams stop at the column faces so they meet each column squarely (and depth-sort cleanly)
-          const e=CH/Math.max(Math.abs(ux),Math.abs(uy));
-          if(q===0){ ax+=ux*e; ay+=uy*e; } if(q===n-1){ bx-=ux*e; by-=uy*e; }
+          if(q===0){ const e=endE(ax,ay,ux,uy,A); ax+=ux*e; ay+=uy*e; } if(q===n-1){ const e=endE(bx,by,ux,uy,A); bx-=ux*e; by-=uy*e; }
           if((bx-ax)*ux+(by-ay)*uy<0.05) continue;
           const mx=(ax+bx)/2, my=(ay+by)/2;
           const z=zoneAt(mx-uy*0.4,my+ux*0.4)||zoneAt(mx+uy*0.4,my-ux*0.4)||zoneAt(mx,my)||zoneNear(mx,my,0.5);
-          if(started(z)){ const md=modeOf(z); beamPiece(ax,ay,bx,by,pick(md),fillOf(z,md),z); }
+          if(started(z)){ const md=modeOf(z); beamPiece(ax,ay,bx,by,pick(md),fillOf(z,md),z,A); }
         }
       }
       const axTag=Math.abs(uy)<0.08?'h':Math.abs(ux)<0.08?'v':'d';
@@ -3435,10 +3471,10 @@ function simBuild(r){
     // 開挖: a work zone whose 地樑 have been started is dug down, so the beams sit below ground level (GL±0)
     // the dig is a little wider than the zone (0.45), so a beam drawn along the zone's edge is down in it with the rest
     const grow=(P,d)=>{ let A=0; P.forEach((p,i)=>{ const q=P[(i+1)%P.length]; A+=p.x*q.y-q.x*p.y; }); const sg=A>0?1:-1; return P.map((p,i)=>{ const a=P[(i-1+P.length)%P.length], b=P[(i+1)%P.length], l1=Math.hypot(p.x-a.x,p.y-a.y)||1, l2=Math.hypot(b.x-p.x,b.y-p.y)||1, n1={x:(p.y-a.y)/l1*sg,y:-(p.x-a.x)/l1*sg}, n2={x:(b.y-p.y)/l2*sg,y:-(b.x-p.x)/l2*sg}, k=Math.min(2,1/Math.max(0.25,1+n1.x*n2.x+n1.y*n2.y)); return {x:p.x+(n1.x+n2.x)*k*d,y:p.y+(n1.y+n2.y)*k*d}; }); };
-    zones.forEach(z=>{ if(z.beamPts&&z.beamPts.length&&started(z)&&!z.isYard&&!z.isStore&&!z.isGate){ z.pit=PIT_D; z.pitPts=grow(z.pts||[{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}],0.45); } });
-    if(!slabOn) joints.forEach(j=>{ const z=zoneAt(j.x+0.3,j.y+0.3)||zoneAt(j.x-0.3,j.y-0.3)||zoneAt(j.x+0.3,j.y-0.3)||zoneAt(j.x-0.3,j.y+0.3); if(!started(z)) return; const m=modeOf(z);
+    zones.forEach(z=>{ if(z.beamPts&&z.beamPts.length&&started(z)&&!z.isYard&&!z.isStore&&!z.isGate){ z.pit=Math.max(PIT_D,(z.bh||0)+0.16); z.pitPts=grow(z.pts||[{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}],0.45); } });
+    if(!slabOn) (COLS||joints).forEach(j=>{ const cw=j.cw||CH*2, cd=j.cd||CH*2, hk=Math.max(1,...segs.filter(g=>segDist(j.x,j.y,g.x1,g.y1,g.x2,g.y2)<0.3).map(g=>g.hk||1)); const z=zoneAt(j.x+0.3,j.y+0.3)||zoneAt(j.x-0.3,j.y-0.3)||zoneAt(j.x+0.3,j.y-0.3)||zoneAt(j.x-0.3,j.y+0.3); if(!started(z)) return; const m=modeOf(z);
       const fl=fillOf(z,m); const mm=m==='strip'?'form':m;
-      box(j.x-CH,j.y-CH,CH*2,CH*2,0.56,mm==='rebar'?SC.rebar:mm==='form'?SC.ply:SC.fresh,{cage:mm==='rebar',ply:mm==='form',form:mm==='form',fill:fl,filled:fl==='full',cx:j.x,cy:j.y,zn:z,strip:m==='strip',stripped:m==='strip'&&rng()<0.3}); });
+      box(j.x-cw/2,j.y-cd/2,cw,cd,0.56*hk,mm==='rebar'?SC.rebar:mm==='form'?SC.ply:SC.fresh,{cage:mm==='rebar',ply:mm==='form',form:mm==='form',fill:fl,filled:fl==='full',cx:j.x,cy:j.y,zn:z,strip:m==='strip',stripped:m==='strip'&&rng()<0.3}); });
   }
   // unzoned curing / pouring → apply to beam zones
   if(unz.some(t=>/養護|灑水/.test(t.text)&&t.status==='doing')) work.forEach(z=>{ if((z.beamXs||z.beamPts)&&!sprays.find(s=>s.x===z.cx)) sprays.push({x:z.cx,y:z.cy,r:Math.min(z.w,z.h)*0.45}); });
@@ -5102,7 +5138,7 @@ function setSimBtns(){ const zb=document.getElementById('simZoom'), pb=document.
   if(pb){ pb.innerHTML=SIM.paused?ICO.play:ICO.pause; pb.setAttribute('aria-label',SIM.paused?'播放動畫':'暫停動畫'); } }
 function simMount(r){
   const cv=document.getElementById('sim'); if(!cv) return;
-  const key=CUR+"|"+nowHalf()+"|"+JSON.stringify((r&&r.tasks||[]).map(t=>t.half||""))+"|"+JSON.stringify(wxAuto(r?r.date:selDate)||0)+"|"+(SIM.half||'all')+"|"+(SIM.todayHalf||'')+"|"+gateState()+"|"+todayPunches().map(p=>p.id+(p.out?'o':'i')).join(',')+"|"+(r?punchesOn(r.date).map(p=>p.id+(p.out||'')).join(',')+'|':'')+(r?r.date+'|'+(r.at||'')+'|'+JSON.stringify(r.workers)+'|'+r.tasks.length:'none')+'|'+JSON.stringify(SITE.zones||[])+JSON.stringify(SITE.beams||[])+JSON.stringify(SITE.gate||{})+JSON.stringify(SITE.boundary||{})+JSON.stringify(SITE.office||{})+((SITE.drawing&&SITE.drawing.id)||'')+'|'+(layoutData()?((SITE.layout&&SITE.layout.id)||'L'):'')+'|'+JSON.stringify((SITE.mpos||{})['@haul']||0);
+  const key=CUR+"|"+nowHalf()+"|"+JSON.stringify((r&&r.tasks||[]).map(t=>t.half||""))+"|"+JSON.stringify(wxAuto(r?r.date:selDate)||0)+"|"+(SIM.half||'all')+"|"+(SIM.todayHalf||'')+"|"+gateState()+"|"+todayPunches().map(p=>p.id+(p.out?'o':'i')).join(',')+"|"+(r?punchesOn(r.date).map(p=>p.id+(p.out||'')).join(',')+'|':'')+(r?r.date+'|'+(r.at||'')+'|'+JSON.stringify(r.workers)+'|'+r.tasks.length:'none')+'|'+JSON.stringify(SITE.zones||[])+JSON.stringify(SITE.beams||[])+JSON.stringify(SITE.cols||[])+JSON.stringify(SITE.gate||{})+JSON.stringify(SITE.boundary||{})+JSON.stringify(SITE.office||{})+((SITE.drawing&&SITE.drawing.id)||'')+'|'+(layoutData()?((SITE.layout&&SITE.layout.id)||'L'):'')+'|'+JSON.stringify((SITE.mpos||{})['@haul']||0);
   if(key!==SIM.key){ SIM.st=simBuild(r); SIM.key=key; SIM.selZone=null; } else { soilProps(SIM.st); fillsBuild(SIM.st); }
   rotCentre(SIM.st); setRot(SIM.rot||0); rotBtn();
   SIM.cv=cv; SIM.ctx=cv.getContext('2d'); g3Mount();
