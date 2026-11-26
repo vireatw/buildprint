@@ -498,7 +498,8 @@ export function create(){
     if(stat&&stat.userData.roof){ const pl=stat.userData.roof; pl.rotation.z=pl.userData.z0; pl.updateWorldMatrix(true,false); _v.set(1,0,0).transformDirection(pl.matrixWorld); if(_v.x-_v.z<0) pl.rotation.z=pl.userData.z0+Math.PI; }   // the name on the office roof always reads left to right
     // people, machines, dog
     const yard=st.yard, inY=w=>!!(yard&&v.inZone&&v.inZone(yard,w.x,w.y));
-    st.workers.forEach(w=>{ const g=people.get(w); if(!g) return; g.visible=!w.inside; if(w.inside) return; { const pd=st.pitAt?st.pitAt(w.x,w.y):0, u=g.userData; u.pd=u.pd==null?pd:u.pd+(pd-u.pd)*Math.min(1,dt*7); const sh=soilTop(st,w.x,w.y,0); u.sh=u.sh==null?sh:u.sh+(sh-u.sh)*Math.min(1,dt*8); g.position.set(w.x,Math.max(w.z||0,u.sh)-u.pd,w.y); } animPerson(g,w,t,dt,st,inY(w),v); });
+    st.workers.forEach(w=>{ const g=people.get(w); if(!g) return; g.visible=!w.inside&&!v.noCrew; if(w.inside||v.noCrew) return;   // noCrew: 預覽蓋樓 shows the building only
+      { const pd=st.pitAt?st.pitAt(w.x,w.y):0, u=g.userData; u.pd=u.pd==null?pd:u.pd+(pd-u.pd)*Math.min(1,dt*7); const sh=soilTop(st,w.x,w.y,0); u.sh=u.sh==null?sh:u.sh+(sh-u.sh)*Math.min(1,dt*8); g.position.set(w.x,Math.max(w.z||0,u.sh)-u.pd,w.y); } animPerson(g,w,t,dt,st,inY(w),v); });
     st.vehicles.forEach(vh=>{ const g=machines.get(vh); if(g){ animVehicle(g,vh,t,st,v); const bl=g.userData.blob; if(bl){ const cu=vh.cur; bl.visible=!!(cu&&!vh.parked&&!vh.hidden); if(cu) bl.position.set(cu.x,0.48,cu.y); } } });
     if(dogM&&st.dog) animDog(dogM,st.dog,t,dt);
     const fx=st.fx||[]; dust.forEach((d,i)=>{ const q=fx[i]; if(!q){ d.visible=false; return; } const kk=(t-q.t0)/q.life; d.visible=kk>=0&&kk<1; d.position.set(q.x,0.12+kk*0.4,q.y); d.scale.setScalar(0.25+kk*0.55); d.material.opacity=0.42*(1-kk); });

@@ -483,7 +483,7 @@ textarea{min-height:84px;resize:vertical}
 #docSheet .sheet-in{max-height:86vh}
 .isl-cut{position:absolute;left:12px;bottom:calc(var(--plH,96px) + 20px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:2px;min-height:44px;padding:0 4px;border-radius:999px;background:rgba(16,26,36,.86);color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:6}
 .isl-cut[hidden]{display:none}
-#p-island:has(.isl-cut:not([hidden])) .isl-hint,#p-island:has(.isl-bp) .isl-hint{display:none}
+#p-island:has(.isl-cut:not([hidden])) .isl-hint,#p-island:has(.isl-bp) .isl-hint,#p-island:has(.isl-bp) .isl-legend{display:none}
 .isl-bp b{min-width:7.5em}
 .isl-cut b{min-width:4.5em;text-align:center;font-size:15px;color:#F5B700;padding:0 4px}
 .isl-cut button{width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:#fff;display:grid;place-items:center}
@@ -2865,7 +2865,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=28').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=29').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -4751,8 +4751,8 @@ function simDraw(){
     items.push({d:DEP(cu.x,cu.y)-0.6,f:()=>{ c.fillStyle='rgba(140,142,138,.85)'; c.beginPath(); c.ellipse(g[0],g[1],S*0.3,S*0.13,0,0,Math.PI*2); c.fill(); c.fillStyle='rgba(255,255,255,.35)'; c.beginPath(); c.ellipse(g[0]-S*0.08,g[1]-S*0.03,S*0.1,S*0.04,0,0,Math.PI*2); c.fill(); }}); }
   // gate posts sort with trucks and people, so a truck in the gate passes between them
   [-1,1].forEach(k=>{ const px=G.G.x+G.t.x*G.half*k, py=G.G.y+G.t.y*G.half*k; items.push({d:DEP(px,py)+0.15,f:()=>sBox(c,{x:px-0.12,y:py-0.12,w:0.24,d:0.24,h:1.25,col:'#5B6770'})}); });
-  if(G3){ SIM.gl.render(st,{t,N,W:SIM.W,H:SIM.H,dpr:SIM.dpr,S:SIM.S,ox:SIM.ox,oy:SIM.oy,rot:ROT.a,cx:ROT.cx,cy:ROT.cy,GW,GH,FILL_H,wx:wxOf(st.weather),edit:!!ISL.edit,lunch:!!st.lunch,tv:st.lunch?(st.lunchT||0):t,machSel:ISL.machSel,soilSel:ISL.soilSel,inZone,company:SITE&&SITE.company,site:SITE&&SITE.name,bs:BS});
-    st.workers.forEach(w=>{ if(w.inside){ w.sx=-9999; w.sy=-9999; return; } const q=SP(w.x,w.y,(w.z||0)+0.55-(st.pitAt?st.pitAt(w.x,w.y):0)); w.sx=q[0]; w.sy=q[1]; w.sr=SIM.S*0.4; }); if(st.dog){ const q=SP(st.dog.x,st.dog.y,0.25); st.dog.sx=q[0]; st.dog.sy=q[1];
+  if(G3){ SIM.gl.render(st,{noCrew:SIM.bPrev!=null,t,N,W:SIM.W,H:SIM.H,dpr:SIM.dpr,S:SIM.S,ox:SIM.ox,oy:SIM.oy,rot:ROT.a,cx:ROT.cx,cy:ROT.cy,GW,GH,FILL_H,wx:wxOf(st.weather),edit:!!ISL.edit,lunch:!!st.lunch,tv:st.lunch?(st.lunchT||0):t,machSel:ISL.machSel,soilSel:ISL.soilSel,inZone,company:SITE&&SITE.company,site:SITE&&SITE.name,bs:BS});
+    st.workers.forEach(w=>{ if(w.inside||SIM.bPrev!=null){ w.sx=-9999; w.sy=-9999; return; } const q=SP(w.x,w.y,(w.z||0)+0.55-(st.pitAt?st.pitAt(w.x,w.y):0)); w.sx=q[0]; w.sy=q[1]; w.sr=SIM.S*0.4; }); if(st.dog){ const q=SP(st.dog.x,st.dog.y,0.25); st.dog.sx=q[0]; st.dog.sy=q[1];
       if(st.dog.state==='sleep'){ const s0=SIM.S*0.5; c.fillStyle=`rgba(255,255,255,${N>0.3?0.85:0.95})`; c.strokeStyle='rgba(22,34,44,.5)'; c.lineWidth=2.5; c.textAlign='left'; [0,1,2].forEach(i=>{ const k=((t*0.4)+i/3)%1; c.globalAlpha=1-k; c.font=`800 ${Math.max(9,s0*(0.28+k*0.2))}px sans-serif`; const x=q[0]+s0*(0.3+k*0.5), y=q[1]-s0*(0.4+k*1.1); c.strokeText('z',x,y); c.fillText('z',x,y); }); c.globalAlpha=1; } } }   // 小黃 asleep: a few z's drifting up
   else { items.sort((a,b)=>a.d-b.d);
     if(BG){ const post=[]; items.forEach(i=>{ if(i.x!=null&&bldgFront(BG,i.x,i.y,i.z)) post.push(i); else i.f(); }); drawBuilding(c,BG,BS); post.forEach(i=>i.f()); }   // building between what's behind it and what's in front / on top
