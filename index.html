@@ -4889,11 +4889,8 @@ function fillCell(st,px,py){ const segs=[]; st.props.forEach(o=>{ if(o.beam) seg
   for(let k=0;k<N;k++){ const a=k/N*Math.PI*2, dx=Math.cos(a), dy=Math.sin(a); let bt=1e9, bi=-1, bu=0;
     segs.forEach((g,i)=>{ const ex=g[2]-g[0], ey=g[3]-g[1], den=dx*ey-dy*ex; if(Math.abs(den)<1e-9) return; const tol=0.6/(Math.hypot(ex,ey)||1); const t=((g[0]-px)*ey-(g[1]-py)*ex)/den, u=((g[0]-px)*dy-(g[1]-py)*dx)/den; if(t>1e-4&&u>=-tol&&u<=1+tol&&t<bt){ bt=t; bi=i; bu=u; } });
     if(bi>=0){ if(bu>=0&&bu<=1) hit.add(bi); } else open++; }
-  let band=null;
-  if(open>N*0.18||hit.size<3){   // mostly open: not a cell of the beam grid…
-    // …unless it is the dug strip outside the outer 地樑 (the edge of the excavation): that is backfilled too, bounded by the beams it faces and by the edge of the pit
-    band=hit.size>=1?(st.zones||[]).find(z=>z.pit&&z.pitPts&&inPolyS([px,py],z.pitPts.map(q=>[q.x,q.y]))):null; if(!band) return null; }
-  let poly=band?band.pitPts.map(q=>[q.x,q.y]):B.length>2?B.map(p=>[p.x,p.y]):[[-1,-1],[GW+1,-1],[GW+1,GH+1],[-1,GH+1]];
+  if(open>N*0.18||hit.size<3) return null;   // mostly open: not a cell of the beam grid
+  let poly=B.length>2?B.map(p=>[p.x,p.y]):[[-1,-1],[GW+1,-1],[GW+1,GH+1],[-1,GH+1]];
   const clip=(ax,ay,bx,by,off)=>{ let nx=-(by-ay), ny=bx-ax; const L=Math.hypot(nx,ny)||1; nx/=L; ny/=L; if((px-ax)*nx+(py-ay)*ny<0){ nx=-nx; ny=-ny; }
     const side=(x,y)=>(x-ax)*nx+(y-ay)*ny-off, out=[];
     for(let j=0;j<poly.length;j++){ const A=poly[j], C=poly[(j+1)%poly.length], sa=side(A[0],A[1]), sc=side(C[0],C[1]);
@@ -4904,6 +4901,7 @@ function fillCell(st,px,py){ const segs=[]; st.props.forEach(o=>{ if(o.beam) seg
   if(segs.some(g=>inPolyS([(g[0]+g[2])/2,(g[1]+g[3])/2],poly))) return null;   // swallowed a beam: the cell is not closed here
   let ar=0; for(let j=0;j<poly.length;j++){ const A=poly[j], C=poly[(j+1)%poly.length]; ar+=A[0]*C[1]-C[0]*A[1]; } if(Math.abs(ar)/2>GW*GH*0.35||Math.abs(ar)/2<0.02) return null;
   return poly.map(q=>({x:q[0],y:q[1]})); }
+window.__bpDump=()=>JSON.stringify({site:Object.assign({},SITE,{drawing:null,drawings:null}),report:REPORTS[selDate]||null,date:selDate});
 if(location.protocol==='file:') window.__gd={machZones:st=>machZones(st),segsOf:st=>{ const segs=[]; st.props.forEach(o=>{ if(o.beam) segs.push([o.ax,o.ay,o.bx,o.by,(o.wd||0.34)/2]); }); return segs; },fillCell:(...a)=>fillCell(...a),SIM:()=>SIM,simGround:(...a)=>simGround(...a),SP:(...a)=>SP(...a),FILL_H};
 function fillsBuild(st){ if(!st||!st.toG) return; st.fills=[]; ((SITE&&SITE.fills)||[]).forEach(f=>{ if(!soilOn(f,st.date)) return; const g=st.toG(+f.x,+f.y), poly=fillCell(st,g.x,g.y); if(poly) st.fills.push({id:f.id,poly}); }); SIM.bgKey=null; }
 function drawFill(c,f){ const P=f.poly, n=P.length; let cx=0, cy=0; P.forEach(p=>{ cx+=p.x/n; cy+=p.y/n; });
