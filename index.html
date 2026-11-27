@@ -3094,6 +3094,32 @@ function buildingGeo(work,fence,lines,pm){
   // the building stands on the work zones as drawn, notches and all (not on their convex hull), inside the fence
   const B=footprintGeo(zonesOutline(Z)||hull2([].concat(...Z)),0,{zones:Z,fence:fence&&fence.length>2?fence.map(p=>[p.x,p.y]):null,ori,pm:pm||null,lines:lines||null}); if(!B) return null;
   const LD=layoutData(); return (LD&&LD.outline&&outlineGeo(B,LD))||B; }
+// 上部結構 read from the 日報 (one-way, like the foundation): per storey 0 nothing · 1 鋼構 up · 3 Deck／剪力釘 · 4 樓板 poured; plus roof sheeted and 外牆 on.
+// A level named in the text (2F、三樓、RF…) is the floor at the foot of that storey: 樑／Deck／樓板 at a level finish the storey below it, 柱 stand on it.
+// No level named: the work moves on to the next storeys in order (鋼構 two a day, Deck and 樓板 one a day). Deliveries, checks and 錨栓 work build nothing.
+const SUP_MEMO={k:null,v:null};
+function floorAliases(name,i,n){ const C='零一二三四五六七八九十', m=/^([一二三四五六七八九十]+)(?:層|樓|F)?(夾層)?$/.exec(name||''), out=[name];
+  if(/屋頂|屋面|屋突|RF/i.test(name||'')) return out.concat(['屋頂層','屋頂','頂樓','RF','R1F','RFL']);
+  if(m){ const d=m[1].length===1?C.indexOf(m[1]):m[1]==='十'?10:m[1][0]==='十'?10+C.indexOf(m[1][1]):C.indexOf(m[1][0])*10+(m[1][2]?C.indexOf(m[1][2]):0);
+    if(m[2]) out.push(m[1]+'樓夾層',m[1]+'層夾層',d+'樓夾層',d+'F夾層',d+'MF',d+'FM','M'+d+'F',d+'夾'); else out.push(m[1]+'樓',m[1]+'層',d+'樓',d+'層',d+'FL',d+'F'); }
+  return out; }
+function supState(D){ const fl=(SITE&&SITE.floors)||[], n=fl.length; if(!n) return null;
+  const key=CUR+'|'+D+'|'+Object.keys(REPORTS||{}).length+'|'+((REPORTS[D]&&REPORTS[D].at)||'')+'|'+fl.map(f=>f.name).join(','); if(SUP_MEMO.k===key) return SUP_MEMO.v;
+  const AL=[]; fl.forEach((f,i)=>floorAliases(f.name,i,n).forEach(a=>AL.push([a.toUpperCase(),i]))); AL.sort((a,b)=>b[0].length-a[0].length);
+  const levelOf=t=>{ let u=t.toUpperCase(), best=-1; AL.forEach(([a,i])=>{ let p; while((p=u.indexOf(a))>=0){ best=Math.max(best,i); u=u.slice(0,p)+' '.repeat(a.length)+u.slice(p+a.length); } }); return best; };
+  const R_STEEL=/鋼柱|鋼樑|鋼梁|鋼構|鋼骨|大樑|小樑|吊裝|鎖固|高拉|高強度螺栓|電焊|銲接|焊接|斜撐/, R_DECK=/DECK|鋼承板|承板|剪力釘|植釘|植焊/i, R_SLAB=/樓板|樓版|版面/, R_POUR=/灌漿|澆置|澆築|打設|澆灌/, R_ROOF=/屋面|屋頂板|屋頂浪板|天溝|屋瓦/, R_CLAD=/外牆|帷幕|立面浪板|牆面浪板|外牆板/, R_SKIP=/進料|進場|卸料|退料|清潔|清理|沖洗|整理|搬運|載運|清運|查驗|檢查|放樣|養護|灑水|會議|勘查|錨栓|基礎螺栓|地樑|地梁|地坪|基礎/, R_BREAK=/打除|敲除|拆除重做|重做/;
+  const S=new Array(n).fill(0); let roof=false, clad=false, any=false;
+  const upTo=(k,v)=>{ for(let i=0;i<=Math.min(k,n-1);i++) S[i]=Math.max(S[i],v); };
+  Object.keys(REPORTS||{}).filter(d=>d<=D).sort().forEach(d=>{ let dSteel=0, dDeck=0, dSlab=0;
+    ((REPORTS[d]&&REPORTS[d].tasks)||[]).forEach(t=>{ const x=(t.text||'').trim(); if(!x||t.status==='next'||R_BREAK.test(x)) return; if(R_SKIP.test(x)) return;
+      const L=levelOf(x), col=/柱/.test(x);
+      if(R_CLAD.test(x)&&!R_ROOF.test(x)){ any=true; if(t.status==='done'&&/完成|全|收尾/.test(x)) clad=true; return; }
+      if(R_ROOF.test(x)){ any=true; upTo(n-1,1); if(t.status==='done') roof=true; return; }
+      if(R_DECK.test(x)||(R_SLAB.test(x)&&!R_POUR.test(x))){ any=true; if(L>0) upTo(L-1,3); else if(!dDeck++){ const k=S.findIndex(v=>v<3); if(k>=0) upTo(k,3); } return; }
+      if(R_POUR.test(x)&&(R_SLAB.test(x)||L>0)){ any=true; if(L>0) upTo(L-1,4); else if(!dSlab++){ const k=S.findIndex(v=>v<4); if(k>=0) upTo(k,4); } return; }
+      if(R_STEEL.test(x)){ any=true; if(L>=0) upTo(col?L:Math.max(0,L-1),1); else if(!dSteel++){ const k=S.findIndex(v=>v<1); if(k>=0) upTo(Math.min(n-1,k+1),1); } return; } }); });
+  if(roof) S[n-1]=4;
+  return (SUP_MEMO.k=key, SUP_MEMO.v=any?{S,roof,clad}:null); }
 function bldgState(st){
   let B=st&&st.bldg; const fl=(SITE&&SITE.floors)||[]; if(!B||!fl.length) return null;
   if(!B.fit&&B.zones&&B._ol!==LAYOUT){ B._ol=LAYOUT; const LD0=layoutData(); if(LD0&&LD0.outline){ const B2=outlineGeo(B,LD0); if(B2) st.bldg=B=B2; } }
@@ -3101,10 +3127,13 @@ function bldgState(st){
   if(SIM.cut!=null){ const ci=Math.max(0,Math.min(SIM.cut,fl.length-1)); states=fl.map((f,i)=>i<ci?'done':i===ci?'cut':'upcoming'); clad=true; }
   else if(SIM.bPrev!=null){ const n=fl.length, i0=Math.max(0,Math.min(n+1,SIM.bStep||0));   // 預覽蓋樓, stepped by hand
     states=fl.map((f,i)=>i<i0?'done':i===i0?'doing':'upcoming'); clad=i0>n; }
-  else { states=fl.map(f=>stageOn(floorStage(f),st.date)); const ws=((SITE&&SITE.stages)||[]).find(s=>/外牆/.test(s.name)); clad=!ws||stageOn(ws,st.date)==='done'; }
+  else { states=fl.map(f=>stageOn(floorStage(f),st.date)); const ws=((SITE&&SITE.stages)||[]).find(s=>/外牆/.test(s.name)); clad=!ws||stageOn(ws,st.date)==='done';
+    const sup=supState(st.date);   // what the 日報 say has gone up: never less than the 工程階段 dates, never undone
+    if(sup){ const rk={upcoming:0,doing:1,done:2}; states=states.map((a,i)=>{ const b=sup.S[i]>=4?'done':sup.S[i]>=1?'doing':'upcoming'; return rk[b]>rk[a]?b:a; }); if(!ws) clad=sup.clad; else clad=clad||sup.clad; if(clad&&states.some(x=>x!=='done')) clad=false; } }
   let last=-1; states.forEach((s,i)=>{ if(s!=='upcoming') last=i; }); if(last<0) return null;
   const base=+fl[0].base||0, Z=cm=>Math.max(0,((+cm||0)-base)/100/B.mPer);
-  const F=fl.slice(0,last+1).map((f,i)=>({name:f.name,z0:Z(f.base),z1:Math.max(Z(f.base)+0.15,Z(f.top)),state:states[i]==='upcoming'?'done':states[i],roof:/屋頂|屋面|RF/i.test(f.name||'')}));
+  { let below=false; for(let i=last;i>=0;i--){ if(states[i]==='doing') below=true; else if(states[i]==='upcoming') states[i]=below?'doing':'done'; } }   // under a storey whose steel is up: at least steel
+  const F=fl.slice(0,last+1).map((f,i)=>({name:f.name,z0:Z(f.base),z1:Math.max(Z(f.base)+0.15,Z(f.top)),state:states[i],roof:/屋頂|屋面|RF/i.test(f.name||'')}));
   const doing=F.find(f=>f.state==='doing'), top=F[F.length-1];
   const zA=doing?doing.z0:(clad?null:top.z1);
   const onBeams=(SITE.beams||[]).length>0&&(st.zones||[]).some(z=>z.pit);   // 地樑 standing in the dug foundation: their tops lie a little under ground level
@@ -3382,9 +3411,9 @@ function simBuild(r){
     const started=z=>!z||startedAll||startedIds.has(z.id)||startedIds.has('n:'+z.name);
     // 工序 is one-way: what the 日報 of earlier days already finished is never done again (unless it is broken out: 打除／敲除).
     // 0 nothing · 1 地樑鋼筋 · 2 地樑模板 · 3 地樑澆置 · 4 地樑拆模 · 5 回填 · 6 一樓地坪邊模 · 7 一樓地坪澆置
-    const P_REBAR=/綁筋|綁紮|鋼筋/, P_FORM=/模板|組立|封模|釘模|邊模|擋頭/, P_POUR=/灌漿|澆置|澆築|打設|澆灌/, P_STRIP=/拆模/, P_FILL=/回填|夯實|級配/, P_BREAK=/打除|敲除|拆除重做|重做/, P_BEAM=/地樑|地梁|基礎|筏基/, P_SLAB=/地坪|樓板|外圍|周邊|邊模|擋頭/;
+    const P_REBAR=/綁筋|綁紮|鋼筋/, P_FORM=/模板|組立|封模|釘模|邊模|擋頭/, P_POUR=/灌漿|澆置|澆築|打設|澆灌/, P_STRIP=/拆模/, P_FILL=/回填|夯實|級配/, P_BREAK=/打除|敲除|拆除重做|重做/, P_BEAM=/地樑|地梁|基礎|筏基/, P_SLAB=/地坪|外圍|周邊|邊模|擋頭/, P_UPPER=/[2-9二三四五六七八九十]\s*(F|樓|層)|RF|屋頂|屋面|夾層|鋼構|鋼柱|鋼樑|鋼梁|吊裝|DECK|鋼承板|剪力釘|外牆/i;   // P_UPPER: work above the ground floor, not part of this chain
     const P_SKIP=/進料|進場|卸料|退料|出料|清潔|清理|沖洗|整理|搬運|載運|清運|查驗|檢查|放樣|養護|灑水|會議|勘查/;   // deliveries, cleaning, checks: nothing gets built
-    const stepOf=(s,t)=>{ if(P_SKIP.test(t)&&!P_BREAK.test(t)) return s; if(P_BREAK.test(t)) return P_SLAB.test(t)&&!P_BEAM.test(t)?Math.min(s,5):Math.min(s,0);
+    const stepOf=(s,t)=>{ if(P_UPPER.test(t)) return s; if(P_SKIP.test(t)&&!P_BREAK.test(t)) return s; if(P_BREAK.test(t)) return P_SLAB.test(t)&&!P_BEAM.test(t)?Math.min(s,5):Math.min(s,0);
       if(s<4&&!(P_SLAB.test(t)&&!P_BEAM.test(t)&&s>=3)){ if(P_STRIP.test(t)) return s>=2?4:s; if(P_POUR.test(t)) return Math.max(s,3); if(P_FORM.test(t)) return Math.max(s,2); if(P_REBAR.test(t)) return Math.max(s,1); if(P_FILL.test(t)&&s>=3) return 5; return s; }
       if(s>=3&&P_STRIP.test(t)&&!P_SLAB.test(t)) return Math.max(s,4);
       if(P_POUR.test(t)&&!(P_BEAM.test(t)&&!P_SLAB.test(t))) return 7; if(P_FORM.test(t)&&!P_STRIP.test(t)&&!(P_BEAM.test(t)&&!P_SLAB.test(t))) return Math.max(s,6); if(P_FILL.test(t)) return Math.max(s,5); return s; };
