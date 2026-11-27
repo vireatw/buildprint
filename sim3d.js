@@ -328,7 +328,7 @@ export function create(){
     // props: beams, formwork, stacks, the office, soil
     st.props.forEach(o=>{
       if(o.mound){ const r=o.r, mm=mesh(o.soil?G.ico1:G.cone,M(o.soil?'#A98B5E':'#B49A6E')); if(o.soil) mm.scale.set(r*2,r*1.1,r*2); else { mm.scale.set(r*2,r*0.9,r*2); mm.position.y=r*0.45; } mm.position.x=o.x; mm.position.z=o.y; if(o.soil){ mm.position.y=0; mm.rotation.y=(o.x*7+o.y*3)%3; soilM.push({o,m:mm}); } mm.position.y-=pit(o.x,o.y); stat.add(mm); return; }
-      let w,d,h=o.h,cx,cy,ry=0; if(o.beam){ w=Math.hypot(o.bx-o.ax,o.by-o.ay); d=o.wd; cx=(o.ax+o.bx)/2; cy=(o.ay+o.by)/2; ry=-Math.atan2(o.by-o.ay,o.bx-o.ax); } else { w=o.w; d=o.d; cx=o.x+w/2; cy=o.y+d/2; }
+      let w,d,h=o.h,cx,cy,ry=0; if(o.beam||o.edge){ w=Math.hypot(o.bx-o.ax,o.by-o.ay); d=o.wd; cx=(o.ax+o.bx)/2; cy=(o.ay+o.by)/2; ry=-Math.atan2(o.by-o.ay,o.bx-o.ax); } else { w=o.w; d=o.d; cx=o.x+w/2; cy=o.y+d/2; }
       const z0=(o.z0||0)-(o.sign?0:pit(cx,cy)), g=grp(); g.position.set(cx,z0,cy); g.rotation.y=ry; stat.add(g);
       if(o.cage&&!o.form){ const n=Math.max(2,Math.round(w/0.22)); for(let i=0;i<=n;i++){ const x=-w/2+w*i/n; [[0,h,d,0.025],[0,0.02,d,0.025]].forEach(()=>{}); g.add(B(0.03,h,0.03,'#A0583A',x,h/2,-d/2+0.03),B(0.03,h,0.03,'#A0583A',x,h/2,d/2-0.03),B(0.03,0.03,d,'#A0583A',x,h-0.02,0)); } [[-1,0.06],[1,0.06],[-1,h-0.03],[1,h-0.03],[0,h-0.03]].forEach(([k,y])=>g.add(B(w,0.035,0.035,'#8E4A30',0,y,k*(d/2-0.03)))); return; }
       if(o.form){ const th=0.05; const pg=grp(B(w,h,th,'#C99555',0,h/2,-d/2+th/2),B(w,h,th,'#C99555',0,h/2,d/2-th/2)); if(!o.beam) pg.add(B(th,h,d,'#C99555',-w/2+th/2,h/2,0),B(th,h,d,'#C99555',w/2-th/2,h/2,0)); [0.33,0.66].forEach(k=>{ pg.add(B(w+0.004,0.012,th+0.01,'#8A5A28',0,h*k,-d/2+th/2),B(w+0.004,0.012,th+0.01,'#8A5A28',0,h*k,d/2-th/2)); }); g.add(pg); g.add(B(w,0.04,d-th*2,'#8C6A3F',0,0.02,0));
@@ -342,6 +342,8 @@ export function create(){
       if(o.pipes){ bm.visible=false; const n=4; for(let i=0;i<n;i++){ const p=C(Math.min(h,d/n)*0.48,w,'#E6EBEF',0,h/2,-d/2+d*(i+0.5)/n,G.cyl,{flatShading:false}); p.rotation.z=Math.PI/2; g.add(p); } } });
     // backfilled cells
     (st.fills||[]).forEach(f=>{ const geo=new T.ExtrudeGeometry(shapeOf(f.poly),{depth:v.FILL_H,bevelEnabled:false}); const mm=mesh(geo,M('#B49A6E')); mm.rotation.x=-Math.PI/2; { let fx=0, fy=0; f.poly.forEach(q=>{ fx+=q.x/f.poly.length; fy+=q.y/f.poly.length; }); mm.position.y=-(f.pit!=null?f.pit:pit(fx,fy)); } stat.add(mm); });
+    // 一樓地坪 poured over a zone: a plate from the pit floor to just above ground (the 地樑 and the backfill are under it)
+    (st.slabs||[]).forEach(f=>{ const geo=new T.ExtrudeGeometry(shapeOf(f.poly),{depth:f.pit+0.07,bevelEnabled:false}); const mm=mesh(geo,M(f.fresh?'#A9AAA4':'#C2C3BD')); mm.rotation.x=-Math.PI/2; mm.position.y=-f.pit; stat.add(mm); });
     // cones and the 安全第一 board
     (st.deco||[]).forEach(o=>{ if(o.k==='cone'){ const g=grp(B(0.28,0.03,0.28,'#2B3238',0,0.015,0)); const c1=mesh(G.cone,M('#F26A1B')); c1.scale.set(0.2,0.46,0.2); c1.position.y=0.26; g.add(c1); g.add(C(0.065,0.07,'#FFFFFF',0,0.25,0)); g.position.set(o.x,0,o.y); stat.add(g); }
       else if(o.k==='sign'){ const cv=document.createElement('canvas'); cv.width=256; cv.height=200; const c=cv.getContext('2d'); c.fillStyle='#fff'; c.fillRect(0,0,256,200); c.strokeStyle='#2E8B57'; c.lineWidth=14; c.strokeRect(7,7,242,186); c.fillStyle='#2E8B57'; c.fillRect(34,62,70,26); c.fillRect(56,36,26,80); c.font='800 46px "Noto Sans TC",sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('安全',180,58); c.fillText('第一',180,112); c.fillRect(30,150,196,14);
@@ -499,7 +501,7 @@ export function create(){
     // people, machines, dog
     const yard=st.yard, inY=w=>!!(yard&&v.inZone&&v.inZone(yard,w.x,w.y));
     st.workers.forEach(w=>{ const g=people.get(w); if(!g) return; g.visible=!w.inside&&!v.noCrew; if(w.inside||v.noCrew) return;   // noCrew: 預覽蓋樓 shows the building only
-      { const pd=st.pitAt?st.pitAt(w.x,w.y):0, u=g.userData; u.pd=u.pd==null?pd:u.pd+(pd-u.pd)*Math.min(1,dt*7); const sh=soilTop(st,w.x,w.y,0); u.sh=u.sh==null?sh:u.sh+(sh-u.sh)*Math.min(1,dt*8); g.position.set(w.x,Math.max(w.z||0,u.sh)-u.pd,w.y); } animPerson(g,w,t,dt,st,inY(w),v); });
+      { const pd=st.pitAt?st.pitAt(w.x,w.y,true):0, u=g.userData; u.pd=u.pd==null?pd:u.pd+(pd-u.pd)*Math.min(1,dt*7); const sh=soilTop(st,w.x,w.y,0); u.sh=u.sh==null?sh:u.sh+(sh-u.sh)*Math.min(1,dt*8); g.position.set(w.x,Math.max(w.z||0,u.sh)-u.pd,w.y); } animPerson(g,w,t,dt,st,inY(w),v); });
     st.vehicles.forEach(vh=>{ const g=machines.get(vh); if(g){ animVehicle(g,vh,t,st,v); const bl=g.userData.blob; if(bl){ const cu=vh.cur; bl.visible=!!(cu&&!vh.parked&&!vh.hidden); if(cu) bl.position.set(cu.x,0.48,cu.y); } } });
     if(dogM&&st.dog) animDog(dogM,st.dog,t,dt);
     const fx=st.fx||[]; dust.forEach((d,i)=>{ const q=fx[i]; if(!q){ d.visible=false; return; } const kk=(t-q.t0)/q.life; d.visible=kk>=0&&kk<1; d.position.set(q.x,0.12+kk*0.4,q.y); d.scale.setScalar(0.25+kk*0.55); d.material.opacity=0.42*(1-kk); });

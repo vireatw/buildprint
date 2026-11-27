@@ -2865,7 +2865,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=29').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=30').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -3380,13 +3380,29 @@ function simBuild(r){
       if(!ids.length){ if(/地樑|地梁|基礎|筏基|綁筋|鋼筋|模板|組立|灌漿|澆置|混凝土|拆模|放樣|開挖/.test(t.text)) startedAll=true; return; }
       ids.forEach(id=>{ if(id===ZONE_ALL) startedAll=true; else { startedIds.add(id); const nm=zoneName(id); if(nm) startedIds.add('n:'+nm); } }); }); });
     const started=z=>!z||startedAll||startedIds.has(z.id)||startedIds.has('n:'+z.name);
+    // 工序 is one-way: what the 日報 of earlier days already finished is never done again (unless it is broken out: 打除／敲除).
+    // 0 nothing · 1 地樑鋼筋 · 2 地樑模板 · 3 地樑澆置 · 4 地樑拆模 · 5 回填 · 6 一樓地坪邊模 · 7 一樓地坪澆置
+    const P_REBAR=/綁筋|綁紮|鋼筋/, P_FORM=/模板|組立|封模|釘模|邊模|擋頭/, P_POUR=/灌漿|澆置|澆築|打設|澆灌/, P_STRIP=/拆模/, P_FILL=/回填|夯實|級配/, P_BREAK=/打除|敲除|拆除重做|重做/, P_BEAM=/地樑|地梁|基礎|筏基/, P_SLAB=/地坪|樓板|外圍|周邊|邊模|擋頭/;
+    const P_SKIP=/進料|進場|卸料|退料|出料|清潔|清理|沖洗|整理|搬運|載運|清運|查驗|檢查|放樣|養護|灑水|會議|勘查/;   // deliveries, cleaning, checks: nothing gets built
+    const stepOf=(s,t)=>{ if(P_SKIP.test(t)&&!P_BREAK.test(t)) return s; if(P_BREAK.test(t)) return P_SLAB.test(t)&&!P_BEAM.test(t)?Math.min(s,5):Math.min(s,0);
+      if(s<4&&!(P_SLAB.test(t)&&!P_BEAM.test(t)&&s>=3)){ if(P_STRIP.test(t)) return s>=2?4:s; if(P_POUR.test(t)) return Math.max(s,3); if(P_FORM.test(t)) return Math.max(s,2); if(P_REBAR.test(t)) return Math.max(s,1); if(P_FILL.test(t)&&s>=3) return 5; return s; }
+      if(s>=3&&P_STRIP.test(t)&&!P_SLAB.test(t)) return Math.max(s,4);
+      if(P_POUR.test(t)&&!(P_BEAM.test(t)&&!P_SLAB.test(t))) return 7; if(P_FORM.test(t)&&!P_STRIP.test(t)&&!(P_BEAM.test(t)&&!P_SLAB.test(t))) return Math.max(s,6); if(P_FILL.test(t)) return Math.max(s,5); return s; };
+    const taskIn=(t,z)=>{ const ids=zoneIds(t.zone); return !ids.length||ids.some(id=>id===ZONE_ALL||id===z.id||zoneName(id)===z.name); };
+    const preMemo=new Map(), preOf=z=>{ if(!z) return 0; if(preMemo.has(z)) return preMemo.get(z); let st0=0;
+      Object.keys(REPORTS||{}).filter(d=>d<dayNow).sort().forEach(d=>{ ((REPORTS[d]&&REPORTS[d].tasks)||[]).forEach(t=>{ if(t.status==='next'||!(t.text||'').trim()||!taskIn(t,z)) return; st0=stepOf(st0,t.text); }); });
+      if(st0<5&&((SITE&&SITE.fills)||[]).some(f=>f.from&&f.from<dayNow&&inZone(z,MX(+f.x),MY(+f.y)))) st0=Math.max(st0,5);   // cells already backfilled: the beams there were stripped long ago
+      preMemo.set(z,st0); return st0; };
+    const nowOf=z=>{ if(!z) return 0; let st0=preOf(z); z.tasks.concat(unz).forEach(t=>{ if(t.status==='next') return; st0=stepOf(st0,t.text||''); }); return st0; };
     const modeOf=z=>{ if(!z) return stripAll?'strip':'concrete';
+      if(preOf(z)>=4&&!P_BREAK.test(z.txt)) return 'concrete';   // 地樑 stripped on an earlier day: today's 模板／澆置 is for what comes next (一樓地坪), the beams stay as they are
       if(/綁筋/.test(z.doing)) return 'rebar'; if(/組立|(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing)) return 'form'; if(stripZ(z)||stripAll) return 'strip';
       if(/拆模/.test(z.txt)) return 'concrete'; if(/(灌漿|澆置|打設|混凝土|混泥土)|組立/.test(z.txt)) return 'form'; if(/綁筋/.test(z.txt)) return 'form'; return 'concrete'; };
+    wz.forEach(z=>{ const p0=preOf(z), n0=nowOf(z); z.slab=p0>=7?'set':n0>=7?'fresh':null; z.edge=n0>=6&&p0<7; });   // 一樓地坪: 邊模 up → poured today → set
     const TH=0.34, CH=0.23;   // beam width; half the column size (columns a little wider than the beams)
     const pick=mode=>{ let m=mode; if(m==='strip') m='form'; if(m==='rebar'&&rng()<0.3) m='form'; return m; };
     const fillOf=(z,md)=>{ if(!z) return 'empty'; if(md==='strip') return 'full'; if(/(灌漿|澆置|打設|混凝土|混泥土)/.test(z.doing+' '+z.txt)) return 'dyn'; return 'empty'; };
-    const beamPiece=(ax,ay,bx,by,m,fl,zn)=>{ if(slabOn) return;
+    const beamPiece=(ax,ay,bx,by,m,fl,zn)=>{ if(slabOn||(zn&&zn.slab==='set')) return;
       if(m==='rebar') props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.42,col:SC.rebar,cage:true});
       else if(m==='form'){ const st0=modeOf(zn)==='strip'; props.push({beam:true,ax,ay,bx,by,wd:TH+0.12,h:0.56,col:SC.ply,ply:true,form:true,fill:fl,filled:fl==='full',zn,strip:st0,stripped:st0&&rng()<0.3}); }   // 拆模: boards come off one by one (stripStep)
       else props.push({beam:true,ax,ay,bx,by,wd:TH,h:0.46,col:m==='fresh'?SC.fresh:SC.concrete});
@@ -3423,9 +3439,15 @@ function simBuild(r){
     // the dig is a little wider than the zone (0.45), so a beam drawn along the zone's edge is down in it with the rest
     const grow=(P,d)=>{ let A=0; P.forEach((p,i)=>{ const q=P[(i+1)%P.length]; A+=p.x*q.y-q.x*p.y; }); const sg=A>0?1:-1; return P.map((p,i)=>{ const a=P[(i-1+P.length)%P.length], b=P[(i+1)%P.length], l1=Math.hypot(p.x-a.x,p.y-a.y)||1, l2=Math.hypot(b.x-p.x,b.y-p.y)||1, n1={x:(p.y-a.y)/l1*sg,y:-(p.x-a.x)/l1*sg}, n2={x:(b.y-p.y)/l2*sg,y:-(b.x-p.x)/l2*sg}, k=Math.min(2,1/Math.max(0.25,1+n1.x*n2.x+n1.y*n2.y)); return {x:p.x+(n1.x+n2.x)*k*d,y:p.y+(n1.y+n2.y)*k*d}; }); };
     zones.forEach(z=>{ if(z.beamPts&&z.beamPts.length&&started(z)&&!z.isYard&&!z.isStore&&!z.isGate){ z.pit=PIT_D; z.pitPts=grow(z.pts||[{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}],0.45); } });
-    if(!slabOn) joints.forEach(j=>{ const z=zoneAt(j.x+0.3,j.y+0.3)||zoneAt(j.x-0.3,j.y-0.3)||zoneAt(j.x+0.3,j.y-0.3)||zoneAt(j.x-0.3,j.y+0.3); if(!started(z)) return; const m=modeOf(z);
+    if(!slabOn) joints.forEach(j=>{ const z=zoneAt(j.x+0.3,j.y+0.3)||zoneAt(j.x-0.3,j.y-0.3)||zoneAt(j.x+0.3,j.y-0.3)||zoneAt(j.x-0.3,j.y+0.3); if(!started(z)||(z&&z.slab==='set')) return; const m=modeOf(z);
       const fl=fillOf(z,m); const mm=m==='strip'?'form':m;
       box(j.x-CH,j.y-CH,CH*2,CH*2,0.56,mm==='rebar'?SC.rebar:mm==='form'?SC.ply:SC.fresh,{cage:mm==='rebar',ply:mm==='form',form:mm==='form',fill:fl,filled:fl==='full',cx:j.x,cy:j.y,zn:z,strip:m==='strip',stripped:m==='strip'&&rng()<0.3}); });
+    // 一樓地坪: its 邊模 stands only round the outside of the building, on the outer 地樑 (the beams themselves are not formed again); once poured the slab covers the zone
+    if(!slabOn){ const H=bldg&&bldg.H&&bldg.H.length>2?bldg.H.map(p=>({x:p[0],y:p[1]})):null, rings=H?[H]:wz.filter(z=>z.edge).map(z=>z.pts||[{x:z.x,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x+z.w,y:z.y+z.h},{x:z.x,y:z.y+z.h}]);
+      rings.forEach(R=>{ let gx=0, gy=0; R.forEach(p=>{ gx+=p.x/R.length; gy+=p.y/R.length; });
+        R.forEach((p,i)=>{ const q=R[(i+1)%R.length], L=Math.hypot(q.x-p.x,q.y-p.y); if(L<0.2) return; const n=Math.max(1,Math.ceil(L/2.4)), ux=(q.x-p.x)/L, uy=(q.y-p.y)/L; let nx=-uy, ny=ux; if((gx-(p.x+q.x)/2)*nx+(gy-(p.y+q.y)/2)*ny<0){ nx=-nx; ny=-ny; }
+          for(let k=0;k<n;k++){ const ax=p.x+ux*L*k/n, ay=p.y+uy*L*k/n, bx=p.x+ux*L*(k+1)/n, by=p.y+uy*L*(k+1)/n, mx=(ax+bx)/2, my=(ay+by)/2, z=zoneAt(mx+nx*0.5,my+ny*0.5)||zoneNear(mx,my,1.6); if(!z||!z.edge) continue;
+            props.push({edge:true,ply:true,ax,ay,bx,by,wd:0.06,h:0.34,col:SC.ply,z0:FILL_H-0.03,x:Math.min(ax,bx),y:Math.min(ay,by),w:Math.abs(bx-ax)||0.06,d:Math.abs(by-ay)||0.06,zn:z}); (z.edgePts||(z.edgePts=[])).push({x:mx,y:my,nx,ny}); } }); }); }
   }
   // unzoned curing / pouring → apply to beam zones
   if(unz.some(t=>/養護|灑水/.test(t.text)&&t.status==='doing')) work.forEach(z=>{ if((z.beamXs||z.beamPts)&&!sprays.find(s=>s.x===z.cx)) sprays.push({x:z.cx,y:z.cy,r:Math.min(z.w,z.h)*0.45}); });
@@ -3714,8 +3736,8 @@ function simBuild(r){
   const pourLater=!todayView&&SIM.half==='am'&&Object.keys(machinesOf(r)).some(k=>{ if(!/押送|泵浦|幫浦|預拌/.test(k)) return false; const x=splitOf(r,k,true); return !x.f&&!x.am&&x.pm>0; });   // morning of an afternoon pour: forms still empty
   props.forEach(o=>{ if(o.fill==='dyn'&&(!pumpV||pumpV.parked||pumpV.zone!==o.zn)){ if(pourLater){ o.fill='empty'; o.filled=false; } else { o.fill='full'; o.filled=true; } } });
   const toG=(x,y)=>({x:MX(x),y:MY(y)}), toN=(gx,gy)=>({x:+(bx0+gx/GW*bw).toFixed(4),y:+(by0+gy/GH*bh).toFixed(4)});
-  const pitAt=(x,y)=>{ const z=zones.find(z=>z.pit&&inPolyS([x,y],z.pitPts.map(q=>[q.x,q.y]))); return z?z.pit:0; };
-  const stOut={pitAt,bldg,snapped:!!beamTL,machCount:MM,drop,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); return stOut;
+  const pitAt=(x,y,stand)=>{ const z=zones.find(z=>z.pit&&inPolyS([x,y],z.pitPts.map(q=>[q.x,q.y]))); return z?(stand&&z.slab?-0.07:z.pit):0; };   // stand: where feet are (on top of the 一樓地坪 once it is poured)
+  const stOut={pitAt,bldg,snapped:!!beamTL,machCount:MM,drop,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); stOut.slabs=zones.filter(z=>z.slab&&z.pit&&z.pitPts).map(z=>({poly:z.pitPts,pit:z.pit,fresh:z.slab==='fresh'})); return stOut;
 }
 let z_loadPt=null, st_pipePt=null;
 function inZone(z,x,y){ if(z.pts) return inPolyS([x,y],z.pts.map(p=>[p.x,p.y])); return x>=z.x-0.05&&x<=z.x+z.w+0.05&&y>=z.y-0.05&&y<=z.y+z.h+0.05; }
@@ -3745,6 +3767,7 @@ function pickTarget(w,zones,anyZones,rng,stacks){
     for(let i=0;i<12;i++){ const b=z.beamPts[Math.floor(rng()*z.beamPts.length)]; if(!w.okPt(b)) continue;
       for(const o of (rng()<.5?[0.45,-0.45]:[-0.45,0.45])){ const q={x:b.x+(b.ax==='v'?o:0),y:b.y+(b.ax==='v'?0:o)}; if(w.okPt(q)&&w.okPt({x:q.x+(q.x-b.x),y:q.y+(q.y-b.y)})){ w.tx=q.x; w.ty=q.y; w.aim=b; return; } } }
   }
+  if(w.kind==='form' && z.edgePts && z.edgePts.length){ const b=z.edgePts[Math.floor(rng()*z.edgePts.length)]; w.tx=b.x+b.nx*0.45; w.ty=b.y+b.ny*0.45; return; }   // 一樓地坪邊模: along the outside edge, standing inside it
   if(z.beamPts && z.beamPts.length && rng()<0.85){ const b=z.beamPts[Math.floor(rng()*z.beamPts.length)]; const o=rng()<.5?0.42:-0.42; w.tx=b.x+(b.ax==='v'?o:0); w.ty=b.y+(b.ax==='v'?0:o); return; }
   if(z.beamXs && z.beamYs && rng()<0.8){
     // stand next to a beam line
@@ -4752,7 +4775,7 @@ function simDraw(){
   // gate posts sort with trucks and people, so a truck in the gate passes between them
   [-1,1].forEach(k=>{ const px=G.G.x+G.t.x*G.half*k, py=G.G.y+G.t.y*G.half*k; items.push({d:DEP(px,py)+0.15,f:()=>sBox(c,{x:px-0.12,y:py-0.12,w:0.24,d:0.24,h:1.25,col:'#5B6770'})}); });
   if(G3){ SIM.gl.render(st,{noCrew:SIM.bPrev!=null,t,N,W:SIM.W,H:SIM.H,dpr:SIM.dpr,S:SIM.S,ox:SIM.ox,oy:SIM.oy,rot:ROT.a,cx:ROT.cx,cy:ROT.cy,GW,GH,FILL_H,wx:wxOf(st.weather),edit:!!ISL.edit,lunch:!!st.lunch,tv:st.lunch?(st.lunchT||0):t,machSel:ISL.machSel,soilSel:ISL.soilSel,inZone,company:SITE&&SITE.company,site:SITE&&SITE.name,bs:BS});
-    st.workers.forEach(w=>{ if(w.inside||SIM.bPrev!=null){ w.sx=-9999; w.sy=-9999; return; } const q=SP(w.x,w.y,(w.z||0)+0.55-(st.pitAt?st.pitAt(w.x,w.y):0)); w.sx=q[0]; w.sy=q[1]; w.sr=SIM.S*0.4; }); if(st.dog){ const q=SP(st.dog.x,st.dog.y,0.25); st.dog.sx=q[0]; st.dog.sy=q[1];
+    st.workers.forEach(w=>{ if(w.inside||SIM.bPrev!=null){ w.sx=-9999; w.sy=-9999; return; } const q=SP(w.x,w.y,(w.z||0)+0.55-(st.pitAt?st.pitAt(w.x,w.y,true):0)); w.sx=q[0]; w.sy=q[1]; w.sr=SIM.S*0.4; }); if(st.dog){ const q=SP(st.dog.x,st.dog.y,0.25); st.dog.sx=q[0]; st.dog.sy=q[1];
       if(st.dog.state==='sleep'){ const s0=SIM.S*0.5; c.fillStyle=`rgba(255,255,255,${N>0.3?0.85:0.95})`; c.strokeStyle='rgba(22,34,44,.5)'; c.lineWidth=2.5; c.textAlign='left'; [0,1,2].forEach(i=>{ const k=((t*0.4)+i/3)%1; c.globalAlpha=1-k; c.font=`800 ${Math.max(9,s0*(0.28+k*0.2))}px sans-serif`; const x=q[0]+s0*(0.3+k*0.5), y=q[1]-s0*(0.4+k*1.1); c.strokeText('z',x,y); c.fillText('z',x,y); }); c.globalAlpha=1; } } }   // 小黃 asleep: a few z's drifting up
   else { items.sort((a,b)=>a.d-b.d);
     if(BG){ const post=[]; items.forEach(i=>{ if(i.x!=null&&bldgFront(BG,i.x,i.y,i.z)) post.push(i); else i.f(); }); drawBuilding(c,BG,BS); post.forEach(i=>i.f()); }   // building between what's behind it and what's in front / on top

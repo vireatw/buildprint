@@ -69,3 +69,8 @@ No network on Claude's side is guaranteed, so test with a fake Firebase: serve t
 
 ## Site saves and snapshots (2026-11-26)
 - `saveSite` writes the whole site document and waits for the server; the snapshot listeners replace `SITES[id]`. While a save is queued or in flight (`siteBusy(id)`), snapshots for that site are ignored: otherwise the acknowledgement of save 1 wiped an edit made before it returned (two quick 回填 taps on 4G: the second vanished).
+
+## 工序 is one-way (2026-11-27, Danny's rule)
+- A work item that earlier 日報 finished is never drawn as being done again, unless a task says 打除／敲除. `simBuild` reads every report before the day (`preOf(z)`, `stepOf`) into a per-zone stage: 0 nothing · 1 地樑鋼筋 · 2 地樑模板 · 3 地樑澆置 · 4 拆模 · 5 回填 · 6 一樓地坪邊模 · 7 一樓地坪澆置. Backfilled cells also prove stage 5. Deliveries, cleaning, checks (`P_SKIP`) build nothing.
+- Once the 地樑 are stripped, 模板／組立／澆置 in a report belong to the next element (一樓地坪): the beams stay concrete, `z.edge` puts 邊模 only round the building outline (`props` with `edge:true`), and after the pour `z.slab` ('fresh' that day, 'set' after) covers the zone (`st.slabs`), workers stand on it (`pitAt(x,y,true)`).
+- Keep extending this chain rather than matching today's words alone.
