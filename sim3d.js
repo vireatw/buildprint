@@ -36,10 +36,10 @@ function lerpAng(a,b,k){ let d=b-a; d=Math.atan2(Math.sin(d),Math.cos(d)); retur
 
 /* ---------------- people ---------------- */
 const TOOL_ANG={ tie:t=>1.15+Math.sin(t*9)*0.12, weld:t=>0.8+Math.sin(t*1.3)*0.06, trowel:t=>0.1+Math.sin(t*3.2)*0.7, float:t=>1.0+Math.sin(t*3.5)*0.1, brick:t=>1.2-(Math.sin(t*2.2)+1)/2, tile:t=>1.15+Math.abs(Math.sin(t*5))*0.18,
-  paint:t=>-0.55+Math.sin(t*3)*0.45, waterproof:t=>0.9+Math.sin(t*2.6)*0.12, drill:t=>0.25+Math.sin(t*40)*0.02, saw:t=>0.85+Math.sin(t*8)*0.18, grind:t=>1.0+Math.sin(t*2)*0.05, shovel:t=>{ const k=(t*0.9)%1; return k<0.5?1.2:1.2-(k-0.5)*2*1.5; },
+  paint:t=>-0.55+Math.sin(t*3)*0.45, waterproof:t=>0.9+Math.sin(t*2.6)*0.12, drill:t=>0.25+Math.sin(t*40)*0.02, saw:t=>0.85+Math.sin(t*8)*0.18, grind:t=>1.0+Math.sin(t*2)*0.05, rake:t=>0.95+Math.sin(t*3.2)*0.3, shovel:t=>{ const k=(t*0.9)%1; return k<0.5?1.2:1.2-(k-0.5)*2*1.5; },
   survey:t=>0.25, wire:t=>0.3+Math.sin(t*3.5)*0.5, wrench:t=>0.55+Math.sin(t*5)*0.4, breaker:t=>1.15, glass:t=>0.5, spray:t=>0.3+Math.sin(t*2)*0.25, hammer:t=>0.4+Math.abs(Math.sin(t*6)), handle:t=>1.0+Math.sin(t*2.4)*0.22, flag:t=>-1.05+Math.sin(t*3.2)*0.55, inspect:t=>0.9 };
 TOOL_ANG.plant=TOOL_ANG.shovel;
-const TWO_HANDS={breaker:1,shovel:1,plant:1,paint:1,waterproof:1,float:1,glass:1,handle:1};
+const TWO_HANDS={breaker:1,rake:1,shovel:1,plant:1,paint:1,waterproof:1,float:1,glass:1,handle:1};
 const LOW={tie:1,tile:1,float:0.6};
 // what is in the hand (origin = the hand, +X forward, −Y down the arm) and what stands on the ground in front of the feet
 function toolFor(act){ const hand=grp(), ground=grp(); let fx=null;
@@ -68,6 +68,7 @@ function toolFor(act){ const hand=grp(), ground=grp(); let fx=null;
   case 'handle': hand.add(B(0.2,0.16,0.26,'#C99555',0.04,-0.04,0.14)); break;
   case 'flag': hand.add(B(0.03,0.2,0.03,'#FF5A1F',0.02,-0.12,0)); break;
   case 'inspect': hand.add(B(0.02,0.2,0.15,'#FFF7E0',0.05,-0.02,0)); break;
+  case 'rake': { const p=B(0.025,0.85,0.025,'#A0703C',0.24,-0.28,0); p.rotation.z=0.7; hand.add(p); hand.add(B(0.04,0.04,0.34,'#7C8791',0.55,-0.6,0)); break; }   // 整平: long handle, flat steel head
   case 'broom': { const p=B(0.025,0.75,0.025,'#A0703C',0.2,-0.24,0); p.rotation.z=0.7; hand.add(p); hand.add(B(0.1,0.06,0.22,'#D8B25A',0.48,-0.52,0)); break; }
   case 'bento': hand.add(B(0.2,0.08,0.15,'#F4F1E8',0.08,-0.02,-0.1),B(0.21,0.025,0.16,'#C0392B',0.08,0.025,-0.1)); break;
   case 'hose': fx=grp(); for(let i=0;i<7;i++){ const d=S(0.03,'#5AAFF0',0,0,0,G.ico,{transparent:true,opacity:0.8}); d.castShadow=false; fx.add(d); } hand.add(fx); hand.add(B(0.1,0.03,0.03,'#2D7D46',0.04,0,0)); break;

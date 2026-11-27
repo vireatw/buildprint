@@ -2807,6 +2807,7 @@ const ACT_TEXT=[
   ['waterproof',/防水|止水|PU|瀝青|防潮|塗膜|隔熱/i],
   ['spray',/噴漆|噴塗|噴漿|噴藥|消毒|噴砂|披覆|噴凝土/],
   ['paint',/油漆|塗裝|塗料|批土|刷漆|面漆|底漆|上漆|補漆|烤漆/],
+  ['rake',/(土方|土壤|填土|回填|級配|碎石|砂石).*(整平|鋪平|刮平|推平|耙平|攤平)|(整平|攤平|推平).*(土方|級配|碎石)|整地/],   // earth being levelled is raked, not trowelled like concrete (must come before 粉光)
   ['float',/粉光|整平|鏝平|抹平|地坪|收面|刮平|找平|洩水坡|舖砂|鋪砂|環氧/],
   ['trowel',/泥作|粉刷|打底|抹灰|水泥砂漿|填縫|抿石|洗石|補土|修補|矽利康|打膠|嵌縫/],
   ['glass',/玻璃|帷幕/],
@@ -2814,6 +2815,7 @@ const ACT_TEXT=[
   ['wrench',/螺栓|鋼構|鷹架|施工架|搭架|拆架|支撐|安全網|護欄|組裝|吊裝|電梯|空調|機組|圍籬/],
   ['drill',/鑽孔|植筋|鑽|鎖固|輕隔間|隔間|天花|矽酸鈣|石膏板|鋁窗|門窗|門框|窗框|安裝|裝設|固定|五金|欄杆|扶手|燈具|開關|插座|衛浴|器具|設備/],
   ['plant',/植栽|種植|景觀|草皮|綠化|喬木|灌木/],
+  ['rake',/整平|鋪平|耙平|刮平|推平|整地/],   // levelling soil: a rake pulled back and forth, not digging
   ['shovel',/開挖|挖土|挖溝|土方|回填|整地|鏟|清土|清淤|碎石|級配|砂石|溝渠|人工挖/],
   ['handle',/搬運|進料|卸料|卸貨|材料|吊料|運料|收料|堆置/]];
 const ACT_TRADE=[
@@ -2865,7 +2867,7 @@ function rngOf(seed){ let s=0; for(const c of seed) s=(s*131+c.charCodeAt(0))>>>
 // 工地動畫 is drawn in 3D (sim3d.js) on every device. The module starts loading as the page opens; until it is ready the
 // 2D canvas shows only the plain ground. The old 2D drawing in simDraw is kept only for a device whose WebGL cannot start.
 try{ localStorage.removeItem('bp3d'); }catch(e){}
-let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=30').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
+let G3_MOD=null; const G3_LOAD=import('./sim3d.js?v=31').then(m=>(G3_MOD=m)).catch(e=>{ console.warn('3D off',e); return null; });
 function g3Mount(){ if(!SIM.cv) return;
   const put=()=>{ if(!SIM.gl||!SIM.cv) return; const h=SIM.cv.parentElement; if(SIM.gl.canvas.parentElement!==h) h.insertBefore(SIM.gl.canvas,SIM.cv); h.classList.add('g3'); simDraw(); };
   if(SIM.gl){ put(); return; } if(SIM.glWait) return; SIM.glWait=true;
@@ -3765,8 +3767,8 @@ function simBuild(r){
   const pourLater=!todayView&&SIM.half==='am'&&Object.keys(machinesOf(r)).some(k=>{ if(!/押送|泵浦|幫浦|預拌/.test(k)) return false; const x=splitOf(r,k,true); return !x.f&&!x.am&&x.pm>0; });   // morning of an afternoon pour: forms still empty
   props.forEach(o=>{ if(o.fill==='dyn'&&(!pumpV||pumpV.parked||pumpV.zone!==o.zn)){ if(pourLater){ o.fill='empty'; o.filled=false; } else { o.fill='full'; o.filled=true; } } });
   const toG=(x,y)=>({x:MX(x),y:MY(y)}), toN=(gx,gy)=>({x:+(bx0+gx/GW*bw).toFixed(4),y:+(by0+gy/GH*bh).toFixed(4)});
-  const pitAt=(x,y,stand)=>{ const z=zones.find(z=>z.pit&&inPolyS([x,y],z.pitPts.map(q=>[q.x,q.y]))); return z?(stand&&z.slab?-0.07:z.pit):0; };   // stand: where feet are (on top of the 一樓地坪 once it is poured)
-  const stOut={pitAt,bldg,snapped:!!beamTL,machCount:MM,drop,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; soilProps(stOut); fillsBuild(stOut); stOut.slabs=zones.filter(z=>z.slab&&z.pit&&z.pitPts).map(z=>({poly:z.pitPts,pit:z.pit,fresh:z.slab==='fresh'})); return stOut;
+  const pitAt=(x,y,stand)=>{ const z=zones.find(z=>z.pit&&inPolyS([x,y],z.pitPts.map(q=>[q.x,q.y]))); if(!z) return 0; if(stand){ if(z.slab) return -0.07; if(((pitAt.st&&pitAt.st.fills)||[]).some(f=>inPolyS([x,y],f.poly.map(p=>[p.x,p.y])))) return z.pit-FILL_H; } return z.pit; };   // stand: where feet are (on top of the 一樓地坪 once it is poured)
+  const stOut={pitAt,bldg,snapped:!!beamTL,machCount:MM,drop,pile,dog,deco,fx:[],toG,toN,date:(r?r.date:selDate),gateClosed:offNow,isToday:isTodayR,weather:(()=>{ const a0=!r||!(r.weather||r.wx)?wxAuto(r?r.date:selDate):null; if(a0) r=Object.assign({},r||{},{wx:{am:a0.am,pm:a0.pm},weather:''}); if(!r) return ''; const h=isTodayR?(SIM.todayHalf||nowHalf()):(SIM.half||'all'); return h==='am'?wxHalf(r,'am'):(h==='pm'||h==='ng')?wxHalf(r,'pm'):wxLabel(r); })(),pumpV,decor,zones,props,vehicles,sprays,workers,stacks,gatePt,exitPt,GT,BND,yard,rng,anyZones,loadPt:z_loadPt,total:Object.values(W).reduce((s,v)=>s+(+v||0),0),drawn:workers.length,machN}; pitAt.st=stOut; soilProps(stOut); fillsBuild(stOut); stOut.slabs=zones.filter(z=>z.slab&&z.pit&&z.pitPts).map(z=>({poly:z.pitPts,pit:z.pit,fresh:z.slab==='fresh'})); return stOut;
 }
 let z_loadPt=null, st_pipePt=null;
 function inZone(z,x,y){ if(z.pts) return inPolyS([x,y],z.pts.map(p=>[p.x,p.y])); return x>=z.x-0.05&&x<=z.x+z.w+0.05&&y>=z.y-0.05&&y<=z.y+z.h+0.05; }
@@ -3796,6 +3798,8 @@ function pickTarget(w,zones,anyZones,rng,stacks){
     for(let i=0;i<12;i++){ const b=z.beamPts[Math.floor(rng()*z.beamPts.length)]; if(!w.okPt(b)) continue;
       for(const o of (rng()<.5?[0.45,-0.45]:[-0.45,0.45])){ const q={x:b.x+(b.ax==='v'?o:0),y:b.y+(b.ax==='v'?0:o)}; if(w.okPt(q)&&w.okPt({x:q.x+(q.x-b.x),y:q.y+(q.y-b.y)})){ w.tx=q.x; w.ty=q.y; w.aim=b; return; } } }
   }
+  if((w.act==='rake'||w.act==='shovel') && z.beamPts && z.beamPts.length){   // earth crews work on the soil inside the cells, never standing on a 地樑
+    for(let i=0;i<16;i++){ const q=randIn(z,rng); if(z.beamPts.every(b=>Math.hypot(b.x-q.x,b.y-q.y)>0.6)&&(!w.okPt||w.okPt(q))){ w.tx=q.x; w.ty=q.y; return; } } }
   if(w.kind==='form' && z.edgePts && z.edgePts.length){ const b=z.edgePts[Math.floor(rng()*z.edgePts.length)]; w.tx=b.x+b.nx*0.45; w.ty=b.y+b.ny*0.45; return; }   // 一樓地坪邊模: along the outside edge, standing inside it
   if(z.beamPts && z.beamPts.length && rng()<0.85){ const b=z.beamPts[Math.floor(rng()*z.beamPts.length)]; const o=rng()<.5?0.42:-0.42; w.tx=b.x+(b.ax==='v'?o:0); w.ty=b.y+(b.ax==='v'?0:o); return; }
   if(z.beamXs && z.beamYs && rng()<0.8){
@@ -4138,9 +4142,9 @@ const LOOK={skin:['#E9B88C','#F0C8A0','#D9A074','#C68A5E','#EBC0A0'],shirt:['#5B
 const TOOL_ANG={
   tie:T=>1.15+Math.sin(T*9)*0.12, weld:T=>0.8+Math.sin(T*1.3)*0.06, trowel:T=>0.1+Math.sin(T*3.2)*0.7, float:T=>1.1+Math.sin(T*3.5)*0.08,
   brick:T=>1.2-(Math.sin(T*2.2)+1)/2*1.0, tile:T=>1.15+Math.abs(Math.sin(T*5))*0.18, paint:T=>-0.55+Math.sin(T*3)*0.45, waterproof:T=>0.95+Math.sin(T*2.6)*0.12,
-  drill:T=>0.25+Math.sin(T*40)*0.02, saw:T=>0.95, grind:T=>1.0+Math.sin(T*2)*0.05, shovel:T=>{ const k=(T*0.9)%1; return k<0.5?1.2:1.2-(k-0.5)*2*1.5; }, plant:T=>{ const k=(T*0.9)%1; return k<0.5?1.2:1.2-(k-0.5)*2*1.5; },
+  drill:T=>0.25+Math.sin(T*40)*0.02, saw:T=>0.95, grind:T=>1.0+Math.sin(T*2)*0.05, rake:T=>0.95+Math.sin(T*3.2)*0.3, shovel:T=>{ const k=(T*0.9)%1; return k<0.5?1.2:1.2-(k-0.5)*2*1.5; }, plant:T=>{ const k=(T*0.9)%1; return k<0.5?1.2:1.2-(k-0.5)*2*1.5; },
   survey:T=>0.25, wire:T=>0.3+Math.sin(T*3.5)*0.5, wrench:T=>0.55+Math.sin(T*5)*0.4, breaker:T=>1.2, glass:T=>0.5+Math.sin(T*1.5)*0.05, spray:T=>0.3+Math.sin(T*2)*0.25 };
-const TOOL_2H={breaker:1,shovel:1,plant:1,paint:1,waterproof:1,float:1,glass:1};
+const TOOL_2H={breaker:1,rake:1,shovel:1,plant:1,paint:1,waterproof:1,float:1,glass:1};
 function drawTool(c,act,o){
   const {ax,ay,f,s,T,px,base,ang}=o, gx=px+f*s*0.4, gy=base;
   const L=(x0,y0,x1,y1,col,lw)=>{ c.strokeStyle=col; c.lineWidth=Math.max(1.2,lw); c.beginPath(); c.moveTo(x0,y0); c.lineTo(x1,y1); c.stroke(); };
